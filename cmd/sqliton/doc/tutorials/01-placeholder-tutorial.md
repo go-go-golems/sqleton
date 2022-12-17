@@ -1,6 +1,6 @@
 ---
-Title: Placeholder application
-Slug: placeholder-application
+Title: Placeholder tutorial
+Slug: placeholder-tutorial
 Topics:
 - sqliton
 IsTemplate: false

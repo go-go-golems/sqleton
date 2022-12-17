@@ -1,7 +1,7 @@
 ---
 Title: Help System
 Slug: help-system
-Short: glazed comes with a powerful help system to make it easy to create rich CLI help pages.
+Short: sqliton provides a rich help system.
 Topics:
 - help
 Commands:
@@ -24,4 +24,4 @@ SectionType: GeneralTopic
 
 ## Overview
 
-This is the [glazed](https://github.com/wesen/glazed) help system.
+sqliton uses the [glazed](https://github.com/wesen/glazed) help system.

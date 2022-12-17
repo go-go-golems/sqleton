@@ -4,7 +4,8 @@ go 1.19
 
 require (
 	github.com/spf13/cobra v1.6.1
-	github.com/wesen/glazed v0.1.1-0.20221214032429-b395969c3ed7
+	github.com/wesen/glazed v0.1.1-0.20221217180431-81f9ff63e6e3
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -29,10 +30,12 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
+	github.com/scylladb/termtables v0.0.0-20191203121021-c4c0b6d42ff4 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/yuin/goldmark v1.5.2 // indirect
 	github.com/yuin/goldmark-emoji v1.0.1 // indirect
 	golang.org/x/net v0.0.0-20221002022538-bcab6841153b // indirect
 	golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab // indirect
-	gopkg.in/yaml.v2 v2.3.0 // indirect
+	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

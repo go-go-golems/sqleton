@@ -23,13 +23,13 @@ Don't forget to enable `--use-dbt-profiles`. Use `--dbt-profiles-path` to use an
 ---
 
 ```
-❯ sqliton db ls --use-dbt-profiles
-+-------------------+-----------+-------+-----------+-------+-------------------+-------------------+
-| database          | name      | type  | hostname  | port  | username          | schema            |
-+-------------------+-----------+-------+-----------+-------+-------------------+-------------------+
-| ttc_analytics     | localhost | mysql | localhost | 3336  | root              | ttc_analytics     |
-| ttc_analytics     | prod      | mysql | localhost | 50393 | ttc_analytics     | ttc_analytics     |
-| ttc_analytics     | prod      | mysql | localhost | 50393 | ttc_analytics     | ttc_analytics     |
-| ttc_dev_analytics | dev       | mysql | localhost | 50392 | ttc_dev_analytics | ttc_dev_analytics |
-+-------------------+-----------+-------+-----------+-------+-------------------+-------------------+
+❯ sqliton db ls --use-dbt-profiles --fields name,type,hostname,database
++---------------------+-------+-----------+-------------------+
+| name                | type  | hostname  | database          |
++---------------------+-------+-----------+-------------------+
+| localhost.localhost | mysql | localhost | ttc_analytics     |
+| ttc.prod            | mysql | localhost | ttc_analytics     |
+| prod.prod           | mysql | localhost | ttc_analytics     |
+| dev.dev             | mysql | localhost | ttc_dev_analytics |
++---------------------+-------+-----------+-------------------+
 ```

@@ -1,7 +1,7 @@
 ---
-Title: Help System
-Slug: help-system
-Short: sqliton provides a rich help system.
+Title: sqliton
+Slug: sqliton
+Short: sqliton is a tool to quickly run SQL commands
 Topics:
 - help
 Commands:
@@ -24,4 +24,8 @@ SectionType: GeneralTopic
 
 ## Overview
 
+sqliton is a tool to make it easy to run SQL commands against databases.
+
 sqliton uses the [glazed](https://github.com/wesen/glazed) help system.
+
+sqliton allows you to use the `dbt` profiles file for quickly referencing databases.

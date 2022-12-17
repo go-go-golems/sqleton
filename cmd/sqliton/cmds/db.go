@@ -41,6 +41,7 @@ var dbLsCmd = &cobra.Command{
 
 		// don't output the password
 		of.AddTableMiddleware(middlewares.NewFieldsFilterMiddleware([]string{}, []string{"password"}))
+		of.AddTableMiddleware(middlewares.NewReorderColumnOrderMiddleware([]string{"name", "type", "hostname", "port", "database", "schema"}))
 
 		for _, source := range sources {
 			sourceObj := helpers.StructToMap(source, true)

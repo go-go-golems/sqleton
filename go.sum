@@ -61,8 +61,6 @@ github.com/spf13/pflag v1.0.5/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5CcY=
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
-github.com/wesen/glazed v0.1.1-0.20221214032429-b395969c3ed7 h1:jqJ4k7ZdOcoZk4YZ8nb1YWBEqUyH7L9aG55GjrBuzU0=
-github.com/wesen/glazed v0.1.1-0.20221214032429-b395969c3ed7/go.mod h1:poFGxrwZdi5kHke4edYNFU0Y13e4FuCZK3xBwDgvdpg=
 github.com/wesen/glazed v0.1.1-0.20221217180431-81f9ff63e6e3 h1:yWyEJdE6uH7RqoAiyT8rdy4fwcYUAlUjd6j3nfobQ0I=
 github.com/wesen/glazed v0.1.1-0.20221217180431-81f9ff63e6e3/go.mod h1:poFGxrwZdi5kHke4edYNFU0Y13e4FuCZK3xBwDgvdpg=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

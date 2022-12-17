@@ -54,5 +54,9 @@ func init() {
 	rootCmd.PersistentFlags().StringP("schema", "s", "", "Database schema (when applicable)")
 	rootCmd.PersistentFlags().StringP("type", "t", "mysql", "Database type (mysql, postgres, etc.)")
 
+	// dsn and driver
+	rootCmd.PersistentFlags().String("dsn", "", "Database DSN")
+	rootCmd.PersistentFlags().String("driver", "", "Database driver")
+
 	rootCmd.AddCommand(cmds.DbCmd)
 }

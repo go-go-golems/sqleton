@@ -3,6 +3,7 @@ package cmds
 import (
 	"fmt"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"github.com/wesen/glazed/pkg/cli"
 	"github.com/wesen/glazed/pkg/helpers"
 	"github.com/wesen/glazed/pkg/middlewares"
@@ -44,16 +45,14 @@ var dbLsCmd = &cobra.Command{
 	Use:   "ls",
 	Short: "List databases from profiles",
 	Run: func(cmd *cobra.Command, args []string) {
-		useDbtProfiles, err := cmd.Flags().GetBool("use-dbt-profiles")
-		cobra.CheckErr(err)
+		useDbtProfiles := viper.GetBool("use-dbt-profiles")
 
 		if !useDbtProfiles {
 			cmd.PrintErrln("Not using dbt profiles")
 			return
 		}
 
-		dbtProfilesPath, err := cmd.Flags().GetString("dbt-profiles-path")
-		cobra.CheckErr(err)
+		dbtProfilesPath := viper.GetString("dbt-profiles-path")
 
 		sources, err := pkg.ParseDbtProfiles(dbtProfilesPath)
 		cobra.CheckErr(err)

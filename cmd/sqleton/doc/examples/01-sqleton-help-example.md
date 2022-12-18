@@ -3,7 +3,7 @@ Title: Show the list of all toplevel topics
 Slug: help-example-1
 Short: |
   ```
-  sqliton help --list
+  sqleton help --list
   ```
 Topics:
 - help-system
@@ -22,21 +22,21 @@ a concise list.
 ---
 
 ```
-❯ sqliton help --list
+❯ sqleton help --list
 
-   sqliton - sqliton runs SQL queries out of template files                                               
+   sqleton - sqleton runs SQL queries out of template files                                               
                                                                                                           
-  For more help, run:  sqliton help sqliton                                                               
+  For more help, run:  sqleton help sqleton                                                               
                                                                                                           
   ## General topics                                                                                       
                                                                                                           
-  Run  sqliton help <topic>  to view a topic's page.                                                      
+  Run  sqleton help <topic>  to view a topic's page.                                                      
                                                                                                           
   • help-system - Help System                                                                             
                                                                                                           
   ## Examples                                                                                             
                                                                                                           
-  Run  sqliton help <example>  to view an example in full.                                                
+  Run  sqleton help <example>  to view an example in full.                                                
                                                                                                           
   • help-example-1 - Show the list of all toplevel topics                                                 
   • ls-dbt-profiles - Show the list of all dbt profiles    

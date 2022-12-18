@@ -4,12 +4,12 @@ import (
 	"embed"
 	"github.com/spf13/cobra"
 	"github.com/wesen/glazed/pkg/help"
-	"github.com/wesen/sqliton/cmd/sqliton/cmds"
+	"github.com/wesen/sqleton/cmd/sqleton/cmds"
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "sqliton",
-	Short: "sqliton runs SQL queries out of template files",
+	Use:   "sqleton",
+	Short: "sqleton runs SQL queries out of template files",
 }
 
 func main() {

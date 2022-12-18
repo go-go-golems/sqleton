@@ -7,7 +7,7 @@ import (
 	"github.com/wesen/glazed/pkg/cli"
 	"github.com/wesen/glazed/pkg/helpers"
 	"github.com/wesen/glazed/pkg/middlewares"
-	"github.com/wesen/sqliton/pkg"
+	"github.com/wesen/sqleton/pkg"
 	"os"
 
 	_ "github.com/go-sql-driver/mysql" // MySQL driver for database/sql

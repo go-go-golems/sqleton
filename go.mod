@@ -1,8 +1,9 @@
-module github.com/wesen/sqliton
+module github.com/wesen/sqleton
 
 go 1.19
 
 require (
+	github.com/go-sql-driver/mysql v1.7.0
 	github.com/spf13/cobra v1.6.1
 	github.com/wesen/glazed v0.1.1-0.20221217180431-81f9ff63e6e3
 	gopkg.in/yaml.v3 v3.0.1

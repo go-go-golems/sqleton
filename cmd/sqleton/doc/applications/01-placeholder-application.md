@@ -1,9 +1,9 @@
 ---
 Title: Placeholder application
 Slug: placeholder application
-Short: Placeholder for a little application of sqliton
+Short: Placeholder for a little application of sqleton
 Topics:
-- sqliton
+- sqleton
 IsTemplate: false
 IsTopLevel: true
 ShowPerDefault: true

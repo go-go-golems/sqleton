@@ -3,45 +3,39 @@ package main
 import (
 	"embed"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"github.com/wesen/glazed/pkg/help"
 	"github.com/wesen/sqleton/cmd/sqleton/cmds"
+	"strings"
 )
 
 var rootCmd = &cobra.Command{
 	Use:   "sqleton",
 	Short: "sqleton runs SQL queries out of template files",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		// TODO(2022-12-18) This is where we would add the code to load flags from the environment,
-		// and default to dbt profiles if none is set
-		// https://github.com/wesen/sqleton/issues/18
-
-		// from ChatGPT
-		//
 		// Load the variables from the environment
-		//			viper.AutomaticEnv()
-		//			host = viper.GetString("HOST")
-		//			database = viper.GetString("DATABASE")
-		//			user = viper.GetString("USER")
-		//			password = viper.GetString("PASSWORD")
-		//			port = viper.GetInt("PORT")
-		//			schema = viper.GetString("SCHEMA")
-		//			connectionType = viper.GetString("TYPE")
-		//			dsn = viper.GetString("DSN")
-		//			driver = viper.GetString("DRIVER")
+		viper.SetEnvPrefix("sqleton")
+
+		viper.AddConfigPath(".")
+		viper.AddConfigPath("$HOME/.sqleton")
+		viper.AddConfigPath("/etc/sqleton")
+
+		// Read the configuration file into Viper
+		err := viper.ReadInConfig()
+		// if the file does not exist, continue normally
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			// Config file not found; ignore error
+		} else {
+			// Config file was found but another error was produced
+			cobra.CheckErr(err)
+		}
+		viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+		viper.AutomaticEnv()
 
 		// Bind the variables to the command-line flags
-		//viper.BindPFlag("host", cmd.Flags().Lookup("host"))
-		//viper.BindPFlag("database", cmd.Flags().Lookup("database"))
-		//viper.BindPFlag("user", cmd.Flags().Lookup("user"))
-		//viper.BindPFlag("password", cmd.Flags().Lookup("password"))
-		//viper.BindPFlag("port", cmd.Flags().Lookup("port"))
-		//viper.BindPFlag("schema", cmd.Flags().Lookup("schema"))
-		//viper.BindPFlag("type", cmd.Flags().Lookup("type"))
-		//viper.BindPFlag("dsn", cmd.Flags().Lookup("dsn"))
-		//viper.BindPFlag("driver", cmd.Flags().Lookup("driver"))
+		err = viper.BindPFlags(cmd.Root().PersistentFlags())
+		cobra.CheckErr(err)
 
-		// Bind the variables to the command-line flags
-		// viper.BindPFlags(cmd.Flags())
 	},
 }
 

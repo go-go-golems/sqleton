@@ -7,12 +7,15 @@ Short: |
   ```
 Topics:
 - dbt
+- config
+- database-sources
 Commands:
 - ls
+- db
 Flags:
 - use-dbt-profiles
 IsTemplate: false
-IsTopLevel: true
+IsTopLevel: false
 ShowPerDefault: true
 SectionType: Example
 ---

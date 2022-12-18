@@ -1,0 +1,7 @@
+type: mysql
+host: localhost
+port: 3336
+user: root
+password: somewordpress
+schema: wp
+database: wp

@@ -12,7 +12,7 @@ Commands:
 Flags:
 - list
 IsTemplate: false
-IsTopLevel: true
+IsTopLevel: false
 ShowPerDefault: true
 SectionType: Example
 ---

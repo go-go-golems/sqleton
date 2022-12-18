@@ -1,4 +1,4 @@
-project_name: sqliton
+project_name: sqleton
 
 before:
   hooks:
@@ -9,7 +9,7 @@ before:
 builds:
   - env:
       - CGO_ENABLED=0
-    main: ./cmd/sqliton
+    main: ./cmd/sqleton
     binary: program
     goos:
       - linux

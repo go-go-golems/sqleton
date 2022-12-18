@@ -6,13 +6,71 @@ import (
 	"github.com/wesen/glazed/pkg/cli"
 	"github.com/wesen/glazed/pkg/helpers"
 	"github.com/wesen/glazed/pkg/middlewares"
-	"github.com/wesen/sqliton/pkg"
+	"github.com/wesen/sqleton/pkg"
 	"os"
+
+	_ "github.com/go-sql-driver/mysql" // MySQL driver for database/sql
 )
+
+// From chatGPT:
+// To run SQL commands against a PostgreSQL or SQLite database, you can use a similar
+// approach, but you will need to use the appropriate driver for the database.
+// For example, to use PostgreSQL, you can use the github.com/lib/pq driver, and to use SQLite,
+// you can use the github.com/mattn/go-sqlite3
 
 var DbCmd = &cobra.Command{
 	Use:   "db",
 	Short: "Manage databases",
+}
+
+var dbTestConnectionCmd = &cobra.Command{
+	Use:   "test",
+	Short: "Test the connection to a database",
+	Run: func(cmd *cobra.Command, args []string) {
+		db, err := openDatabase(cmd)
+		cobra.CheckErr(err)
+
+		cobra.CheckErr(err)
+		defer db.Close()
+
+		err = db.Ping()
+		cobra.CheckErr(err)
+
+		fmt.Println("Connection successful")
+	},
+}
+
+func setupSource(cmd *cobra.Command) (*pkg.Source, error) {
+	source := &pkg.Source{}
+
+	var err error
+	source.Type, err = cmd.Flags().GetString("type")
+	if err != nil {
+		return nil, err
+	}
+	source.Hostname, err = cmd.Flags().GetString("host")
+	if err != nil {
+		return nil, err
+	}
+	source.Port, err = cmd.Flags().GetInt("port")
+	if err != nil {
+		return nil, err
+	}
+	source.Username, err = cmd.Flags().GetString("user")
+	if err != nil {
+		return nil, err
+	}
+	source.Password, err = cmd.Flags().GetString("password")
+	if err != nil {
+		return nil, err
+	}
+	source.Database, err = cmd.Flags().GetString("database")
+	if err != nil {
+		return nil, err
+	}
+
+	return source, nil
+
 }
 
 var dbLsCmd = &cobra.Command{
@@ -65,4 +123,6 @@ func init() {
 	cli.AddTemplateFlags(dbLsCmd)
 	cli.AddFieldsFilterFlags(dbLsCmd, "")
 	cli.AddSelectFlags(dbLsCmd)
+
+	DbCmd.AddCommand(dbTestConnectionCmd)
 }

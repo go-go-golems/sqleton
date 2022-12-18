@@ -29,4 +29,4 @@ tag-release:
 
 release:
 	git push origin ${VERSION}
-	GOPROXY=proxy.golang.org go list -m github.com/wesen/sqliton@${VERSION}
+	GOPROXY=proxy.golang.org go list -m github.com/wesen/sqleton@${VERSION}

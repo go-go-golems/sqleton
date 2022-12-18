@@ -3,7 +3,7 @@ Title: Show the list of all dbt profiles
 Slug: ls-dbt-profiles
 Short: |
   ```
-  sqliton db ls --use-dbt-profiles
+  sqleton db ls --use-dbt-profiles
   ```
 Topics:
 - dbt
@@ -16,14 +16,14 @@ IsTopLevel: true
 ShowPerDefault: true
 SectionType: Example
 ---
-You can ask sqliton to list all dbt profiles it is able to find.
+You can ask sqleton to list all dbt profiles it is able to find.
 
 Don't forget to enable `--use-dbt-profiles`. Use `--dbt-profiles-path` to use another file.
 
 ---
 
 ```
-❯ sqliton db ls --use-dbt-profiles --fields name,type,hostname,database
+❯ sqleton db ls --use-dbt-profiles --fields name,type,hostname,database
 +---------------------+-------+-----------+-------------------+
 | name                | type  | hostname  | database          |
 +---------------------+-------+-----------+-------------------+

@@ -2,7 +2,7 @@
 Title: Placeholder tutorial
 Slug: placeholder-tutorial
 Topics:
-- sqliton
+- sqleton
 IsTemplate: false
 IsTopLevel: true
 ShowPerDefault: true

@@ -10,6 +10,12 @@ Type "sqleton db ls --fields name,type,hostname" Enter
 Sleep 1200ms
 
 Type "sqleton run examples/show-processlist.sql --output yaml" Enter
+Sleep 2000ms
+
+Type "sqleton mysql --help"  Enter
+Sleep 3000ms
+
+Type "sqleton mysql ps --select-template '{{.Id}} -- {{.User}}'" Enter
 Sleep 1200ms
 
 Sleep 2000ms

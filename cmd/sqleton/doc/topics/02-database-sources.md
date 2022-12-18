@@ -108,3 +108,25 @@ SQLETON_HOST=localhost
 
 This also applies to the dbt flags.
 
+## Configuration
+
+You can store all these values in a file called `config.yml`.
+sqleton will look in the following locations (in that order)
+
+- .
+- $HOME/.sqleton
+- /etc/sqleton
+
+Flags and environment variables will take precedence.
+
+The config file is a simple yaml file with the variables set:
+
+```yaml
+type: mysql
+host: localhost
+port: 3336
+user: root
+password: somewordpress
+schema: wp
+database: wp
+```

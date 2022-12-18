@@ -16,9 +16,9 @@ var rootCmd = &cobra.Command{
 		// Load the variables from the environment
 		viper.SetEnvPrefix("sqleton")
 
-		viper.AddConfigPath("/etc/sqleton")
-		viper.AddConfigPath("$HOME/.sqleton")
 		viper.AddConfigPath(".")
+		viper.AddConfigPath("$HOME/.sqleton")
+		viper.AddConfigPath("/etc/sqleton")
 
 		// Read the configuration file into Viper
 		err := viper.ReadInConfig()

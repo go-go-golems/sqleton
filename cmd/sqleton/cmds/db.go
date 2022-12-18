@@ -40,39 +40,6 @@ var dbTestConnectionCmd = &cobra.Command{
 	},
 }
 
-func setupSource(cmd *cobra.Command) (*pkg.Source, error) {
-	source := &pkg.Source{}
-
-	var err error
-	source.Type, err = cmd.Flags().GetString("type")
-	if err != nil {
-		return nil, err
-	}
-	source.Hostname, err = cmd.Flags().GetString("host")
-	if err != nil {
-		return nil, err
-	}
-	source.Port, err = cmd.Flags().GetInt("port")
-	if err != nil {
-		return nil, err
-	}
-	source.Username, err = cmd.Flags().GetString("user")
-	if err != nil {
-		return nil, err
-	}
-	source.Password, err = cmd.Flags().GetString("password")
-	if err != nil {
-		return nil, err
-	}
-	source.Database, err = cmd.Flags().GetString("database")
-	if err != nil {
-		return nil, err
-	}
-
-	return source, nil
-
-}
-
 var dbLsCmd = &cobra.Command{
 	Use:   "ls",
 	Short: "List databases from profiles",

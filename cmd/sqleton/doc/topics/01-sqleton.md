@@ -3,11 +3,13 @@ Title: sqleton
 Slug: sqleton
 Short: sqleton is a tool to quickly run SQL commands
 Topics:
-- help
+- config
+- sources
 Commands:
-- help
+- db
+- run
 Flags:
-- flag
+- host
 - topic
 - command
 - list

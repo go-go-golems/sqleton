@@ -8,7 +8,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.14.0
-	github.com/wesen/glazed v0.1.1-0.20221218172256-4b1e7d36d502
+	github.com/wesen/glazed v0.1.1-0.20221218200429-164749dd61dc
 	gopkg.in/yaml.v3 v3.0.1
 )
 

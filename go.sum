@@ -221,8 +221,6 @@ github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO
 github.com/stretchr/testify v1.8.1 h1:w7B6lhMri9wdJUVmEZPGGhZzrYTPvgJArz7wNPgYKsk=
 github.com/subosito/gotenv v1.4.1 h1:jyEFiXpy21Wm81FBN71l9VoMMV8H8jG+qIK3GCpY6Qs=
 github.com/subosito/gotenv v1.4.1/go.mod h1:ayKnFf/c6rvx/2iiLrJUk1e6plDbT3edrFNGqEflhK0=
-github.com/wesen/glazed v0.1.1-0.20221218172256-4b1e7d36d502 h1:WntWtGSnAApXLRFIEZFYxU40pt9I8oOIdLuRvAORSuM=
-github.com/wesen/glazed v0.1.1-0.20221218172256-4b1e7d36d502/go.mod h1:2cvLF0wOW4XWV4qdaPXnCFq43DXk1QCykP9vStPF6Uk=
 github.com/wesen/glazed v0.1.1-0.20221218200429-164749dd61dc h1:BQBRAW5tOUGyPZedt1UFb3jFmrMF6dmGQ2xAGgFxsJc=
 github.com/wesen/glazed v0.1.1-0.20221218200429-164749dd61dc/go.mod h1:2cvLF0wOW4XWV4qdaPXnCFq43DXk1QCykP9vStPF6Uk=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

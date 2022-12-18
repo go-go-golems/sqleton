@@ -6,7 +6,7 @@ Set Height 600
 
 Set TypingSpeed 0.01
 
-Type "sqleton db ls --fields name,type,hostname" Enter
+Type "sqleton db ls --use-dbt-profiles --fields name,type,hostname" Enter
 Sleep 1200ms
 
 Type "sqleton run examples/show-processlist.sql --output yaml" Enter

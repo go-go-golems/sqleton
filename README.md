@@ -3,6 +3,8 @@
 [![golangci-lint](https://github.com/wesen/sqleton/actions/workflows/lint.yml/badge.svg)](https://github.com/wesen/sqleton/actions/workflows/lint.yml)
 [![golang-pipeline](https://github.com/wesen/sqleton/actions/workflows/push.yml/badge.svg)](https://github.com/wesen/sqleton/actions/workflows/push.yml)
 
+![sqleton logo](doc/logo.png)
+
 I often need to run SQL commands that I've run a thousand times before,
 things like `SHOW PROCESSLIST`, getting the last few orders placed,
 inspecting `performance_schema`. 

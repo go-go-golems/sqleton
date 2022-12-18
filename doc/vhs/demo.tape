@@ -11,3 +11,5 @@ Sleep 1200ms
 
 Type "sqleton run examples/show-processlist.sql --output yaml" Enter
 Sleep 1200ms
+
+Sleep 2000ms

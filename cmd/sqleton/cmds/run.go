@@ -3,9 +3,10 @@ package cmds
 import (
 	"context"
 	"fmt"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/wesen/glazed/pkg/cli"
-	"github.com/wesen/glazed/pkg/middlewares"
+	"github.com/wesen/sqleton/pkg"
 	"os"
 )
 
@@ -15,55 +16,43 @@ var RunCmd = &cobra.Command{
 	Use:   "run",
 	Short: "Run a SQL query from sql files",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		db, err := openDatabase(cmd)
-		cobra.CheckErr(err)
+	RunE: func(cmd *cobra.Command, args []string) error {
+		db, err := pkg.OpenDatabaseFromViper()
+		if err != nil {
+			return errors.Wrapf(err, "Could not open database")
+		}
 
 		dbContext := context.Background()
 		err = db.PingContext(dbContext)
-		cobra.CheckErr(err)
+		if err != nil {
+			return errors.Wrapf(err, "Could not ping database")
+		}
 
 		for _, arg := range args {
 			gp, of, err := cli.SetupProcessor(cmd)
 			if err != nil {
-				_, _ = fmt.Fprintf(os.Stderr, "Could not create glaze  procersors: %v\n", err)
-				os.Exit(1)
+				return errors.Wrapf(err, "Could not create glaze processors")
 			}
 
 			// read file
 			query, err := os.ReadFile(arg)
-			cobra.CheckErr(err)
+			if err != nil {
+				return errors.Wrapf(err, "Could not read file: %s", arg)
+			}
 
-			rows, err := db.QueryxContext(dbContext, string(query))
-			cobra.CheckErr(err)
-
-			// we need a way to order the columns
-			cols, err := rows.Columns()
-			cobra.CheckErr(err)
-			of.AddTableMiddleware(middlewares.NewReorderColumnOrderMiddleware(cols))
-			// add support for renaming columns (at least to lowercase)
-			// https://github.com/wesen/glazed/issues/27
-
-			for rows.Next() {
-				row := map[string]interface{}{}
-				err = rows.MapScan(row)
-				cobra.CheckErr(err)
-
-				for key, value := range row {
-					switch value := value.(type) {
-					case []byte:
-						row[key] = string(value)
-					}
-				}
-
-				err = gp.ProcessInputObject(row)
-				cobra.CheckErr(err)
+			err = pkg.RunQueryIntoGlaze(dbContext, db, string(query), gp)
+			if err != nil {
+				return errors.Wrapf(err, "Could not run query")
 			}
 
 			s, err := of.Output()
-			cobra.CheckErr(err)
+			if err != nil {
+				return errors.Wrapf(err, "Could not get output")
+			}
 			fmt.Print(s)
 		}
+
+		return nil
 	},
 }
 
@@ -72,5 +61,4 @@ func init() {
 	cli.AddTemplateFlags(RunCmd)
 	cli.AddFieldsFilterFlags(RunCmd, "")
 	cli.AddSelectFlags(RunCmd)
-
 }

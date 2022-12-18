@@ -28,7 +28,7 @@ var dbTestConnectionCmd = &cobra.Command{
 	Use:   "test",
 	Short: "Test the connection to a database",
 	Run: func(cmd *cobra.Command, args []string) {
-		db, err := openDatabase(cmd)
+		db, err := pkg.OpenDatabaseFromViper()
 		cobra.CheckErr(err)
 
 		cobra.CheckErr(err)

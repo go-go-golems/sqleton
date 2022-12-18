@@ -13,17 +13,10 @@ var MysqlCmd = &cobra.Command{
 
 func InitializeMysqlCmd(hs *help.HelpSystem) {
 	showProcessSqlCmd := &sqleton.SqlCommand{
-		Section: &help.Section{
-			Slug:           "ps",
-			Title:          "List MySQL processes",
-			SubTitle:       "SHOW PROCESSLIST",
-			Short:          "Return a table of currently running MySQL processes",
-			Content:        "# YO\n yo yo yo \n- foo\n- bar\n",
-			Topics:         []string{"mysql"},
-			Commands:       []string{"ps"},
-			SectionType:    help.SectionGeneralTopic,
-			IsTopLevel:     true,
-			ShowPerDefault: true,
+		CommandDescription: sqleton.SqletonCommandDescription{
+			Name:  "ps",
+			Short: "List MySQL processes",
+			Long:  "SHOW PROCESSLIST",
 		},
 		Query: "SHOW PROCESSLIST",
 	}
@@ -31,7 +24,6 @@ func InitializeMysqlCmd(hs *help.HelpSystem) {
 	if err != nil {
 		panic(err)
 	}
-	hs.AddSection(showProcessSqlCmd.Section)
 
 	MysqlCmd.AddCommand(cmd)
 }

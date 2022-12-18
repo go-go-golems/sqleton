@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/wesen/glazed/pkg/cli"
-	"github.com/wesen/glazed/pkg/help"
 )
 
 func OpenDatabaseFromViper() (*sqlx.DB, error) {
@@ -70,17 +69,23 @@ func OpenDatabaseFromViper() (*sqlx.DB, error) {
 	return db, err
 }
 
+type SqletonCommandDescription struct {
+	Name  string
+	Short string
+	Long  string
+}
+
 type SqletonCommand interface {
 	RunQueryIntoGlaze(ctx context.Context, db *sqlx.DB, gp *cli.GlazeProcessor) error
-	HelpSection() *help.Section
+	Description() SqletonCommandDescription
 }
 
 func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
-	helpSection := s.HelpSection()
+	description := s.Description()
 	cmd := &cobra.Command{
-		Use:   helpSection.Slug,
-		Short: helpSection.Short,
-		Long:  helpSection.Content,
+		Use:   description.Name,
+		Short: description.Short,
+		Long:  description.Long,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			db, err := OpenDatabaseFromViper()
 			if err != nil {
@@ -123,14 +128,14 @@ func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 
 // SqlCommand describes a command line command that runs a query
 type SqlCommand struct {
-	Section *help.Section
-	Query   string
+	CommandDescription SqletonCommandDescription
+	Query              string
 }
 
 func (s *SqlCommand) RunQueryIntoGlaze(ctx context.Context, db *sqlx.DB, gp *cli.GlazeProcessor) error {
 	return RunQueryIntoGlaze(ctx, db, s.Query, gp)
 }
 
-func (s *SqlCommand) HelpSection() *help.Section {
-	return s.Section
+func (s *SqlCommand) Description() SqletonCommandDescription {
+	return s.CommandDescription
 }

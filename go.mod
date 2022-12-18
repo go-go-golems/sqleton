@@ -4,8 +4,10 @@ go 1.19
 
 require (
 	github.com/go-sql-driver/mysql v1.7.0
+	github.com/jmoiron/sqlx v1.3.5
+	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.6.1
-	github.com/wesen/glazed v0.1.1-0.20221217180431-81f9ff63e6e3
+	github.com/wesen/glazed v0.1.1-0.20221218172256-4b1e7d36d502
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -19,7 +21,6 @@ require (
 	github.com/dlclark/regexp2 v1.4.0 // indirect
 	github.com/gorilla/css v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
-	github.com/jmoiron/sqlx v1.3.5 // indirect
 	github.com/kopoli/go-terminal-size v0.0.0-20170219200355-5c97524c8b54 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
@@ -29,7 +30,6 @@ require (
 	github.com/muesli/reflow v0.3.0 // indirect
 	github.com/muesli/termenv v0.13.0 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	github.com/scylladb/termtables v0.0.0-20191203121021-c4c0b6d42ff4 // indirect

@@ -2,12 +2,16 @@ package pkg
 
 import (
 	"context"
+	"embed"
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/wesen/glazed/pkg/cli"
+	"gopkg.in/yaml.v3"
+	"io"
+	"path/filepath"
 )
 
 func OpenDatabaseFromViper() (*sqlx.DB, error) {
@@ -128,8 +132,63 @@ func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 
 // SqlCommand describes a command line command that runs a query
 type SqlCommand struct {
-	CommandDescription SqletonCommandDescription
-	Query              string
+	Name  string `yaml:"name"`
+	Short string `yaml:"short"`
+	Long  string `yaml:"long"`
+	Query string `yaml:"query"`
+}
+
+func LoadSqlCommandFromYaml(s io.Reader) (*SqlCommand, error) {
+	var sq SqlCommand
+	err := yaml.NewDecoder(s).Decode(&sq)
+	if err != nil {
+		return nil, err
+	}
+
+	return &sq, nil
+}
+
+func LoadSqlCommandsFromEmbedFS(f embed.FS, dir string) ([]*SqlCommand, error) {
+	var commands []*SqlCommand
+
+	entries, err := f.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	for _, entry := range entries {
+		fileName := filepath.Join(dir, entry.Name())
+		if entry.IsDir() {
+			subCommands, err := LoadSqlCommandsFromEmbedFS(f, fileName)
+			if err != nil {
+				return nil, err
+			}
+			commands = append(commands, subCommands...)
+		} else {
+			command, err := func() (*SqlCommand, error) {
+				file, err := f.Open(fileName)
+				if err != nil {
+					return nil, errors.Wrapf(err, "Could not open file %s", fileName)
+				}
+				defer func() {
+					_ = file.Close()
+				}()
+
+				command, err := LoadSqlCommandFromYaml(file)
+				if err != nil {
+					return nil, errors.Wrapf(err, "Could not load command from file %s", fileName)
+				}
+				return command, err
+			}()
+			if err != nil {
+				return nil, err
+			}
+
+			commands = append(commands, command)
+
+		}
+	}
+
+	return commands, nil
 }
 
 func (s *SqlCommand) RunQueryIntoGlaze(ctx context.Context, db *sqlx.DB, gp *cli.GlazeProcessor) error {
@@ -137,5 +196,9 @@ func (s *SqlCommand) RunQueryIntoGlaze(ctx context.Context, db *sqlx.DB, gp *cli
 }
 
 func (s *SqlCommand) Description() SqletonCommandDescription {
-	return s.CommandDescription
+	return SqletonCommandDescription{
+		Name:  s.Name,
+		Short: s.Short,
+		Long:  s.Long,
+	}
 }

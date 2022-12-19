@@ -1,4 +1,4 @@
-Output doc/gifs/demo.mov
+Output doc/gifs/demo.gif
 
 Set FontSize 14
 Set Width 800

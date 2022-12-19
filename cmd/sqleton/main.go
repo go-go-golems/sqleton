@@ -46,6 +46,9 @@ func main() {
 //go:embed doc/*
 var docFS embed.FS
 
+//go:embed queries/*
+var queriesFS embed.FS
+
 func init() {
 	helpSystem := help.NewHelpSystem()
 	err := helpSystem.LoadSectionsFromEmbedFS(docFS, ".")
@@ -88,5 +91,6 @@ func init() {
 	rootCmd.AddCommand(cmds.DbCmd)
 	rootCmd.AddCommand(cmds.RunCmd)
 	rootCmd.AddCommand(cmds.MysqlCmd)
-	cmds.InitializeMysqlCmd(helpSystem)
+
+	cmds.InitializeMysqlCmd(queriesFS, helpSystem)
 }

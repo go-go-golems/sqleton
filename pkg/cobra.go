@@ -139,6 +139,7 @@ type SqlCommand struct {
 	Long    string `yaml:"long"`
 	Parents []string
 	Query   string `yaml:"query"`
+	Source  string
 }
 
 func (s *SqlCommand) RunQueryIntoGlaze(ctx context.Context, db *sqlx.DB, gp *cli.GlazeProcessor) error {
@@ -194,6 +195,7 @@ func LoadSqlCommandsFromEmbedFS(f embed.FS, dir string, cmdRoot string) ([]*SqlC
 					if err != nil {
 						return nil, errors.Wrapf(err, "Could not load command from file %s", fileName)
 					}
+					command.Source = "embed:" + fileName
 
 					pathToFile := strings.TrimPrefix(dir, cmdRoot)
 					command.Parents = strings.Split(pathToFile, "/")
@@ -248,6 +250,8 @@ func LoadSqlCommandsFromDirectory(dir string, cmdRoot string) ([]*SqlCommand, er
 					pathToFile := strings.TrimPrefix(dir, cmdRoot)
 					pathToFile = strings.TrimPrefix(pathToFile, "/")
 					command.Parents = strings.Split(pathToFile, "/")
+
+					command.Source = "file:" + fileName
 
 					return command, err
 				}()

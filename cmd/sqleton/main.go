@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/wesen/glazed/pkg/help"
@@ -18,7 +19,7 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-func initCommands(rootCmd *cobra.Command) {
+func initCommands(rootCmd *cobra.Command) ([]*sqleton.SqlCommand, error) {
 	// Load the variables from the environment
 	viper.SetEnvPrefix("sqleton")
 
@@ -31,17 +32,33 @@ func initCommands(rootCmd *cobra.Command) {
 	// if the file does not exist, continue normally
 	if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 		// Config file not found; ignore error
-	} else {
+	} else if err != nil {
 		// Config file was found but another error was produced
-		cobra.CheckErr(err)
+		return nil, err
 	}
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 	viper.AutomaticEnv()
 
 	// Bind the variables to the command-line flags
 	err = viper.BindPFlags(rootCmd.PersistentFlags())
-	cobra.CheckErr(err)
+	if err != nil {
+		return nil, err
+	}
 
+	commands, err := loadRepositoryCommand()
+	if err != nil {
+		return nil, err
+	}
+
+	err = sqleton.AddCommandsToRootCommand(rootCmd, commands)
+	if err != nil {
+		return nil, err
+	}
+
+	return commands, nil
+}
+
+func loadRepositoryCommand() ([]*sqleton.SqlCommand, error) {
 	repository := viper.GetString("repository")
 	useDefaultDirectory := false
 	if repository == "" {
@@ -56,22 +73,25 @@ func initCommands(rootCmd *cobra.Command) {
 
 	if os.IsNotExist(err) {
 		if !useDefaultDirectory {
-			cobra.CheckErr(err)
+			return nil, err
 		}
 	} else if err != nil {
-		cobra.CheckErr(err)
+		return nil, err
 	}
 
 	if s == nil || !s.IsDir() {
 		if !useDefaultDirectory {
-			cobra.CheckErr("repository is not a directory")
+			return nil, errors.New("repository is not a directory")
 		}
 	} else {
 		commands, err := sqleton.LoadSqlCommandsFromDirectory(repository, repository)
-		cobra.CheckErr(err)
-		err = sqleton.AddCommandsToRootCommand(rootCmd, commands)
-		cobra.CheckErr(err)
+		if err != nil {
+			return nil, err
+		}
+		return commands, nil
 	}
+
+	return []*sqleton.SqlCommand{}, nil
 }
 
 func main() {
@@ -139,6 +159,11 @@ func init() {
 		panic(err)
 	}
 
-	initCommands(rootCmd)
+	repositoryCommands, err := initCommands(rootCmd)
+	if err != nil {
+		panic(err)
+	}
 
+	queriesCmd := cmds.AddQueriesCmd(append(commands, repositoryCommands...))
+	rootCmd.AddCommand(queriesCmd)
 }

@@ -25,16 +25,4 @@ func InitializeMysqlCmd(queriesFS embed.FS, _ *help.HelpSystem) {
 	}
 
 	MysqlCmd.AddCommand(cmd)
-
-	cmds, err := sqleton.LoadSqlCommandsFromEmbedFS(queriesFS, "queries/mysql")
-	if err != nil {
-		panic(err)
-	}
-	for _, cmd := range cmds {
-		cobraCmd, err := sqleton.ToCobraCommand(cmd)
-		if err != nil {
-			panic(err)
-		}
-		MysqlCmd.AddCommand(cobraCmd)
-	}
 }

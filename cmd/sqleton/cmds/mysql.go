@@ -1,6 +1,7 @@
 package cmds
 
 import (
+	"embed"
 	"github.com/spf13/cobra"
 	"github.com/wesen/glazed/pkg/help"
 	sqleton "github.com/wesen/sqleton/pkg"
@@ -11,13 +12,11 @@ var MysqlCmd = &cobra.Command{
 	Short: "MySQL commands",
 }
 
-func InitializeMysqlCmd(hs *help.HelpSystem) {
+func InitializeMysqlCmd(queriesFS embed.FS, _ *help.HelpSystem) {
 	showProcessSqlCmd := &sqleton.SqlCommand{
-		CommandDescription: sqleton.SqletonCommandDescription{
-			Name:  "ps",
-			Short: "List MySQL processes",
-			Long:  "SHOW PROCESSLIST",
-		},
+		Name:  "ps",
+		Short: "List MySQL processes",
+		Long:  "SHOW PROCESSLIST",
 		Query: "SHOW PROCESSLIST",
 	}
 	cmd, err := sqleton.ToCobraCommand(showProcessSqlCmd)

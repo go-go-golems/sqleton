@@ -2,12 +2,18 @@ package pkg
 
 import (
 	"context"
+	"embed"
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/wesen/glazed/pkg/cli"
+	"gopkg.in/yaml.v3"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
 func OpenDatabaseFromViper() (*sqlx.DB, error) {
@@ -128,8 +134,12 @@ func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 
 // SqlCommand describes a command line command that runs a query
 type SqlCommand struct {
-	CommandDescription SqletonCommandDescription
-	Query              string
+	Name    string `yaml:"name"`
+	Short   string `yaml:"short"`
+	Long    string `yaml:"long"`
+	Parents []string
+	Query   string `yaml:"query"`
+	Source  string
 }
 
 func (s *SqlCommand) RunQueryIntoGlaze(ctx context.Context, db *sqlx.DB, gp *cli.GlazeProcessor) error {
@@ -137,5 +147,151 @@ func (s *SqlCommand) RunQueryIntoGlaze(ctx context.Context, db *sqlx.DB, gp *cli
 }
 
 func (s *SqlCommand) Description() SqletonCommandDescription {
-	return s.CommandDescription
+	return SqletonCommandDescription{
+		Name:  s.Name,
+		Short: s.Short,
+		Long:  s.Long,
+	}
+}
+
+func LoadSqlCommandFromYaml(s io.Reader) (*SqlCommand, error) {
+	var sq SqlCommand
+	err := yaml.NewDecoder(s).Decode(&sq)
+	if err != nil {
+		return nil, err
+	}
+
+	return &sq, nil
+}
+
+func LoadSqlCommandsFromEmbedFS(f embed.FS, dir string, cmdRoot string) ([]*SqlCommand, error) {
+	var commands []*SqlCommand
+
+	entries, err := f.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	for _, entry := range entries {
+		fileName := filepath.Join(dir, entry.Name())
+		if entry.IsDir() {
+			subCommands, err := LoadSqlCommandsFromEmbedFS(f, fileName, cmdRoot)
+			if err != nil {
+				return nil, err
+			}
+			commands = append(commands, subCommands...)
+		} else {
+			if strings.HasSuffix(entry.Name(), ".yml") ||
+				strings.HasSuffix(entry.Name(), ".yaml") {
+				command, err := func() (*SqlCommand, error) {
+					file, err := f.Open(fileName)
+					if err != nil {
+						return nil, errors.Wrapf(err, "Could not open file %s", fileName)
+					}
+					defer func() {
+						_ = file.Close()
+					}()
+
+					command, err := LoadSqlCommandFromYaml(file)
+					if err != nil {
+						return nil, errors.Wrapf(err, "Could not load command from file %s", fileName)
+					}
+					command.Source = "embed:" + fileName
+
+					pathToFile := strings.TrimPrefix(dir, cmdRoot)
+					command.Parents = strings.Split(pathToFile, "/")
+
+					return command, err
+				}()
+				if err != nil {
+					return nil, err
+				}
+
+				commands = append(commands, command)
+			}
+
+		}
+	}
+
+	return commands, nil
+}
+
+func LoadSqlCommandsFromDirectory(dir string, cmdRoot string) ([]*SqlCommand, error) {
+	var commands []*SqlCommand
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	for _, entry := range entries {
+		fileName := filepath.Join(dir, entry.Name())
+		if entry.IsDir() {
+			subCommands, err := LoadSqlCommandsFromDirectory(fileName, cmdRoot)
+			if err != nil {
+				return nil, err
+			}
+			commands = append(commands, subCommands...)
+		} else {
+			if strings.HasSuffix(entry.Name(), ".yml") ||
+				strings.HasSuffix(entry.Name(), ".yaml") {
+				command, err := func() (*SqlCommand, error) {
+					file, err := os.Open(fileName)
+					if err != nil {
+						return nil, errors.Wrapf(err, "Could not open file %s", fileName)
+					}
+					defer func() {
+						_ = file.Close()
+					}()
+
+					command, err := LoadSqlCommandFromYaml(file)
+					if err != nil {
+						return nil, errors.Wrapf(err, "Could not load command from file %s", fileName)
+					}
+
+					pathToFile := strings.TrimPrefix(dir, cmdRoot)
+					pathToFile = strings.TrimPrefix(pathToFile, "/")
+					command.Parents = strings.Split(pathToFile, "/")
+
+					command.Source = "file:" + fileName
+
+					return command, err
+				}()
+				if err != nil {
+					return nil, err
+				}
+
+				commands = append(commands, command)
+			}
+		}
+	}
+
+	return commands, nil
+}
+
+// AddCommandsToRootCommand
+func AddCommandsToRootCommand(rootCmd *cobra.Command, commands []*SqlCommand) error {
+	for _, command := range commands {
+		// find the proper subcommand, or create if it doesn't exist
+		parentCmd := rootCmd
+		for _, parent := range command.Parents {
+			subCmd, _, _ := parentCmd.Find([]string{parent})
+			if subCmd == nil || subCmd == rootCmd {
+				// TODO(2022-12-19) Load documentation for subcommands from a readme file
+				// See https://github.com/wesen/sqleton/issues/34
+				parentCmd = &cobra.Command{
+					Use:   parent,
+					Short: fmt.Sprintf("All commands for %s", parent),
+				}
+				rootCmd.AddCommand(parentCmd)
+			} else {
+				parentCmd = subCmd
+			}
+		}
+		cobraCommand, err := ToCobraCommand(command)
+		if err != nil {
+			return err
+		}
+		parentCmd.AddCommand(cobraCommand)
+	}
+
+	return nil
 }

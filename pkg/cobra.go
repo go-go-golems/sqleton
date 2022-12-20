@@ -2,18 +2,16 @@ package pkg
 
 import (
 	"context"
-	"embed"
 	"fmt"
+	"github.com/araddon/dateparse"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/tj/go-naturaldate"
 	"github.com/wesen/glazed/pkg/cli"
-	"gopkg.in/yaml.v3"
-	"io"
-	"os"
-	"path/filepath"
 	"strings"
+	"time"
 )
 
 func OpenDatabaseFromViper() (*sqlx.DB, error) {
@@ -75,17 +73,6 @@ func OpenDatabaseFromViper() (*sqlx.DB, error) {
 	return db, err
 }
 
-type SqletonCommandDescription struct {
-	Name  string
-	Short string
-	Long  string
-}
-
-type SqletonCommand interface {
-	RunQueryIntoGlaze(ctx context.Context, db *sqlx.DB, gp *cli.GlazeProcessor) error
-	Description() SqletonCommandDescription
-}
-
 func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 	description := s.Description()
 	cmd := &cobra.Command{
@@ -93,6 +80,64 @@ func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 		Short: description.Short,
 		Long:  description.Long,
 		RunE: func(cmd *cobra.Command, args []string) error {
+
+			parameters := map[string]interface{}{}
+
+			for _, parameter := range description.Parameters {
+				switch parameter.Type {
+				case ParameterTypeString:
+					fallthrough
+				case ParameterTypeChoice:
+					v, err := cmd.Flags().GetString(parameter.Name)
+					if err != nil {
+						return err
+					}
+					parameters[parameter.Name] = v
+
+				case ParameterTypeInteger:
+					v, err := cmd.Flags().GetInt(parameter.Name)
+					if err != nil {
+						return err
+					}
+					parameters[parameter.Name] = v
+
+				case ParameterTypeDate:
+					v, err := cmd.Flags().GetString(parameter.Name)
+					if err != nil {
+						return err
+					}
+					parsedDate, err := dateparse.ParseAny(v)
+					if err != nil {
+						parsedDate, err = naturaldate.Parse(v, time.Now())
+						if err != nil {
+							return errors.Wrapf(err, "Could not parse date %s", v)
+						}
+					}
+					parameters[parameter.Name] = parsedDate
+
+				case ParameterTypeBool:
+					v, err := cmd.Flags().GetBool(parameter.Name)
+					if err != nil {
+						return err
+					}
+					parameters[parameter.Name] = v
+
+				case ParameterTypeStringList:
+					v, err := cmd.Flags().GetStringSlice(parameter.Name)
+					if err != nil {
+						return err
+					}
+					parameters[parameter.Name] = v
+
+				case ParameterTypeIntegerList:
+					v, err := cmd.Flags().GetIntSlice(parameter.Name)
+					if err != nil {
+						return err
+					}
+					parameters[parameter.Name] = v
+				}
+			}
+
 			db, err := OpenDatabaseFromViper()
 			if err != nil {
 				return errors.Wrapf(err, "Could not open database")
@@ -109,7 +154,7 @@ func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 				return errors.Wrapf(err, "Could not setup processor")
 			}
 
-			err = s.RunQueryIntoGlaze(dbContext, db, gp)
+			err = s.RunQueryIntoGlaze(dbContext, db, parameters, gp)
 			if err != nil {
 				return errors.Wrapf(err, "Could not run query")
 			}
@@ -124,6 +169,111 @@ func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 		},
 	}
 
+	// TODO(2022-12-20, manuel): we should be able to load these parameters from a config file
+	// See: https://github.com/wesen/sqleton/issues/39
+	for _, parameter := range description.Parameters {
+		flagName := parameter.Name
+		shortFlag := parameter.ShortFlag
+		switch parameter.Type {
+		case ParameterTypeString:
+			defaultValue, ok := parameter.Default.(string)
+			if !ok {
+				return nil, errors.Errorf("Default value for parameter %s is not a string: %v", parameter.Name, parameter.Default)
+			}
+
+			if parameter.ShortFlag != "" {
+				cmd.Flags().StringP(flagName, shortFlag, defaultValue, parameter.Help)
+			} else {
+				cmd.Flags().String(flagName, defaultValue, parameter.Help)
+			}
+		case ParameterTypeInteger:
+			defaultValue, ok := parameter.Default.(int)
+			if !ok {
+				return nil, errors.Errorf("Default value for parameter %s is not an integer: %v", parameter.Name, parameter.Default)
+			}
+			if parameter.ShortFlag != "" {
+				cmd.Flags().IntP(flagName, shortFlag, defaultValue, parameter.Help)
+			} else {
+				cmd.Flags().Int(flagName, defaultValue, parameter.Help)
+			}
+
+		case ParameterTypeBool:
+			defaultValue, ok := parameter.Default.(bool)
+			if !ok {
+				return nil, errors.Errorf("Default value for parameter %s is not a bool: %v", parameter.Name, parameter.Default)
+			}
+			if parameter.ShortFlag != "" {
+				cmd.Flags().BoolP(flagName, shortFlag, defaultValue, parameter.Help)
+			} else {
+				cmd.Flags().Bool(flagName, defaultValue, parameter.Help)
+			}
+
+		case ParameterTypeDate:
+			defaultValue, ok := parameter.Default.(string)
+			if !ok {
+				return nil, errors.Errorf("Default value for parameter %s is not a string: %v", parameter.Name, parameter.Default)
+			}
+
+			_, err := dateparse.ParseAny(defaultValue)
+			if err != nil {
+				_, err = naturaldate.Parse(defaultValue, time.Now())
+				if err != nil {
+					return nil, errors.Wrapf(err, "Could not parse default value for parameter %s: %s", parameter.Name, defaultValue)
+				}
+			}
+
+			if parameter.ShortFlag != "" {
+				cmd.Flags().StringP(flagName, shortFlag, defaultValue, parameter.Help)
+			} else {
+				cmd.Flags().String(flagName, defaultValue, parameter.Help)
+			}
+
+		case ParameterTypeStringList:
+			defaultValue, ok := parameter.Default.([]interface{})
+			if !ok {
+				return nil, errors.Errorf("Default value for parameter %s is not a string list: %v", parameter.Name, parameter.Default)
+			}
+
+			// convert to string list
+			stringList, err := convertToStringList(defaultValue)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Could not convert default value for parameter %s to string list: %v", parameter.Name, parameter.Default)
+			}
+
+			if parameter.ShortFlag != "" {
+				cmd.Flags().StringSliceP(flagName, shortFlag, stringList, parameter.Help)
+			} else {
+				cmd.Flags().StringSlice(flagName, stringList, parameter.Help)
+			}
+
+		case ParameterTypeIntegerList:
+			defaultValue, ok := parameter.Default.([]int)
+			if !ok {
+				return nil, errors.Errorf("Default value for parameter %s is not an integer list: %v", parameter.Name, parameter.Default)
+			}
+
+			if parameter.ShortFlag != "" {
+				cmd.Flags().IntSliceP(flagName, shortFlag, defaultValue, parameter.Help)
+			} else {
+				cmd.Flags().IntSlice(flagName, defaultValue, parameter.Help)
+			}
+
+		case ParameterTypeChoice:
+			defaultValue, ok := parameter.Default.(string)
+			if !ok {
+				return nil, errors.Errorf("Default value for parameter %s is not a string: %v", parameter.Name, parameter.Default)
+			}
+
+			choiceString := strings.Join(parameter.Choices, ",")
+
+			if parameter.ShortFlag != "" {
+				cmd.Flags().StringP(flagName, shortFlag, defaultValue, fmt.Sprintf("%s (%s)", parameter.Help, choiceString))
+			} else {
+				cmd.Flags().String(flagName, defaultValue, fmt.Sprintf("%s (%s)", parameter.Help, choiceString))
+			}
+		}
+	}
+
 	cli.AddOutputFlags(cmd)
 	cli.AddTemplateFlags(cmd)
 	cli.AddFieldsFilterFlags(cmd, "")
@@ -132,139 +282,16 @@ func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 	return cmd, nil
 }
 
-// SqlCommand describes a command line command that runs a query
-type SqlCommand struct {
-	Name    string `yaml:"name"`
-	Short   string `yaml:"short"`
-	Long    string `yaml:"long"`
-	Parents []string
-	Query   string `yaml:"query"`
-	Source  string
-}
-
-func (s *SqlCommand) RunQueryIntoGlaze(ctx context.Context, db *sqlx.DB, gp *cli.GlazeProcessor) error {
-	return RunQueryIntoGlaze(ctx, db, s.Query, gp)
-}
-
-func (s *SqlCommand) Description() SqletonCommandDescription {
-	return SqletonCommandDescription{
-		Name:  s.Name,
-		Short: s.Short,
-		Long:  s.Long,
-	}
-}
-
-func LoadSqlCommandFromYaml(s io.Reader) (*SqlCommand, error) {
-	var sq SqlCommand
-	err := yaml.NewDecoder(s).Decode(&sq)
-	if err != nil {
-		return nil, err
-	}
-
-	return &sq, nil
-}
-
-func LoadSqlCommandsFromEmbedFS(f embed.FS, dir string, cmdRoot string) ([]*SqlCommand, error) {
-	var commands []*SqlCommand
-
-	entries, err := f.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
-	for _, entry := range entries {
-		fileName := filepath.Join(dir, entry.Name())
-		if entry.IsDir() {
-			subCommands, err := LoadSqlCommandsFromEmbedFS(f, fileName, cmdRoot)
-			if err != nil {
-				return nil, err
-			}
-			commands = append(commands, subCommands...)
-		} else {
-			if strings.HasSuffix(entry.Name(), ".yml") ||
-				strings.HasSuffix(entry.Name(), ".yaml") {
-				command, err := func() (*SqlCommand, error) {
-					file, err := f.Open(fileName)
-					if err != nil {
-						return nil, errors.Wrapf(err, "Could not open file %s", fileName)
-					}
-					defer func() {
-						_ = file.Close()
-					}()
-
-					command, err := LoadSqlCommandFromYaml(file)
-					if err != nil {
-						return nil, errors.Wrapf(err, "Could not load command from file %s", fileName)
-					}
-					command.Source = "embed:" + fileName
-
-					pathToFile := strings.TrimPrefix(dir, cmdRoot)
-					command.Parents = strings.Split(pathToFile, "/")
-
-					return command, err
-				}()
-				if err != nil {
-					return nil, err
-				}
-
-				commands = append(commands, command)
-			}
-
+func convertToStringList(value []interface{}) ([]string, error) {
+	stringList := make([]string, len(value))
+	for i, v := range value {
+		s, ok := v.(string)
+		if !ok {
+			return nil, errors.Errorf("Not a string: %v", v)
 		}
+		stringList[i] = s
 	}
-
-	return commands, nil
-}
-
-func LoadSqlCommandsFromDirectory(dir string, cmdRoot string) ([]*SqlCommand, error) {
-	var commands []*SqlCommand
-
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
-	for _, entry := range entries {
-		fileName := filepath.Join(dir, entry.Name())
-		if entry.IsDir() {
-			subCommands, err := LoadSqlCommandsFromDirectory(fileName, cmdRoot)
-			if err != nil {
-				return nil, err
-			}
-			commands = append(commands, subCommands...)
-		} else {
-			if strings.HasSuffix(entry.Name(), ".yml") ||
-				strings.HasSuffix(entry.Name(), ".yaml") {
-				command, err := func() (*SqlCommand, error) {
-					file, err := os.Open(fileName)
-					if err != nil {
-						return nil, errors.Wrapf(err, "Could not open file %s", fileName)
-					}
-					defer func() {
-						_ = file.Close()
-					}()
-
-					command, err := LoadSqlCommandFromYaml(file)
-					if err != nil {
-						return nil, errors.Wrapf(err, "Could not load command from file %s", fileName)
-					}
-
-					pathToFile := strings.TrimPrefix(dir, cmdRoot)
-					pathToFile = strings.TrimPrefix(pathToFile, "/")
-					command.Parents = strings.Split(pathToFile, "/")
-
-					command.Source = "file:" + fileName
-
-					return command, err
-				}()
-				if err != nil {
-					return nil, err
-				}
-
-				commands = append(commands, command)
-			}
-		}
-	}
-
-	return commands, nil
+	return stringList, nil
 }
 
 // AddCommandsToRootCommand

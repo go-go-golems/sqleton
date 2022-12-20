@@ -1,0 +1,13 @@
+name: ls-posts-limit
+short: Show all WP posts, limited
+long: Show all posts and their ID
+parameters:
+  - name: limit
+    shortFlag: l
+    type: int
+    default: 10
+    help: Limit the number of posts
+query: |
+  SELECT wp.ID, wp.post_title, wp.post_status FROM wp_posts wp
+  WHERE post_type = 'post'
+  LIMIT {{ .limit }}

@@ -154,6 +154,21 @@ func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 				return errors.Wrapf(err, "Could not setup processor")
 			}
 
+			printQuery, _ := cmd.Flags().GetBool("print-query")
+			if printQuery {
+				query, err := s.RenderQuery(parameters)
+				if err != nil {
+					return errors.Wrapf(err, "Could not generate query")
+				}
+				fmt.Println(query)
+				return nil
+			}
+
+			// TODO(2022-12-21, manuel): Add explain functionality
+			// See: https://github.com/wesen/sqleton/issues/45
+			explain, _ := cmd.Flags().GetBool("explain")
+			_ = explain
+
 			err = s.RunQueryIntoGlaze(dbContext, db, parameters, gp)
 			if err != nil {
 				return errors.Wrapf(err, "Could not run query")
@@ -273,6 +288,9 @@ func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 			}
 		}
 	}
+
+	cmd.Flags().Bool("print-query", false, "Print the query that will be executed")
+	cmd.Flags().Bool("explain", false, "Print the query plan that will be executed")
 
 	cli.AddOutputFlags(cmd)
 	cli.AddTemplateFlags(cmd)

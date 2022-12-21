@@ -30,6 +30,7 @@ type SqletonCommandDescription struct {
 	Short      string
 	Long       string
 	Parameters []*SqlParameter
+	Arguments  []*SqlParameter
 }
 
 // string enum for parameters
@@ -56,6 +57,7 @@ const (
 
 type SqletonCommand interface {
 	RunQueryIntoGlaze(ctx context.Context, db *sqlx.DB, parameters map[string]interface{}, gp *cli.GlazeProcessor) error
+	RenderQuery(parameters map[string]interface{}) (string, error)
 	Description() SqletonCommandDescription
 }
 
@@ -69,6 +71,31 @@ type SqlCommand struct {
 
 	Parents []string
 	Source  string
+}
+
+func (s *SqlCommand) RenderQuery(parameters map[string]interface{}) (string, error) {
+	t2 := template.New("query")
+	t2.Funcs(template.FuncMap{
+		"join": strings.Join,
+		"sqlStringIn": func(values []string) string {
+			return "'" + strings.Join(values, "','") + "'"
+		},
+		"sqlIn": func(values []interface{}) string {
+			strValues := make([]string, len(values))
+			for i, v := range values {
+				strValues[i] = fmt.Sprintf("%v", v)
+			}
+			return strings.Join(strValues, ",")
+		},
+	})
+	t := template.Must(t2.Parse(s.Query))
+	var qb strings.Builder
+	err := t.Execute(&qb, parameters)
+	if err != nil {
+		return "", errors.Wrap(err, "Could not execute query template")
+	}
+
+	return qb.String(), nil
 }
 
 func RunQueryIntoGlaze(
@@ -122,28 +149,11 @@ func (s *SqlCommand) RunQueryIntoGlaze(
 	parameters map[string]interface{},
 	gp *cli.GlazeProcessor) error {
 
-	t2 := template.New("query")
-	t2.Funcs(template.FuncMap{
-		"join": strings.Join,
-		"sqlStringIn": func(values []string) string {
-			return "'" + strings.Join(values, "','") + "'"
-		},
-		"sqlIn": func(values []interface{}) string {
-			strValues := make([]string, len(values))
-			for i, v := range values {
-				strValues[i] = fmt.Sprintf("%v", v)
-			}
-			return strings.Join(strValues, ",")
-		},
-	})
-	t := template.Must(t2.Parse(s.Query))
-	var qb strings.Builder
-	err := t.Execute(&qb, parameters)
+	query, err := s.RenderQuery(parameters)
 	if err != nil {
-		return errors.Wrap(err, "Could not execute query template")
+		return err
 	}
-
-	return RunQueryIntoGlaze(ctx, db, qb.String(), parameters, gp)
+	return RunQueryIntoGlaze(ctx, db, query, parameters, gp)
 }
 
 func (s *SqlCommand) Description() SqletonCommandDescription {

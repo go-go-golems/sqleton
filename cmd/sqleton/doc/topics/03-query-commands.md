@@ -21,12 +21,26 @@ SectionType: GeneralTopic
 YAML files can be used to add commands to sqleton by using the following layout:
 
 ```yaml
-name: ls-posts
-short: Show all WP posts
+name: ls-posts-type
+short: Show all WP posts, limited, by type
 long: Show all posts and their ID
+parameters:
+   - name: types
+     type: stringList
+     default:
+        - post
+        - page
+     help: Select posts by type
+arguments:
+   - name: limit
+     shortFlag: l
+     type: int
+     default: 10
+     help: Limit the number of posts
 query: |
-  SELECT wp.ID, wp.post_title, wp.post_status FROM wp_posts wp
-  WHERE post_type = 'post'
+   SELECT wp.ID, wp.post_title, wp.post_type, wp.post_status FROM wp_posts wp
+   WHERE post_type IN ({{ .types | sqlStringIn }})
+   LIMIT {{ .limit }}
 ```
 
 ## Query repository
@@ -55,3 +69,18 @@ A repository can be loaded at compile time as an `embed.FS` by using the
 
 The configuration flag or variable `repository` can be set to specify a custom
 repository, by default, the queries in `$HOME/.sqleton/queries` are loaded.
+
+## Using query parameters
+
+A query can also provide parameters, which are mapped to command line flags.
+
+Parameters have the following structure:
+
+```yaml
+- name: limit
+  shortFlag: l
+  type: int
+  default: 10
+  help: Limit the number of posts
+```
+

@@ -7,6 +7,7 @@ parameters:
     type: int
     default: 10
     help: Limit the number of posts
+arguments:
   - name: types
     type: stringList
     default:
@@ -14,6 +15,6 @@ parameters:
       - page
     help: Select posts by type
 query: |
-  SELECT wp.ID, wp.post_title, wp.post_status FROM wp_posts wp
+  SELECT wp.ID, wp.post_title, wp.post_type, wp.post_status FROM wp_posts wp
   WHERE post_type IN ({{ .types | sqlStringIn }})
   LIMIT {{ .limit }}

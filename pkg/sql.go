@@ -68,8 +68,8 @@ type SqletonCommand interface {
 }
 
 func (sp *SqlParameter) CheckParameterDefaultValueValidity() error {
-	// optional parameters can have a nil value
-	if sp.Required && sp.Default == nil {
+	// we can have no default
+	if sp.Default == nil {
 		return nil
 	}
 
@@ -111,10 +111,11 @@ func (sp *SqlParameter) CheckParameterDefaultValueValidity() error {
 			}
 
 			// convert to string list
-			_, err := convertToStringList(defaultValue)
+			fixedDefault, err := convertToStringList(defaultValue)
 			if err != nil {
 				return errors.Wrapf(err, "Could not convert default value for parameter %s to string list: %v", sp.Name, sp.Default)
 			}
+			sp.Default = fixedDefault
 		}
 
 	case ParameterTypeIntegerList:
@@ -124,6 +125,10 @@ func (sp *SqlParameter) CheckParameterDefaultValueValidity() error {
 		}
 
 	case ParameterTypeChoice:
+		if len(sp.Choices) == 0 {
+			return errors.Errorf("Parameter %s is a choice parameter but has no choices", sp.Name)
+		}
+
 		defaultValue, ok := sp.Default.(string)
 		if !ok {
 			return errors.Errorf("Default value for parameter %s is not a string: %v", sp.Name, sp.Default)
@@ -145,11 +150,12 @@ func (sp *SqlParameter) CheckParameterDefaultValueValidity() error {
 
 // SqlCommand describes a command line command that runs a query
 type SqlCommand struct {
-	Name       string          `yaml:"name"`
-	Short      string          `yaml:"short"`
-	Long       string          `yaml:"long"`
-	Parameters []*SqlParameter `yaml:"parameters"`
-	Query      string          `yaml:"query"`
+	Name      string          `yaml:"name"`
+	Short     string          `yaml:"short"`
+	Long      string          `yaml:"long"`
+	Flags     []*SqlParameter `yaml:"flags"`
+	Arguments []*SqlParameter `yaml:"arguments"`
+	Query     string          `yaml:"query"`
 
 	Parents []string
 	Source  string
@@ -240,16 +246,18 @@ func (s *SqlCommand) RunQueryIntoGlaze(
 
 func (s *SqlCommand) Description() SqletonCommandDescription {
 	return SqletonCommandDescription{
-		Name:  s.Name,
-		Short: s.Short,
-		Long:  s.Long,
-		Flags: s.Parameters,
+		Name:      s.Name,
+		Short:     s.Short,
+		Long:      s.Long,
+		Flags:     s.Flags,
+		Arguments: s.Arguments,
 	}
 }
 
 func LoadSqlCommandFromYaml(s io.Reader) (*SqlCommand, error) {
 	sq := &SqlCommand{
-		Parameters: []*SqlParameter{},
+		Flags:     []*SqlParameter{},
+		Arguments: []*SqlParameter{},
 	}
 	err := yaml.NewDecoder(s).Decode(sq)
 	if err != nil {

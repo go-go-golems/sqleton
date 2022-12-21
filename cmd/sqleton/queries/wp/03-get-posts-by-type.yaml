@@ -1,12 +1,20 @@
-name: ls-posts-type
-short: Show all WP posts, limited, by type
+name: ls-posts-type [types...]
+short: "Show all WP posts, limited, by type (default: post, page)"
 long: Show all posts and their ID
-parameters:
+flags:
   - name: limit
     shortFlag: l
     type: int
     default: 10
     help: Limit the number of posts
+  - name: status
+    type: stringList
+    help: Select posts by status
+    required: false
+  - name: order_by
+    type: string
+    default: post_date DESC
+    help: Order by column
 arguments:
   - name: types
     type: stringList
@@ -14,7 +22,12 @@ arguments:
       - post
       - page
     help: Select posts by type
+    required: false
 query: |
-  SELECT wp.ID, wp.post_title, wp.post_type, wp.post_status FROM wp_posts wp
+  SELECT wp.ID, wp.post_title, wp.post_type, wp.post_status, wp.post_date FROM wp_posts wp
   WHERE post_type IN ({{ .types | sqlStringIn }})
+  {{ if .status -}}
+  AND post_status IN ({{ .status | sqlStringIn }})
+  {{- end }}
+  ORDER BY {{ .order_by }}
   LIMIT {{ .limit }}

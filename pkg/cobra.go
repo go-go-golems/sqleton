@@ -90,9 +90,20 @@ func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// TODO(2022-12-20, manuel): we should be able to load default values for these parameters from a config file
 			// See: https://github.com/wesen/sqleton/issues/39
-			parameters, err2 := gatherFlags(cmd, description.Flags)
-			if err2 != nil {
-				return err2
+			parameters, err := gatherFlags(cmd, description.Flags)
+			if err != nil {
+				return err
+			}
+
+			arguments, err := gatherArguments(args, description.Arguments)
+			if err != nil {
+				return err
+			}
+
+			// merge parameters and arguments
+			// arguments take precedence over parameters
+			for k, v := range arguments {
+				parameters[k] = v
 			}
 
 			db, err := OpenDatabaseFromViper()
@@ -203,7 +214,7 @@ func addArguments(cmd *cobra.Command, description *SqletonCommandDescription) er
 	return nil
 }
 
-func gatherArguments(arguments []*SqlParameter, args []string) (map[string]interface{}, error) {
+func gatherArguments(args []string, arguments []*SqlParameter) (map[string]interface{}, error) {
 	_ = args
 	result := make(map[string]interface{})
 	argsIdx := 0
@@ -212,7 +223,9 @@ func gatherArguments(arguments []*SqlParameter, args []string) (map[string]inter
 			if argument.Required {
 				return nil, errors.Errorf("Argument %s not found", argument.Name)
 			} else {
-				result[argument.Name] = argument.Default
+				if argument.Default != nil {
+					result[argument.Name] = argument.Default
+				}
 				continue
 			}
 		}
@@ -249,7 +262,11 @@ func addFlags(cmd *cobra.Command, description *SqletonCommandDescription) error 
 		}
 
 		flagName := parameter.Name
+		// replace _ with -
+		flagName = strings.ReplaceAll(flagName, "_", "-")
 		shortFlag := parameter.ShortFlag
+		ok := false
+
 		switch parameter.Type {
 		case ParameterTypeString:
 			defaultValue, ok := parameter.Default.(string)
@@ -263,10 +280,15 @@ func addFlags(cmd *cobra.Command, description *SqletonCommandDescription) error 
 				cmd.Flags().String(flagName, defaultValue, parameter.Help)
 			}
 		case ParameterTypeInteger:
-			defaultValue, ok := parameter.Default.(int)
-			if !ok {
-				return errors.Errorf("Default value for parameter %s is not an integer: %v", parameter.Name, parameter.Default)
+			defaultValue := 0
+
+			if parameter.Default != nil {
+				defaultValue, ok = parameter.Default.(int)
+				if !ok {
+					return errors.Errorf("Default value for parameter %s is not an integer: %v", parameter.Name, parameter.Default)
+				}
 			}
+
 			if parameter.ShortFlag != "" {
 				cmd.Flags().IntP(flagName, shortFlag, defaultValue, parameter.Help)
 			} else {
@@ -274,10 +296,15 @@ func addFlags(cmd *cobra.Command, description *SqletonCommandDescription) error 
 			}
 
 		case ParameterTypeBool:
-			defaultValue, ok := parameter.Default.(bool)
-			if !ok {
-				return errors.Errorf("Default value for parameter %s is not a bool: %v", parameter.Name, parameter.Default)
+			defaultValue := false
+
+			if parameter.Default != nil {
+				defaultValue, ok = parameter.Default.(bool)
+				if !ok {
+					return errors.Errorf("Default value for parameter %s is not a bool: %v", parameter.Name, parameter.Default)
+				}
 			}
+
 			if parameter.ShortFlag != "" {
 				cmd.Flags().BoolP(flagName, shortFlag, defaultValue, parameter.Help)
 			} else {
@@ -285,9 +312,13 @@ func addFlags(cmd *cobra.Command, description *SqletonCommandDescription) error 
 			}
 
 		case ParameterTypeDate:
-			defaultValue, ok := parameter.Default.(string)
-			if !ok {
-				return errors.Errorf("Default value for parameter %s is not a string: %v", parameter.Name, parameter.Default)
+			defaultValue := ""
+
+			if parameter.Default != nil {
+				defaultValue, ok = parameter.Default.(string)
+				if !ok {
+					return errors.Errorf("Default value for parameter %s is not a string: %v", parameter.Name, parameter.Default)
+				}
 			}
 
 			parsedDate, err2 := parseDate(defaultValue)
@@ -303,30 +334,39 @@ func addFlags(cmd *cobra.Command, description *SqletonCommandDescription) error 
 			}
 
 		case ParameterTypeStringList:
-			stringList, ok := parameter.Default.([]string)
-			if !ok {
-				defaultValue, ok := parameter.Default.([]interface{})
+			defaultValue := []string{}
+
+			if parameter.Default != nil {
+				stringList, ok := parameter.Default.([]string)
 				if !ok {
-					return errors.Errorf("Default value for parameter %s is not a string list: %v", parameter.Name, parameter.Default)
+					defaultValue, ok := parameter.Default.([]interface{})
+					if !ok {
+						return errors.Errorf("Default value for parameter %s is not a string list: %v", parameter.Name, parameter.Default)
+					}
+
+					// convert to string list
+					stringList, err = convertToStringList(defaultValue)
 				}
 
-				// convert to string list
-				stringList, err = convertToStringList(defaultValue)
+				defaultValue = stringList
 			}
 			if err != nil {
 				return errors.Wrapf(err, "Could not convert default value for parameter %s to string list: %v", parameter.Name, parameter.Default)
 			}
 
 			if parameter.ShortFlag != "" {
-				cmd.Flags().StringSliceP(flagName, shortFlag, stringList, parameter.Help)
+				cmd.Flags().StringSliceP(flagName, shortFlag, defaultValue, parameter.Help)
 			} else {
-				cmd.Flags().StringSlice(flagName, stringList, parameter.Help)
+				cmd.Flags().StringSlice(flagName, defaultValue, parameter.Help)
 			}
 
 		case ParameterTypeIntegerList:
-			defaultValue, ok := parameter.Default.([]int)
-			if !ok {
-				return errors.Errorf("Default value for parameter %s is not an integer list: %v", parameter.Name, parameter.Default)
+			defaultValue := []int{}
+			if parameter.Default != nil {
+				defaultValue, ok = parameter.Default.([]int)
+				if !ok {
+					return errors.Errorf("Default value for parameter %s is not an integer list: %v", parameter.Name, parameter.Default)
+				}
 			}
 
 			if parameter.ShortFlag != "" {
@@ -336,9 +376,13 @@ func addFlags(cmd *cobra.Command, description *SqletonCommandDescription) error 
 			}
 
 		case ParameterTypeChoice:
-			defaultValue, ok := parameter.Default.(string)
-			if !ok {
-				return errors.Errorf("Default value for parameter %s is not a string: %v", parameter.Name, parameter.Default)
+			defaultValue := ""
+
+			if parameter.Default != nil {
+				defaultValue, ok = parameter.Default.(string)
+				if !ok {
+					return errors.Errorf("Default value for parameter %s is not a string: %v", parameter.Name, parameter.Default)
+				}
 			}
 
 			choiceString := strings.Join(parameter.Choices, ",")
@@ -358,25 +402,39 @@ func gatherFlags(cmd *cobra.Command, params []*SqlParameter) (map[string]interfa
 	parameters := map[string]interface{}{}
 
 	for _, parameter := range params {
+		// check if the flag is set
+		flagName := parameter.Name
+		flagName = strings.ReplaceAll(flagName, "_", "-")
+
+		if !cmd.Flags().Changed(flagName) {
+			if parameter.Required {
+				return nil, errors.Errorf("Parameter %s is required", parameter.Name)
+			}
+
+			if parameter.Default == nil {
+				continue
+			}
+		}
+
 		switch parameter.Type {
 		case ParameterTypeString:
 			fallthrough
 		case ParameterTypeChoice:
-			v, err := cmd.Flags().GetString(parameter.Name)
+			v, err := cmd.Flags().GetString(flagName)
 			if err != nil {
 				return nil, err
 			}
 			parameters[parameter.Name] = v
 
 		case ParameterTypeInteger:
-			v, err := cmd.Flags().GetInt(parameter.Name)
+			v, err := cmd.Flags().GetInt(flagName)
 			if err != nil {
 				return nil, err
 			}
 			parameters[parameter.Name] = v
 
 		case ParameterTypeDate:
-			v, err := cmd.Flags().GetString(parameter.Name)
+			v, err := cmd.Flags().GetString(flagName)
 			if err != nil {
 				return nil, err
 			}
@@ -390,21 +448,21 @@ func gatherFlags(cmd *cobra.Command, params []*SqlParameter) (map[string]interfa
 			parameters[parameter.Name] = parsedDate
 
 		case ParameterTypeBool:
-			v, err := cmd.Flags().GetBool(parameter.Name)
+			v, err := cmd.Flags().GetBool(flagName)
 			if err != nil {
 				return nil, err
 			}
 			parameters[parameter.Name] = v
 
 		case ParameterTypeStringList:
-			v, err := cmd.Flags().GetStringSlice(parameter.Name)
+			v, err := cmd.Flags().GetStringSlice(flagName)
 			if err != nil {
 				return nil, err
 			}
 			parameters[parameter.Name] = v
 
 		case ParameterTypeIntegerList:
-			v, err := cmd.Flags().GetIntSlice(parameter.Name)
+			v, err := cmd.Flags().GetIntSlice(flagName)
 			if err != nil {
 				return nil, err
 			}
@@ -443,5 +501,4 @@ func AddCommandsToRootCommand(rootCmd *cobra.Command, commands []*SqlCommand) er
 }
 
 func init() {
-
 }

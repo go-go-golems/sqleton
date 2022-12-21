@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/zenizh/go-capturer"
 	"testing"
 	"time"
 )
@@ -41,15 +42,15 @@ func TestAddSingleRequiredArgument(t *testing.T) {
 	assert.Error(t, cmd.Args(cmd, []string{}))
 	assert.Error(t, cmd.Args(cmd, []string{"bar", "foo"}))
 
-	values, err := gatherArguments(desc.Arguments, []string{"bar"})
+	values, err := gatherArguments([]string{"bar"}, desc.Arguments)
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(values))
 	assert.Equal(t, "bar", values["foo"])
 
-	_, err = gatherArguments(desc.Arguments, []string{})
+	_, err = gatherArguments([]string{}, desc.Arguments)
 	assert.Error(t, err)
 
-	_, err = gatherArguments(desc.Arguments, []string{"foo", "bla"})
+	_, err = gatherArguments([]string{"foo", "bla"}, desc.Arguments)
 	assert.Error(t, err)
 }
 
@@ -76,19 +77,19 @@ func TestAddTwoRequiredArguments(t *testing.T) {
 	assert.Error(t, cmd.Args(cmd, []string{"bar"}))
 	assert.Error(t, cmd.Args(cmd, []string{"bar", "foo", "baz"}))
 
-	values, err := gatherArguments(desc.Arguments, []string{"bar", "foo"})
+	values, err := gatherArguments([]string{"bar", "foo"}, desc.Arguments)
 	require.Nil(t, err)
 	assert.Equal(t, 2, len(values))
 	assert.Equal(t, "bar", values["foo"])
 	assert.Equal(t, "foo", values["bar"])
 
-	_, err = gatherArguments(desc.Arguments, []string{})
+	_, err = gatherArguments([]string{}, desc.Arguments)
 	assert.Error(t, err)
 
-	_, err = gatherArguments(desc.Arguments, []string{"bar"})
+	_, err = gatherArguments([]string{"bar"}, desc.Arguments)
 	assert.Error(t, err)
 
-	_, err = gatherArguments(desc.Arguments, []string{"bar", "foo", "baz"})
+	_, err = gatherArguments([]string{"bar", "foo", "baz"}, desc.Arguments)
 	assert.Error(t, err)
 }
 
@@ -115,22 +116,22 @@ func TestOneRequiredOneOptionalArgument(t *testing.T) {
 	assert.Error(t, cmd.Args(cmd, []string{}))
 	assert.Error(t, cmd.Args(cmd, []string{"bar", "foo", "baz"}))
 
-	values, err := gatherArguments(desc.Arguments, []string{"bar", "foo"})
+	values, err := gatherArguments([]string{"bar", "foo"}, desc.Arguments)
 	require.Nil(t, err)
 	assert.Equal(t, 2, len(values))
 	assert.Equal(t, "bar", values["foo"])
 	assert.Equal(t, "foo", values["bar"])
 
-	values, err = gatherArguments(desc.Arguments, []string{"foo"})
+	values, err = gatherArguments([]string{"foo"}, desc.Arguments)
 	require.Nil(t, err)
 	assert.Equal(t, 2, len(values))
 	assert.Equal(t, "foo", values["foo"])
 	assert.Equal(t, "baz", values["bar"])
 
-	_, err = gatherArguments(desc.Arguments, []string{})
+	_, err = gatherArguments([]string{}, desc.Arguments)
 	assert.Error(t, err)
 
-	_, err = gatherArguments(desc.Arguments, []string{"bar", "foo", "baz"})
+	_, err = gatherArguments([]string{"bar", "foo", "baz"}, desc.Arguments)
 	assert.Error(t, err)
 }
 
@@ -151,12 +152,12 @@ func TestOneOptionalArgument(t *testing.T) {
 	assert.Nil(t, cmd.Args(cmd, []string{"foo"}))
 	assert.Nil(t, cmd.Args(cmd, []string{}))
 
-	values, err := gatherArguments(desc.Arguments, []string{"foo"})
+	values, err := gatherArguments([]string{"foo"}, desc.Arguments)
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(values))
 	assert.Equal(t, "foo", values["foo"])
 
-	values, err = gatherArguments(desc.Arguments, []string{})
+	values, err = gatherArguments([]string{}, desc.Arguments)
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(values))
 	assert.Equal(t, "123", values["foo"])
@@ -175,17 +176,17 @@ func TestDefaultIntValue(t *testing.T) {
 	}
 	err := addArguments(cmd, &desc)
 	require.Nil(t, err)
-	values, err := gatherArguments(desc.Arguments, []string{})
+	values, err := gatherArguments([]string{}, desc.Arguments)
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(values))
 	assert.Equal(t, 123, values["foo"])
 
-	values, err = gatherArguments(desc.Arguments, []string{"234"})
+	values, err = gatherArguments([]string{"234"}, desc.Arguments)
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(values))
 	assert.Equal(t, 234, values["foo"])
 
-	_, err = gatherArguments(desc.Arguments, []string{"foo"})
+	_, err = gatherArguments([]string{"foo"}, desc.Arguments)
 	assert.Error(t, err)
 }
 
@@ -331,15 +332,15 @@ func TestAddStringListOptionalArgument(t *testing.T) {
 	assert.Nil(t, cmd.Args(cmd, []string{"foo"}))
 	assert.Nil(t, cmd.Args(cmd, []string{}))
 
-	values, err := gatherArguments(desc.Arguments, []string{"bar", "foo"})
+	values, err := gatherArguments([]string{"bar", "foo"}, desc.Arguments)
 	require.Nil(t, err)
 	assert.Equal(t, []string{"bar", "foo"}, values["foo"])
 
-	values, err = gatherArguments(desc.Arguments, []string{"foo"})
+	values, err = gatherArguments([]string{"foo"}, desc.Arguments)
 	require.Nil(t, err)
 	assert.Equal(t, []string{"foo"}, values["foo"])
 
-	values, err = gatherArguments(desc.Arguments, []string{})
+	values, err = gatherArguments([]string{}, desc.Arguments)
 	require.Nil(t, err)
 	assert.Equal(t, []string{"baz"}, values["foo"])
 }
@@ -466,4 +467,124 @@ func TestAddStringListRequiredAfterOptionalArgument(t *testing.T) {
 	}
 	err := addArguments(cmd, &desc)
 	assert.Error(t, err)
+}
+
+type expectedCommandResults struct {
+	ExpectedArgumentParameters map[string]interface{}
+	ExpectedFlagParameters     map[string]interface{}
+	ExpectedFlagError          bool
+	ExpectedArgumentError      bool
+	Args                       []string
+}
+
+func TestGatherCommand(t *testing.T) {
+	desc := SqletonCommandDescription{
+		Arguments: []*SqlParameter{
+			{
+				Name:     "foo",
+				Type:     ParameterTypeString,
+				Required: true,
+			},
+			{
+				Name:     "bar",
+				Type:     ParameterTypeStringList,
+				Required: true,
+			},
+		},
+		Flags: []*SqlParameter{
+			{
+				Name:    "baz",
+				Type:    ParameterTypeString,
+				Default: "blop",
+			},
+		},
+	}
+
+	expectedResults := []expectedCommandResults{
+		{
+			Args: []string{"--baz", "blip", "foo", "bar", "baz"},
+			ExpectedArgumentParameters: map[string]interface{}{
+				"foo": "foo",
+				"bar": []string{"bar", "baz"},
+			},
+			ExpectedFlagParameters: map[string]interface{}{
+				"baz": "blip",
+			},
+		},
+		{
+			Args: []string{"foo", "bar"},
+			ExpectedArgumentParameters: map[string]interface{}{
+				"foo": "foo",
+				"bar": []string{"bar"},
+			},
+			ExpectedFlagParameters: map[string]interface{}{
+				"baz": "blop",
+			},
+		},
+		{
+			Args:                  []string{"foo"},
+			ExpectedArgumentError: true,
+		},
+	}
+
+	for _, expected := range expectedResults {
+		testCommandParseHelper(t, desc, &expected)
+	}
+
+}
+
+func testCommandParseHelper(t *testing.T, desc SqletonCommandDescription, expected *expectedCommandResults) {
+	var flagsError error
+	var argsError error
+	var flagParameters map[string]interface{}
+	var argumentParameters map[string]interface{}
+
+	cmd := &cobra.Command{
+		Run: func(cmd *cobra.Command, args []string) {
+			flagParameters, flagsError = gatherFlags(cmd, desc.Flags)
+			if flagsError != nil {
+				return
+			}
+			argumentParameters, argsError = gatherArguments(args, desc.Arguments)
+			if argsError != nil {
+				return
+			}
+		},
+	}
+
+	err := addArguments(cmd, &desc)
+	require.Nil(t, err)
+	err = addFlags(cmd, &desc)
+	require.Nil(t, err)
+	cmd.SetArgs(expected.Args)
+
+	_ = capturer.CaptureStderr(func() {
+		err = cmd.Execute()
+	})
+
+	if expected.ExpectedFlagError || expected.ExpectedArgumentError {
+		assert.Errorf(t, err, "expected error for %v", expected.Args)
+	} else {
+		assert.NoErrorf(t, err, "unexpected error for %v", expected.Args)
+	}
+
+	if err != nil {
+		return
+	}
+
+	if expected.ExpectedFlagError {
+		assert.Errorf(t, flagsError, "expected flag error for %v", expected.Args)
+		return
+	} else {
+		assert.NoErrorf(t, flagsError, "Unexpected error parsing flags: %v", expected.Args)
+	}
+	if expected.ExpectedArgumentError {
+		assert.Errorf(t, argsError, "expected error for %v", expected.Args)
+		return
+	} else {
+		assert.NoErrorf(t, argsError, "expected no error for %v", expected.Args)
+	}
+
+	assert.Equal(t, expected.ExpectedArgumentParameters, argumentParameters)
+	assert.Equal(t, expected.ExpectedFlagParameters, flagParameters)
 }

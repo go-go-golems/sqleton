@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"text/template"
 )
@@ -27,11 +28,11 @@ type SqlParameter struct {
 }
 
 type SqletonCommandDescription struct {
-	Name       string
-	Short      string
-	Long       string
-	Parameters []*SqlParameter
-	Arguments  []*SqlParameter
+	Name      string
+	Short     string
+	Long      string
+	Flags     []*SqlParameter
+	Arguments []*SqlParameter
 }
 
 // string enum for parameters
@@ -43,6 +44,10 @@ type SqletonCommandDescription struct {
 // - a list of numbers
 // - a list of strings
 // - a choice out of strings
+
+// TODO(2022-12-21, manuel): Add list of choices as a type
+// what about list of dates? list of bools?
+// should list just be a flag?
 
 type ParameterType string
 
@@ -60,6 +65,82 @@ type SqletonCommand interface {
 	RunQueryIntoGlaze(ctx context.Context, db *sqlx.DB, parameters map[string]interface{}, gp *cli.GlazeProcessor) error
 	RenderQuery(parameters map[string]interface{}) (string, error)
 	Description() SqletonCommandDescription
+}
+
+func (sp *SqlParameter) CheckParameterDefaultValueValidity() error {
+	// optional parameters can have a nil value
+	if sp.Required && sp.Default == nil {
+		return nil
+	}
+
+	switch sp.Type {
+	case ParameterTypeString:
+		_, ok := sp.Default.(string)
+		if !ok {
+			return errors.Errorf("Default value for parameter %s is not a string: %v", sp.Name, sp.Default)
+		}
+	case ParameterTypeInteger:
+		_, ok := sp.Default.(int)
+		if !ok {
+			return errors.Errorf("Default value for parameter %s is not an integer: %v", sp.Name, sp.Default)
+		}
+
+	case ParameterTypeBool:
+		_, ok := sp.Default.(bool)
+		if !ok {
+			return errors.Errorf("Default value for parameter %s is not a bool: %v", sp.Name, sp.Default)
+		}
+
+	case ParameterTypeDate:
+		defaultValue, ok := sp.Default.(string)
+		if !ok {
+			return errors.Errorf("Default value for parameter %s is not a string: %v", sp.Name, sp.Default)
+		}
+
+		_, err2 := parseDate(defaultValue)
+		if err2 != nil {
+			return errors.Wrapf(err2, "Default value for parameter %s is not a valid date: %v", sp.Name, sp.Default)
+		}
+
+	case ParameterTypeStringList:
+		_, ok := sp.Default.([]string)
+		if !ok {
+			defaultValue, ok := sp.Default.([]interface{})
+			if !ok {
+				return errors.Errorf("Default value for parameter %s is not a string list: %v", sp.Name, sp.Default)
+			}
+
+			// convert to string list
+			_, err := convertToStringList(defaultValue)
+			if err != nil {
+				return errors.Wrapf(err, "Could not convert default value for parameter %s to string list: %v", sp.Name, sp.Default)
+			}
+		}
+
+	case ParameterTypeIntegerList:
+		_, ok := sp.Default.([]int)
+		if !ok {
+			return errors.Errorf("Default value for parameter %s is not an integer list: %v", sp.Name, sp.Default)
+		}
+
+	case ParameterTypeChoice:
+		defaultValue, ok := sp.Default.(string)
+		if !ok {
+			return errors.Errorf("Default value for parameter %s is not a string: %v", sp.Name, sp.Default)
+		}
+
+		found := false
+		for _, choice := range sp.Choices {
+			if choice == defaultValue {
+				found = true
+			}
+		}
+		if !found {
+			return errors.Errorf("Default value for parameter %s is not a valid choice: %v", sp.Name, sp.Default)
+		}
+	}
+
+	return nil
 }
 
 // SqlCommand describes a command line command that runs a query
@@ -159,10 +240,10 @@ func (s *SqlCommand) RunQueryIntoGlaze(
 
 func (s *SqlCommand) Description() SqletonCommandDescription {
 	return SqletonCommandDescription{
-		Name:       s.Name,
-		Short:      s.Short,
-		Long:       s.Long,
-		Parameters: s.Parameters,
+		Name:  s.Name,
+		Short: s.Short,
+		Long:  s.Long,
+		Flags: s.Parameters,
 	}
 }
 
@@ -279,4 +360,66 @@ func LoadSqlCommandsFromDirectory(dir string, cmdRoot string) ([]*SqlCommand, er
 	}
 
 	return commands, nil
+}
+
+func (sp *SqlParameter) ParseParameter(v []string) (interface{}, error) {
+	if len(v) == 0 {
+		if sp.Required {
+			return nil, errors.Errorf("Argument %s not found", sp.Name)
+		} else {
+			return sp.Default, nil
+		}
+	}
+
+	switch sp.Type {
+	case ParameterTypeString:
+		return v[0], nil
+	case ParameterTypeInteger:
+		i, err := strconv.Atoi(v[0])
+		if err != nil {
+			return nil, errors.Wrapf(err, "Could not parse argument %s as integer", sp.Name)
+		}
+		return i, nil
+	case ParameterTypeStringList:
+		return v, nil
+	case ParameterTypeIntegerList:
+		ints := make([]int, 0)
+		for _, arg := range v {
+			i, err := strconv.Atoi(arg)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Could not parse argument %s as integer", sp.Name)
+			}
+			ints = append(ints, i)
+		}
+		return ints, nil
+
+	case ParameterTypeBool:
+		b, err := strconv.ParseBool(v[0])
+		if err != nil {
+			return nil, errors.Wrapf(err, "Could not parse argument %s as bool", sp.Name)
+		}
+		return b, nil
+
+	case ParameterTypeChoice:
+		choice := v[0]
+		found := false
+		for _, c := range sp.Choices {
+			if c == choice {
+				found = true
+			}
+		}
+		if !found {
+			return nil, errors.Errorf("Argument %s has invalid choice %s", sp.Name, choice)
+		}
+		return choice, nil
+
+	case ParameterTypeDate:
+		parsedDate, err := parseDate(v[0])
+		if err != nil {
+			return nil, errors.Wrapf(err, "Could not parse argument %s as date", sp.Name)
+		}
+		return parsedDate, nil
+	}
+
+	return nil, errors.Errorf("Unknown parameter type %s", sp.Type)
 }

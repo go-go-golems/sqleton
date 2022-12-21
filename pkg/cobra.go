@@ -14,6 +14,14 @@ import (
 	"time"
 )
 
+// TODO(2022-12-21, manuel): Additional parameter/argument ideas
+// - number range
+// - handle floats
+// - generate choices/ranges from SQL statements
+
+// refTime is used to set a reference time for natural date parsing for unit test purposes
+var refTime *time.Time
+
 func OpenDatabaseFromViper() (*sqlx.DB, error) {
 	// Load the configuration values from the configuration file
 	host := viper.GetString("host")
@@ -82,7 +90,7 @@ func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// TODO(2022-12-20, manuel): we should be able to load default values for these parameters from a config file
 			// See: https://github.com/wesen/sqleton/issues/39
-			parameters, err2 := gatherParameters(cmd, description)
+			parameters, err2 := gatherFlags(cmd, description.Flags)
 			if err2 != nil {
 				return err2
 			}
@@ -165,6 +173,11 @@ func addArguments(cmd *cobra.Command, description *SqletonCommandDescription) er
 			// already handling unbounded arguments
 			return errors.Errorf("Cannot handle more than one unbounded argument, but found %s", argument.Name)
 		}
+		err := argument.CheckParameterDefaultValueValidity()
+		if err != nil {
+			return errors.Wrapf(err, "Invalid default value for argument %s", argument.Name)
+		}
+
 		if argument.Required {
 			if hadOptional {
 				return errors.Errorf("Cannot handle required argument %s after optional argument", argument.Name)
@@ -190,21 +203,51 @@ func addArguments(cmd *cobra.Command, description *SqletonCommandDescription) er
 	return nil
 }
 
-func gatherArguments(cmd *cobra.Command, description *SqletonCommandDescription, args []string) (map[string]interface{}, error) {
+func gatherArguments(arguments []*SqlParameter, args []string) (map[string]interface{}, error) {
 	_ = args
-	arguments := make(map[string]interface{})
-	for _, argument := range description.Arguments {
-		argumentValue, err := cmd.Flags().GetString(argument.Name)
+	result := make(map[string]interface{})
+	argsIdx := 0
+	for _, argument := range arguments {
+		if argsIdx >= len(args) {
+			if argument.Required {
+				return nil, errors.Errorf("Argument %s not found", argument.Name)
+			} else {
+				result[argument.Name] = argument.Default
+				continue
+			}
+		}
+
+		v := []string{args[argsIdx]}
+
+		switch argument.Type {
+		case ParameterTypeStringList:
+			fallthrough
+		case ParameterTypeIntegerList:
+			v = args[argsIdx:]
+			argsIdx = len(args)
+		default:
+			argsIdx++
+		}
+		i2, err := argument.ParseParameter(v)
 		if err != nil {
 			return nil, err
 		}
-		arguments[argument.Name] = argumentValue
+
+		result[argument.Name] = i2
 	}
-	return arguments, nil
+	if argsIdx < len(args) {
+		return nil, errors.Errorf("Too many arguments")
+	}
+	return result, nil
 }
 
 func addFlags(cmd *cobra.Command, description *SqletonCommandDescription) error {
-	for _, parameter := range description.Parameters {
+	for _, parameter := range description.Flags {
+		err := parameter.CheckParameterDefaultValueValidity()
+		if err != nil {
+			return errors.Wrapf(err, "Invalid default value for argument %s", parameter.Name)
+		}
+
 		flagName := parameter.Name
 		shortFlag := parameter.ShortFlag
 		switch parameter.Type {
@@ -247,13 +290,11 @@ func addFlags(cmd *cobra.Command, description *SqletonCommandDescription) error 
 				return errors.Errorf("Default value for parameter %s is not a string: %v", parameter.Name, parameter.Default)
 			}
 
-			_, err := dateparse.ParseAny(defaultValue)
-			if err != nil {
-				_, err = naturaldate.Parse(defaultValue, time.Now())
-				if err != nil {
-					return errors.Wrapf(err, "Could not parse default value for parameter %s: %s", parameter.Name, defaultValue)
-				}
+			parsedDate, err2 := parseDate(defaultValue)
+			if err2 != nil {
+				return err2
 			}
+			_ = parsedDate
 
 			if parameter.ShortFlag != "" {
 				cmd.Flags().StringP(flagName, shortFlag, defaultValue, parameter.Help)
@@ -262,13 +303,16 @@ func addFlags(cmd *cobra.Command, description *SqletonCommandDescription) error 
 			}
 
 		case ParameterTypeStringList:
-			defaultValue, ok := parameter.Default.([]interface{})
+			stringList, ok := parameter.Default.([]string)
 			if !ok {
-				return errors.Errorf("Default value for parameter %s is not a string list: %v", parameter.Name, parameter.Default)
-			}
+				defaultValue, ok := parameter.Default.([]interface{})
+				if !ok {
+					return errors.Errorf("Default value for parameter %s is not a string list: %v", parameter.Name, parameter.Default)
+				}
 
-			// convert to string list
-			stringList, err := convertToStringList(defaultValue)
+				// convert to string list
+				stringList, err = convertToStringList(defaultValue)
+			}
 			if err != nil {
 				return errors.Wrapf(err, "Could not convert default value for parameter %s to string list: %v", parameter.Name, parameter.Default)
 			}
@@ -310,10 +354,10 @@ func addFlags(cmd *cobra.Command, description *SqletonCommandDescription) error 
 	return nil
 }
 
-func gatherParameters(cmd *cobra.Command, description SqletonCommandDescription) (map[string]interface{}, error) {
+func gatherFlags(cmd *cobra.Command, params []*SqlParameter) (map[string]interface{}, error) {
 	parameters := map[string]interface{}{}
 
-	for _, parameter := range description.Parameters {
+	for _, parameter := range params {
 		switch parameter.Type {
 		case ParameterTypeString:
 			fallthrough
@@ -370,19 +414,6 @@ func gatherParameters(cmd *cobra.Command, description SqletonCommandDescription)
 	return parameters, nil
 }
 
-func convertToStringList(value []interface{}) ([]string, error) {
-	stringList := make([]string, len(value))
-	for i, v := range value {
-		s, ok := v.(string)
-		if !ok {
-			return nil, errors.Errorf("Not a string: %v", v)
-		}
-		stringList[i] = s
-	}
-	return stringList, nil
-}
-
-// AddCommandsToRootCommand
 func AddCommandsToRootCommand(rootCmd *cobra.Command, commands []*SqlCommand) error {
 	for _, command := range commands {
 		// find the proper subcommand, or create if it doesn't exist
@@ -409,4 +440,8 @@ func AddCommandsToRootCommand(rootCmd *cobra.Command, commands []*SqlCommand) er
 	}
 
 	return nil
+}
+
+func init() {
+
 }

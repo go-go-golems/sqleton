@@ -80,62 +80,11 @@ func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 		Short: description.Short,
 		Long:  description.Long,
 		RunE: func(cmd *cobra.Command, args []string) error {
-
-			parameters := map[string]interface{}{}
-
-			for _, parameter := range description.Parameters {
-				switch parameter.Type {
-				case ParameterTypeString:
-					fallthrough
-				case ParameterTypeChoice:
-					v, err := cmd.Flags().GetString(parameter.Name)
-					if err != nil {
-						return err
-					}
-					parameters[parameter.Name] = v
-
-				case ParameterTypeInteger:
-					v, err := cmd.Flags().GetInt(parameter.Name)
-					if err != nil {
-						return err
-					}
-					parameters[parameter.Name] = v
-
-				case ParameterTypeDate:
-					v, err := cmd.Flags().GetString(parameter.Name)
-					if err != nil {
-						return err
-					}
-					parsedDate, err := dateparse.ParseAny(v)
-					if err != nil {
-						parsedDate, err = naturaldate.Parse(v, time.Now())
-						if err != nil {
-							return errors.Wrapf(err, "Could not parse date %s", v)
-						}
-					}
-					parameters[parameter.Name] = parsedDate
-
-				case ParameterTypeBool:
-					v, err := cmd.Flags().GetBool(parameter.Name)
-					if err != nil {
-						return err
-					}
-					parameters[parameter.Name] = v
-
-				case ParameterTypeStringList:
-					v, err := cmd.Flags().GetStringSlice(parameter.Name)
-					if err != nil {
-						return err
-					}
-					parameters[parameter.Name] = v
-
-				case ParameterTypeIntegerList:
-					v, err := cmd.Flags().GetIntSlice(parameter.Name)
-					if err != nil {
-						return err
-					}
-					parameters[parameter.Name] = v
-				}
+			// TODO(2022-12-20, manuel): we should be able to load default values for these parameters from a config file
+			// See: https://github.com/wesen/sqleton/issues/39
+			parameters, err2 := gatherParameters(cmd, description)
+			if err2 != nil {
+				return err2
 			}
 
 			db, err := OpenDatabaseFromViper()
@@ -184,8 +133,77 @@ func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 		},
 	}
 
-	// TODO(2022-12-20, manuel): we should be able to load these parameters from a config file
-	// See: https://github.com/wesen/sqleton/issues/39
+	err := addFlags(cmd, &description)
+	if err != nil {
+		return nil, err
+	}
+
+	err = addArguments(cmd, &description)
+	if err != nil {
+		return nil, err
+	}
+
+	cmd.Flags().Bool("print-query", false, "Print the query that will be executed")
+	cmd.Flags().Bool("explain", false, "Print the query plan that will be executed")
+
+	cli.AddOutputFlags(cmd)
+	cli.AddTemplateFlags(cmd)
+	cli.AddFieldsFilterFlags(cmd, "")
+	cli.AddSelectFlags(cmd)
+
+	return cmd, nil
+}
+
+func addArguments(cmd *cobra.Command, description *SqletonCommandDescription) error {
+	minArgs := 0
+	// -1 signifies unbounded
+	maxArgs := 0
+	hadOptional := false
+
+	for _, argument := range description.Arguments {
+		if maxArgs == -1 {
+			// already handling unbounded arguments
+			return errors.Errorf("Cannot handle more than one unbounded argument, but found %s", argument.Name)
+		}
+		if argument.Required {
+			if hadOptional {
+				return errors.Errorf("Cannot handle required argument %s after optional argument", argument.Name)
+			}
+			minArgs++
+		} else {
+			hadOptional = true
+		}
+		maxArgs++
+		switch argument.Type {
+		case ParameterTypeStringList:
+			fallthrough
+		case ParameterTypeIntegerList:
+			maxArgs = -1
+		}
+	}
+
+	cmd.Args = cobra.MinimumNArgs(minArgs)
+	if maxArgs != -1 {
+		cmd.Args = cobra.RangeArgs(minArgs, maxArgs)
+	}
+
+	return nil
+}
+
+func gatherArguments(cmd *cobra.Command, description *SqletonCommandDescription, args []string) (map[string]interface{}, error) {
+	_ = args
+	arguments := make(map[string]interface{})
+	for _, argument := range description.Arguments {
+		argumentValue, err := cmd.Flags().GetString(argument.Name)
+		if err != nil {
+			return nil, err
+		}
+		arguments[argument.Name] = argumentValue
+	}
+	return arguments, nil
+}
+
+func addFlags(cmd *cobra.Command, description *SqletonCommandDescription) error {
 	for _, parameter := range description.Parameters {
 		flagName := parameter.Name
 		shortFlag := parameter.ShortFlag
@@ -193,7 +211,7 @@ func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 		case ParameterTypeString:
 			defaultValue, ok := parameter.Default.(string)
 			if !ok {
-				return nil, errors.Errorf("Default value for parameter %s is not a string: %v", parameter.Name, parameter.Default)
+				return errors.Errorf("Default value for parameter %s is not a string: %v", parameter.Name, parameter.Default)
 			}
 
 			if parameter.ShortFlag != "" {
@@ -204,7 +222,7 @@ func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 		case ParameterTypeInteger:
 			defaultValue, ok := parameter.Default.(int)
 			if !ok {
-				return nil, errors.Errorf("Default value for parameter %s is not an integer: %v", parameter.Name, parameter.Default)
+				return errors.Errorf("Default value for parameter %s is not an integer: %v", parameter.Name, parameter.Default)
 			}
 			if parameter.ShortFlag != "" {
 				cmd.Flags().IntP(flagName, shortFlag, defaultValue, parameter.Help)
@@ -215,7 +233,7 @@ func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 		case ParameterTypeBool:
 			defaultValue, ok := parameter.Default.(bool)
 			if !ok {
-				return nil, errors.Errorf("Default value for parameter %s is not a bool: %v", parameter.Name, parameter.Default)
+				return errors.Errorf("Default value for parameter %s is not a bool: %v", parameter.Name, parameter.Default)
 			}
 			if parameter.ShortFlag != "" {
 				cmd.Flags().BoolP(flagName, shortFlag, defaultValue, parameter.Help)
@@ -226,14 +244,14 @@ func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 		case ParameterTypeDate:
 			defaultValue, ok := parameter.Default.(string)
 			if !ok {
-				return nil, errors.Errorf("Default value for parameter %s is not a string: %v", parameter.Name, parameter.Default)
+				return errors.Errorf("Default value for parameter %s is not a string: %v", parameter.Name, parameter.Default)
 			}
 
 			_, err := dateparse.ParseAny(defaultValue)
 			if err != nil {
 				_, err = naturaldate.Parse(defaultValue, time.Now())
 				if err != nil {
-					return nil, errors.Wrapf(err, "Could not parse default value for parameter %s: %s", parameter.Name, defaultValue)
+					return errors.Wrapf(err, "Could not parse default value for parameter %s: %s", parameter.Name, defaultValue)
 				}
 			}
 
@@ -246,13 +264,13 @@ func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 		case ParameterTypeStringList:
 			defaultValue, ok := parameter.Default.([]interface{})
 			if !ok {
-				return nil, errors.Errorf("Default value for parameter %s is not a string list: %v", parameter.Name, parameter.Default)
+				return errors.Errorf("Default value for parameter %s is not a string list: %v", parameter.Name, parameter.Default)
 			}
 
 			// convert to string list
 			stringList, err := convertToStringList(defaultValue)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Could not convert default value for parameter %s to string list: %v", parameter.Name, parameter.Default)
+				return errors.Wrapf(err, "Could not convert default value for parameter %s to string list: %v", parameter.Name, parameter.Default)
 			}
 
 			if parameter.ShortFlag != "" {
@@ -264,7 +282,7 @@ func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 		case ParameterTypeIntegerList:
 			defaultValue, ok := parameter.Default.([]int)
 			if !ok {
-				return nil, errors.Errorf("Default value for parameter %s is not an integer list: %v", parameter.Name, parameter.Default)
+				return errors.Errorf("Default value for parameter %s is not an integer list: %v", parameter.Name, parameter.Default)
 			}
 
 			if parameter.ShortFlag != "" {
@@ -276,7 +294,7 @@ func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 		case ParameterTypeChoice:
 			defaultValue, ok := parameter.Default.(string)
 			if !ok {
-				return nil, errors.Errorf("Default value for parameter %s is not a string: %v", parameter.Name, parameter.Default)
+				return errors.Errorf("Default value for parameter %s is not a string: %v", parameter.Name, parameter.Default)
 			}
 
 			choiceString := strings.Join(parameter.Choices, ",")
@@ -289,15 +307,67 @@ func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 		}
 	}
 
-	cmd.Flags().Bool("print-query", false, "Print the query that will be executed")
-	cmd.Flags().Bool("explain", false, "Print the query plan that will be executed")
+	return nil
+}
 
-	cli.AddOutputFlags(cmd)
-	cli.AddTemplateFlags(cmd)
-	cli.AddFieldsFilterFlags(cmd, "")
-	cli.AddSelectFlags(cmd)
+func gatherParameters(cmd *cobra.Command, description SqletonCommandDescription) (map[string]interface{}, error) {
+	parameters := map[string]interface{}{}
 
-	return cmd, nil
+	for _, parameter := range description.Parameters {
+		switch parameter.Type {
+		case ParameterTypeString:
+			fallthrough
+		case ParameterTypeChoice:
+			v, err := cmd.Flags().GetString(parameter.Name)
+			if err != nil {
+				return nil, err
+			}
+			parameters[parameter.Name] = v
+
+		case ParameterTypeInteger:
+			v, err := cmd.Flags().GetInt(parameter.Name)
+			if err != nil {
+				return nil, err
+			}
+			parameters[parameter.Name] = v
+
+		case ParameterTypeDate:
+			v, err := cmd.Flags().GetString(parameter.Name)
+			if err != nil {
+				return nil, err
+			}
+			parsedDate, err := dateparse.ParseAny(v)
+			if err != nil {
+				parsedDate, err = naturaldate.Parse(v, time.Now())
+				if err != nil {
+					return nil, errors.Wrapf(err, "Could not parse date %s", v)
+				}
+			}
+			parameters[parameter.Name] = parsedDate
+
+		case ParameterTypeBool:
+			v, err := cmd.Flags().GetBool(parameter.Name)
+			if err != nil {
+				return nil, err
+			}
+			parameters[parameter.Name] = v
+
+		case ParameterTypeStringList:
+			v, err := cmd.Flags().GetStringSlice(parameter.Name)
+			if err != nil {
+				return nil, err
+			}
+			parameters[parameter.Name] = v
+
+		case ParameterTypeIntegerList:
+			v, err := cmd.Flags().GetIntSlice(parameter.Name)
+			if err != nil {
+				return nil, err
+			}
+			parameters[parameter.Name] = v
+		}
+	}
+	return parameters, nil
 }
 
 func convertToStringList(value []interface{}) ([]string, error) {

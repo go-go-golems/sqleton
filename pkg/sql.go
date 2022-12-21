@@ -23,6 +23,7 @@ type SqlParameter struct {
 	Help      string        `yaml:"help"`
 	Default   interface{}   `yaml:"default"`
 	Choices   []string      `yaml:"choices"`
+	Required  bool          `yaml:"required"`
 }
 
 type SqletonCommandDescription struct {

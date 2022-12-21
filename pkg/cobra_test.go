@@ -9,12 +9,6 @@ import (
 	"time"
 )
 
-// TODO(2022-12-21, manuel) Things to test:
-// - default values for optional arguments
-// - addFlags
-// - invalid default values
-// - parsing dates
-
 func TestAddZeroArguments(t *testing.T) {
 	cmd := &cobra.Command{}
 	desc := SqletonCommandDescription{

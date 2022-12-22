@@ -23,7 +23,7 @@ sqleton is a tool to easily run SQL commands.
 
 ## Demo
 
-![Demo of sqleton](https://imgur.com/a/H9tWd0h.gif)
+![Demo of sqleton](https://i.imgur.com/agO8aYr.gif)
 
 ## Overview
 

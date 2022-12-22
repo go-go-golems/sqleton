@@ -40,7 +40,9 @@ var RunCmd = &cobra.Command{
 				return errors.Wrapf(err, "Could not read file: %s", arg)
 			}
 
-			err = pkg.RunQueryIntoGlaze(dbContext, db, string(query), gp)
+			// TODO(2022-12-20, manuel): collect named parameters here, maybe through prerun?
+			// See: https://github.com/wesen/sqleton/issues/40
+			err = pkg.RunQueryIntoGlaze(dbContext, db, string(query), map[string]interface{}{}, gp)
 			if err != nil {
 				return errors.Wrapf(err, "Could not run query")
 			}

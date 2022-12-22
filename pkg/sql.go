@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
+	"time"
 )
 
 type SqlParameter struct {
@@ -161,20 +162,39 @@ type SqlCommand struct {
 	Source  string
 }
 
+func sqlStringIn(values []string) string {
+	return fmt.Sprintf("'%s'", strings.Join(values, "','"))
+}
+
+func sqlIn(values []interface{}) string {
+	strValues := make([]string, len(values))
+	for i, v := range values {
+		strValues[i] = fmt.Sprintf("%v", v)
+	}
+	return strings.Join(strValues, ",")
+}
+
+func sqlDate(date time.Time) string {
+	return "'" + date.Format("2006-01-02") + "'"
+}
+
+func sqlDateTime(date time.Time) string {
+	return "'" + date.Format("2006-01-02 15:04:05") + "'"
+}
+
+func sqlLike(value string) string {
+	return "'%" + value + "%'"
+}
+
 func (s *SqlCommand) RenderQuery(parameters map[string]interface{}) (string, error) {
 	t2 := template.New("query")
 	t2.Funcs(template.FuncMap{
-		"join": strings.Join,
-		"sqlStringIn": func(values []string) string {
-			return "'" + strings.Join(values, "','") + "'"
-		},
-		"sqlIn": func(values []interface{}) string {
-			strValues := make([]string, len(values))
-			for i, v := range values {
-				strValues[i] = fmt.Sprintf("%v", v)
-			}
-			return strings.Join(strValues, ",")
-		},
+		"join":        strings.Join,
+		"sqlStringIn": sqlStringIn,
+		"sqlIn":       sqlIn,
+		"sqlDate":     sqlDate,
+		"sqlDateTime": sqlDateTime,
+		"sqlLike":     sqlLike,
 	})
 	t := template.Must(t2.Parse(s.Query))
 	var qb strings.Builder

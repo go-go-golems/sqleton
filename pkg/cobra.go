@@ -269,9 +269,13 @@ func addFlags(cmd *cobra.Command, description *SqletonCommandDescription) error 
 
 		switch parameter.Type {
 		case ParameterTypeString:
-			defaultValue, ok := parameter.Default.(string)
-			if !ok {
-				return errors.Errorf("Default value for parameter %s is not a string: %v", parameter.Name, parameter.Default)
+			defaultValue := ""
+
+			if parameter.Default != nil {
+				defaultValue, ok = parameter.Default.(string)
+				if !ok {
+					return errors.Errorf("Default value for parameter %s is not a string: %v", parameter.Name, parameter.Default)
+				}
 			}
 
 			if parameter.ShortFlag != "" {
@@ -319,13 +323,13 @@ func addFlags(cmd *cobra.Command, description *SqletonCommandDescription) error 
 				if !ok {
 					return errors.Errorf("Default value for parameter %s is not a string: %v", parameter.Name, parameter.Default)
 				}
-			}
 
-			parsedDate, err2 := parseDate(defaultValue)
-			if err2 != nil {
-				return err2
+				parsedDate, err2 := parseDate(defaultValue)
+				if err2 != nil {
+					return err2
+				}
+				_ = parsedDate
 			}
-			_ = parsedDate
 
 			if parameter.ShortFlag != "" {
 				cmd.Flags().StringP(flagName, shortFlag, defaultValue, parameter.Help)

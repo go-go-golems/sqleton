@@ -24,7 +24,7 @@ YAML files can be used to add commands to sqleton by using the following layout:
 name: ls-posts-type
 short: Show all WP posts, limited, by type
 long: Show all posts and their ID
-parameters:
+flags:
    - name: types
      type: stringList
      default:
@@ -72,7 +72,7 @@ repository, by default, the queries in `$HOME/.sqleton/queries` are loaded.
 
 ## Using query parameters
 
-A query can also provide parameters, which are mapped to command line flags.
+A query can also provide parameters, which are mapped to command line flags and arguments
 
 Parameters have the following structure:
 
@@ -84,3 +84,26 @@ Parameters have the following structure:
   help: Limit the number of posts
 ```
 
+Valid types for a parameter are:
+
+- `string`
+- `int`
+- `bool`
+- `date`
+- `choice`
+- `stringList`
+- `intList`
+
+These are then specified in the `flags` and `arguments` section respectively.
+
+Arguments have to obey a few rules:
+- optional arguments can't follow required arguments
+- no argument can follow a stringList of intList argument
+
+
+## Providing help pages for queries
+
+To add examples, topics, and other help pages for your query, just add a markdown
+file inside one of the directories scanned for help pages.
+
+Look at [wordpress examples](../examples/wp) for more examples.

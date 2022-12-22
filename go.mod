@@ -12,6 +12,7 @@ require (
 	github.com/stretchr/testify v1.8.1
 	github.com/tj/go-naturaldate v1.3.0
 	github.com/wesen/glazed v0.1.1-0.20221221142054-688ee7b18261
+	github.com/zenizh/go-capturer v0.0.0-20211219060012-52ea6c8fed04
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -50,7 +51,6 @@ require (
 	github.com/subosito/gotenv v1.4.1 // indirect
 	github.com/yuin/goldmark v1.5.2 // indirect
 	github.com/yuin/goldmark-emoji v1.0.1 // indirect
-	github.com/zenizh/go-capturer v0.0.0-20211219060012-52ea6c8fed04 // indirect
 	golang.org/x/net v0.0.0-20221014081412-f15817d10f9b // indirect
 	golang.org/x/sys v0.0.0-20220908164124-27713097b956 // indirect
 	golang.org/x/text v0.4.0 // indirect

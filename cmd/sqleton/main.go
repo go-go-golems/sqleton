@@ -19,7 +19,7 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-func initCommands(rootCmd *cobra.Command) ([]*sqleton.SqlCommand, error) {
+func initCommands(rootCmd *cobra.Command) ([]*sqleton.SqlCommand, []*sqleton.CommandAlias, error) {
 	// Load the variables from the environment
 	viper.SetEnvPrefix("sqleton")
 
@@ -34,7 +34,7 @@ func initCommands(rootCmd *cobra.Command) ([]*sqleton.SqlCommand, error) {
 		// Config file not found; ignore error
 	} else if err != nil {
 		// Config file was found but another error was produced
-		return nil, err
+		return nil, nil, err
 	}
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 	viper.AutomaticEnv()
@@ -42,23 +42,31 @@ func initCommands(rootCmd *cobra.Command) ([]*sqleton.SqlCommand, error) {
 	// Bind the variables to the command-line flags
 	err = viper.BindPFlags(rootCmd.PersistentFlags())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	commands, err := loadRepositoryCommand()
+	commands, aliases, err := sqleton.LoadSqlCommandsFromEmbedFS(queriesFS, ".", "queries/")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	err = sqleton.AddCommandsToRootCommand(rootCmd, commands)
+	repositoryCommands, repositoryAliases, err := loadRepositoryCommands()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return commands, nil
+	commands = append(commands, repositoryCommands...)
+	aliases = append(aliases, repositoryAliases...)
+
+	err = sqleton.AddCommandsToRootCommand(rootCmd, commands, aliases)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return commands, aliases, nil
 }
 
-func loadRepositoryCommand() ([]*sqleton.SqlCommand, error) {
+func loadRepositoryCommands() ([]*sqleton.SqlCommand, []*sqleton.CommandAlias, error) {
 	repository := viper.GetString("repository")
 	useDefaultDirectory := false
 	if repository == "" {
@@ -73,25 +81,25 @@ func loadRepositoryCommand() ([]*sqleton.SqlCommand, error) {
 
 	if os.IsNotExist(err) {
 		if !useDefaultDirectory {
-			return nil, err
+			return nil, nil, err
 		}
 	} else if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if s == nil || !s.IsDir() {
 		if !useDefaultDirectory {
-			return nil, errors.New("repository is not a directory")
+			return nil, nil, errors.New("repository is not a directory")
 		}
 	} else {
-		commands, err := sqleton.LoadSqlCommandsFromDirectory(repository, repository)
+		commands, aliases, err := sqleton.LoadSqlCommandsFromDirectory(repository, repository)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		return commands, nil
+		return commands, aliases, nil
 	}
 
-	return []*sqleton.SqlCommand{}, nil
+	return []*sqleton.SqlCommand{}, []*sqleton.CommandAlias{}, nil
 }
 
 func main() {
@@ -150,20 +158,11 @@ func init() {
 	rootCmd.AddCommand(cmds.MysqlCmd)
 
 	cmds.InitializeMysqlCmd(queriesFS, helpSystem)
-	commands, err := sqleton.LoadSqlCommandsFromEmbedFS(queriesFS, ".", "queries/")
-	if err != nil {
-		panic(err)
-	}
-	err = sqleton.AddCommandsToRootCommand(rootCmd, commands)
+	commands, aliases, err := initCommands(rootCmd)
 	if err != nil {
 		panic(err)
 	}
 
-	repositoryCommands, err := initCommands(rootCmd)
-	if err != nil {
-		panic(err)
-	}
-
-	queriesCmd := cmds.AddQueriesCmd(append(commands, repositoryCommands...))
+	queriesCmd := cmds.AddQueriesCmd(commands, aliases)
 	rootCmd.AddCommand(queriesCmd)
 }

@@ -28,6 +28,18 @@ type SqlParameter struct {
 	Required  bool          `yaml:"required"`
 }
 
+func (s *SqlParameter) Copy() *SqlParameter {
+	return &SqlParameter{
+		Name:      s.Name,
+		ShortFlag: s.ShortFlag,
+		Type:      s.Type,
+		Help:      s.Help,
+		Default:   s.Default,
+		Choices:   s.Choices,
+		Required:  s.Required,
+	}
+}
+
 type SqletonCommandDescription struct {
 	Name      string
 	Short     string
@@ -162,6 +174,10 @@ type SqlCommand struct {
 	Source  string
 }
 
+func (sc *SqlCommand) IsValid() bool {
+	return sc.Name != "" && sc.Query != "" && sc.Short != ""
+}
+
 func sqlStringIn(values []string) string {
 	return fmt.Sprintf("'%s'", strings.Join(values, "','"))
 }
@@ -274,6 +290,20 @@ func (s *SqlCommand) Description() SqletonCommandDescription {
 	}
 }
 
+func LoadCommandAliasFromYaml(s io.Reader) (*CommandAlias, error) {
+	var alias CommandAlias
+	err := yaml.NewDecoder(s).Decode(&alias)
+	if err != nil {
+		return nil, errors.Wrap(err, "Could not decode command alias")
+	}
+
+	if !alias.IsValid() {
+		return nil, errors.New("Invalid command alias")
+	}
+
+	return &alias, nil
+}
+
 func LoadSqlCommandFromYaml(s io.Reader) (*SqlCommand, error) {
 	sq := &SqlCommand{
 		Flags:     []*SqlParameter{},
@@ -284,15 +314,20 @@ func LoadSqlCommandFromYaml(s io.Reader) (*SqlCommand, error) {
 		return nil, err
 	}
 
+	if !sq.IsValid() {
+		return nil, errors.New("Invalid command")
+	}
+
 	return sq, nil
 }
 
-func LoadSqlCommandsFromEmbedFS(f embed.FS, dir string, cmdRoot string) ([]*SqlCommand, error) {
+func LoadSqlCommandsFromEmbedFS(f embed.FS, dir string, cmdRoot string) ([]*SqlCommand, []*CommandAlias, error) {
 	var commands []*SqlCommand
+	var aliases []*CommandAlias
 
 	entries, err := f.ReadDir(dir)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for _, entry := range entries {
 		// skip hidden files
@@ -301,9 +336,9 @@ func LoadSqlCommandsFromEmbedFS(f embed.FS, dir string, cmdRoot string) ([]*SqlC
 		}
 		fileName := filepath.Join(dir, entry.Name())
 		if entry.IsDir() {
-			subCommands, err := LoadSqlCommandsFromEmbedFS(f, fileName, cmdRoot)
+			subCommands, _, err := LoadSqlCommandsFromEmbedFS(f, fileName, cmdRoot)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			commands = append(commands, subCommands...)
 		} else {
@@ -330,24 +365,49 @@ func LoadSqlCommandsFromEmbedFS(f embed.FS, dir string, cmdRoot string) ([]*SqlC
 					return command, err
 				}()
 				if err != nil {
-					return nil, err
+					alias, err := func() (*CommandAlias, error) {
+						file, err := f.Open(fileName)
+						if err != nil {
+							return nil, errors.Wrapf(err, "Could not open file %s", fileName)
+						}
+						defer func() {
+							_ = file.Close()
+						}()
+
+						alias, err := LoadCommandAliasFromYaml(file)
+						if err != nil {
+							return nil, errors.Wrapf(err, "Could not load command alias from file %s", fileName)
+						}
+						alias.Source = "embed:" + fileName
+
+						pathToFile := strings.TrimPrefix(dir, cmdRoot)
+						alias.Parents = strings.Split(pathToFile, "/")
+
+						return alias, err
+					}()
+
+					if err != nil {
+						return nil, nil, err
+					} else {
+						aliases = append(aliases, alias)
+					}
+				} else {
+					commands = append(commands, command)
 				}
-
-				commands = append(commands, command)
 			}
-
 		}
 	}
 
-	return commands, nil
+	return commands, aliases, nil
 }
 
-func LoadSqlCommandsFromDirectory(dir string, cmdRoot string) ([]*SqlCommand, error) {
+func LoadSqlCommandsFromDirectory(dir string, cmdRoot string) ([]*SqlCommand, []*CommandAlias, error) {
 	var commands []*SqlCommand
+	var aliases []*CommandAlias
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for _, entry := range entries {
 		// skip hidden files
@@ -356,11 +416,12 @@ func LoadSqlCommandsFromDirectory(dir string, cmdRoot string) ([]*SqlCommand, er
 		}
 		fileName := filepath.Join(dir, entry.Name())
 		if entry.IsDir() {
-			subCommands, err := LoadSqlCommandsFromDirectory(fileName, cmdRoot)
+			subCommands, subAliases, err := LoadSqlCommandsFromDirectory(fileName, cmdRoot)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			commands = append(commands, subCommands...)
+			aliases = append(aliases, subAliases...)
 		} else {
 			if strings.HasSuffix(entry.Name(), ".yml") ||
 				strings.HasSuffix(entry.Name(), ".yaml") {
@@ -387,15 +448,41 @@ func LoadSqlCommandsFromDirectory(dir string, cmdRoot string) ([]*SqlCommand, er
 					return command, err
 				}()
 				if err != nil {
-					return nil, err
-				}
+					alias, err := func() (*CommandAlias, error) {
+						file, err := os.Open(fileName)
+						if err != nil {
+							return nil, errors.Wrapf(err, "Could not open file %s", fileName)
+						}
+						defer func() {
+							_ = file.Close()
+						}()
 
-				commands = append(commands, command)
+						alias, err := LoadCommandAliasFromYaml(file)
+						if err != nil {
+							return nil, errors.Wrapf(err, "Could not load command alias from file %s", fileName)
+						}
+						alias.Source = "file:" + fileName
+
+						pathToFile := strings.TrimPrefix(dir, cmdRoot)
+						pathToFile = strings.TrimPrefix(pathToFile, "/")
+						alias.Parents = strings.Split(pathToFile, "/")
+
+						return alias, err
+					}()
+
+					if err != nil {
+						return nil, nil, err
+					} else {
+						aliases = append(aliases, alias)
+					}
+				} else {
+					commands = append(commands, command)
+				}
 			}
 		}
 	}
 
-	return commands, nil
+	return commands, aliases, nil
 }
 
 func (sp *SqlParameter) ParseParameter(v []string) (interface{}, error) {

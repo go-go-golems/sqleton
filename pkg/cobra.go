@@ -476,25 +476,51 @@ func gatherFlags(cmd *cobra.Command, params []*SqlParameter) (map[string]interfa
 	return parameters, nil
 }
 
-func AddCommandsToRootCommand(rootCmd *cobra.Command, commands []*SqlCommand) error {
+func findOrCreateParentCommand(rootCmd *cobra.Command, parents []string) *cobra.Command {
+	parentCmd := rootCmd
+	for _, parent := range parents {
+		subCmd, _, _ := parentCmd.Find([]string{parent})
+		if subCmd == nil || subCmd == rootCmd {
+			// TODO(2022-12-19) Load documentation for subcommands from a readme file
+			// See https://github.com/wesen/sqleton/issues/34
+			parentCmd = &cobra.Command{
+				Use:   parent,
+				Short: fmt.Sprintf("All commands for %s", parent),
+			}
+			rootCmd.AddCommand(parentCmd)
+		} else {
+			parentCmd = subCmd
+		}
+	}
+	return parentCmd
+}
+
+func AddCommandsToRootCommand(rootCmd *cobra.Command, commands []*SqlCommand, aliases []*CommandAlias) error {
+	commandsByName := map[string]*SqlCommand{}
+
 	for _, command := range commands {
 		// find the proper subcommand, or create if it doesn't exist
-		parentCmd := rootCmd
-		for _, parent := range command.Parents {
-			subCmd, _, _ := parentCmd.Find([]string{parent})
-			if subCmd == nil || subCmd == rootCmd {
-				// TODO(2022-12-19) Load documentation for subcommands from a readme file
-				// See https://github.com/wesen/sqleton/issues/34
-				parentCmd = &cobra.Command{
-					Use:   parent,
-					Short: fmt.Sprintf("All commands for %s", parent),
-				}
-				rootCmd.AddCommand(parentCmd)
-			} else {
-				parentCmd = subCmd
-			}
-		}
+		parentCmd := findOrCreateParentCommand(rootCmd, command.Parents)
 		cobraCommand, err := ToCobraCommand(command)
+		if err != nil {
+			return err
+		}
+		parentCmd.AddCommand(cobraCommand)
+
+		path := strings.Join(append(command.Parents, command.Name), " ")
+		commandsByName[path] = command
+	}
+
+	for _, alias := range aliases {
+		path := strings.Join(alias.Parents, " ")
+		aliasedCommand, ok := commandsByName[path]
+		if !ok {
+			return errors.Errorf("Command %s not found for alias %s", path, alias.Name)
+		}
+		alias.AliasedCommand = aliasedCommand
+
+		parentCmd := findOrCreateParentCommand(rootCmd, alias.Parents)
+		cobraCommand, err := ToCobraCommand(alias)
 		if err != nil {
 			return err
 		}

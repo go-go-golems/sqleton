@@ -295,6 +295,10 @@ func LoadSqlCommandsFromEmbedFS(f embed.FS, dir string, cmdRoot string) ([]*SqlC
 		return nil, err
 	}
 	for _, entry := range entries {
+		// skip hidden files
+		if strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
 		fileName := filepath.Join(dir, entry.Name())
 		if entry.IsDir() {
 			subCommands, err := LoadSqlCommandsFromEmbedFS(f, fileName, cmdRoot)
@@ -346,6 +350,10 @@ func LoadSqlCommandsFromDirectory(dir string, cmdRoot string) ([]*SqlCommand, er
 		return nil, err
 	}
 	for _, entry := range entries {
+		// skip hidden files
+		if strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
 		fileName := filepath.Join(dir, entry.Name())
 		if entry.IsDir() {
 			subCommands, err := LoadSqlCommandsFromDirectory(fileName, cmdRoot)

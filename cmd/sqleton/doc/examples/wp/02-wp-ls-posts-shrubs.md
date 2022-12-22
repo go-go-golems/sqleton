@@ -47,7 +47,10 @@ We can run much more complex queries against the Wordpress DB.
 ```
 
 ```
-❯ sqleton wp ls-posts   --limit 100 --status publish  --order-by post_title --from 2017-01-01 --to 2017-10-01 --title-like Shrubs --print-query
+❯ sqleton wp ls-posts   --limit 100 --status publish \
+    --order-by post_title \
+    --from 2017-01-01 --to 2017-10-01 \
+    --title-like Shrubs --print-query
 SELECT wp.ID, wp.post_title, wp.post_type, wp.post_status, wp.post_date FROM wp_posts wp
 WHERE post_type IN ('post','page')
 AND post_status IN ('publish')

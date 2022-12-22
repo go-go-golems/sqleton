@@ -170,8 +170,8 @@ type SqlCommand struct {
 	Arguments []*SqlParameter `yaml:"arguments"`
 	Query     string          `yaml:"query"`
 
-	Parents []string
-	Source  string
+	Parents []string `yaml:",omitempty"`
+	Source  string   `yaml:",omitempty"`
 }
 
 func (sc *SqlCommand) IsValid() bool {
@@ -387,7 +387,8 @@ func LoadSqlCommandsFromEmbedFS(f embed.FS, dir string, cmdRoot string) ([]*SqlC
 					}()
 
 					if err != nil {
-						return nil, nil, err
+						_, _ = fmt.Fprintf(os.Stderr, "Could not load command or alias from file %s: %s\n", fileName, err)
+						continue
 					} else {
 						aliases = append(aliases, alias)
 					}
@@ -471,7 +472,9 @@ func LoadSqlCommandsFromDirectory(dir string, cmdRoot string) ([]*SqlCommand, []
 					}()
 
 					if err != nil {
-						return nil, nil, err
+						_, _ = fmt.Fprintf(os.Stderr, "Could not load command or alias from file %s: %s", fileName, err)
+						continue
+
 					} else {
 						aliases = append(aliases, alias)
 					}

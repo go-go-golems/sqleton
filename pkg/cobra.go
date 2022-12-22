@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/tj/go-naturaldate"
 	"github.com/wesen/glazed/pkg/cli"
+	"gopkg.in/yaml.v3"
 	"strings"
 	"time"
 )
@@ -90,14 +91,53 @@ func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// TODO(2022-12-20, manuel): we should be able to load default values for these parameters from a config file
 			// See: https://github.com/wesen/sqleton/issues/39
-			parameters, err := gatherFlags(cmd, description.Flags)
+			parameters, err := gatherFlags(cmd, description.Flags, false)
 			if err != nil {
 				return err
 			}
 
-			arguments, err := gatherArguments(args, description.Arguments)
+			arguments, err := gatherArguments(args, description.Arguments, false)
 			if err != nil {
 				return err
+			}
+
+			createAlias, err := cmd.Flags().GetString("create-alias")
+			if err != nil {
+				return err
+			}
+			if createAlias != "" {
+				alias := &CommandAlias{
+					Name:             createAlias,
+					AliasFor:         description.Name,
+					ArgumentDefaults: nil,
+					FlagDefaults:     nil,
+				}
+
+				// TODO(2022-12-22,  manuel): Not sure how to parse the default args
+				// probably should look into gatherArguments, maybe add a onlyOverridden
+				parameters, err = gatherFlags(cmd, description.Flags, true)
+				if err != nil {
+					return err
+				}
+
+				arguments, err = gatherArguments(args, description.Arguments, true)
+				if err != nil {
+					return err
+				}
+
+				alias.ArgumentDefaults = arguments
+				alias.FlagDefaults = parameters
+
+				// marshal alias to yaml
+				sb := strings.Builder{}
+				encoder := yaml.NewEncoder(&sb)
+				err = encoder.Encode(alias)
+				if err != nil {
+					return err
+				}
+
+				fmt.Println(sb.String())
+				return nil
 			}
 
 			// merge parameters and arguments
@@ -164,6 +204,7 @@ func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 
 	cmd.Flags().Bool("print-query", false, "Print the query that will be executed")
 	cmd.Flags().Bool("explain", false, "Print the query plan that will be executed")
+	cmd.Flags().String("create-alias", "", "Create an alias for the query")
 
 	cli.AddOutputFlags(cmd)
 	cli.AddTemplateFlags(cmd)
@@ -214,7 +255,7 @@ func addArguments(cmd *cobra.Command, description *SqletonCommandDescription) er
 	return nil
 }
 
-func gatherArguments(args []string, arguments []*SqlParameter) (map[string]interface{}, error) {
+func gatherArguments(args []string, arguments []*SqlParameter, onlyProvided bool) (map[string]interface{}, error) {
 	_ = args
 	result := make(map[string]interface{})
 	argsIdx := 0
@@ -223,7 +264,7 @@ func gatherArguments(args []string, arguments []*SqlParameter) (map[string]inter
 			if argument.Required {
 				return nil, errors.Errorf("Argument %s not found", argument.Name)
 			} else {
-				if argument.Default != nil {
+				if argument.Default != nil && !onlyProvided {
 					result[argument.Name] = argument.Default
 				}
 				continue
@@ -402,7 +443,7 @@ func addFlags(cmd *cobra.Command, description *SqletonCommandDescription) error 
 	return nil
 }
 
-func gatherFlags(cmd *cobra.Command, params []*SqlParameter) (map[string]interface{}, error) {
+func gatherFlags(cmd *cobra.Command, params []*SqlParameter, onlyProvided bool) (map[string]interface{}, error) {
 	parameters := map[string]interface{}{}
 
 	for _, parameter := range params {
@@ -416,6 +457,10 @@ func gatherFlags(cmd *cobra.Command, params []*SqlParameter) (map[string]interfa
 			}
 
 			if parameter.Default == nil {
+				continue
+			}
+
+			if onlyProvided {
 				continue
 			}
 		}

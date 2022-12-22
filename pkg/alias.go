@@ -7,14 +7,14 @@ import (
 )
 
 type CommandAlias struct {
-	AliasedCommand   SqletonCommand
 	Name             string                 `yaml:"name"`
 	AliasFor         string                 `yaml:"aliasFor"`
-	FlagDefaults     map[string]interface{} `yaml:"flagDefaults"`
-	ArgumentDefaults map[string]interface{} `yaml:"argumentDefaults"`
+	FlagDefaults     map[string]interface{} `yaml:"flagDefaults,omitempty"`
+	ArgumentDefaults map[string]interface{} `yaml:"argumentDefaults,omitempty"`
 
-	Parents []string
-	Source  string
+	AliasedCommand SqletonCommand `yaml:",omitempty"`
+	Parents        []string       `yaml:",omitempty"`
+	Source         string         `yaml:",omitempty"`
 }
 
 func (a *CommandAlias) IsValid() bool {

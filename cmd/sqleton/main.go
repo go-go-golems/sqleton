@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -160,7 +161,8 @@ func init() {
 	cmds.InitializeMysqlCmd(queriesFS, helpSystem)
 	commands, aliases, err := initCommands(rootCmd)
 	if err != nil {
-		panic(err)
+		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
+		os.Exit(1)
 	}
 
 	queriesCmd := cmds.AddQueriesCmd(commands, aliases)

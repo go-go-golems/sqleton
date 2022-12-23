@@ -4,192 +4,151 @@ import (
 	"context"
 	"fmt"
 	"github.com/araddon/dateparse"
-	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+	"github.com/spf13/pflag"
 	"github.com/tj/go-naturaldate"
 	"github.com/wesen/glazed/pkg/cli"
 	"gopkg.in/yaml.v3"
+	"os"
 	"strings"
 	"time"
 )
 
 // TODO(2022-12-21, manuel): Additional parameter/argument ideas
 // - number range
+// - date range (with human language parsing?)
 // - handle floats
 // - generate choices/ranges from SQL statements
 
 // refTime is used to set a reference time for natural date parsing for unit test purposes
 var refTime *time.Time
 
-func OpenDatabaseFromViper() (*sqlx.DB, error) {
-	// Load the configuration values from the configuration file
-	host := viper.GetString("host")
-	database := viper.GetString("database")
-	user := viper.GetString("user")
-	password := viper.GetString("password")
-	port := viper.GetInt("port")
-	schema := viper.GetString("schema")
-	connectionType := viper.GetString("type")
-	dsn := viper.GetString("dsn")
-	driver := viper.GetString("driver")
-	useDbtProfiles := viper.GetBool("use-dbt-profiles")
-	dbtProfilesPath := viper.GetString("dbt-profiles-path")
-	dbtProfile := viper.GetString("dbt-profile")
+func gatherParameters(cmd *cobra.Command, description *SqletonCommandDescription, args []string) (map[string]interface{}, error) {
+	parameters, err := gatherFlags(cmd, description.Flags, false)
+	if err != nil {
+		return nil, err
+	}
 
-	// TODO(2022-12-18, manuel) This is where we would add support for DSN/Driver loading
-	// See https://github.com/wesen/sqleton/issues/21
-	_ = dsn
-	_ = driver
+	arguments, err := gatherArguments(args, description.Arguments, false)
+	if err != nil {
+		return nil, err
+	}
 
-	var source *Source
+	createAlias, err := cmd.Flags().GetString("create-alias")
+	if err != nil {
+		return nil, err
+	}
+	if createAlias != "" {
+		alias := &CommandAlias{
+			Name:      createAlias,
+			AliasFor:  description.Name,
+			Arguments: args,
+			Flags:     map[string]string{},
+		}
 
-	if useDbtProfiles {
+		cmd.Flags().Visit(func(flag *pflag.Flag) {
+			if flag.Name != "create-alias" {
+				alias.Flags[flag.Name] = flag.Value.String()
+				fmt.Printf("Flag %s changed to %s\n", flag.Name, flag.Value)
+			}
+		})
 
-		sources, err := ParseDbtProfiles(dbtProfilesPath)
+		// marshal alias to yaml
+		sb := strings.Builder{}
+		encoder := yaml.NewEncoder(&sb)
+		err = encoder.Encode(alias)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, s := range sources {
-			if s.Name == dbtProfile {
-				source = s
-				break
-			}
-		}
-
-		if source == nil {
-			return nil, errors.Errorf("Source %s not found", dbtProfile)
-		}
-	} else {
-		source = &Source{
-			Type:     connectionType,
-			Hostname: host,
-			Port:     port,
-			Username: user,
-			Password: password,
-			Database: database,
-			Schema:   schema,
-		}
+		fmt.Println(sb.String())
+		os.Exit(0)
 	}
 
-	db, err := sqlx.Connect(source.Type, source.ToConnectionString())
+	// merge parameters and arguments
+	// arguments take precedence over parameters
+	for k, v := range arguments {
+		parameters[k] = v
+	}
 
-	// TODO(2022-12-18, manuel): this is where we would add support for a ro connection
-	// https://github.com/wesen/sqleton/issues/24
+	return parameters, nil
+}
 
-	return db, err
+func runSqletonCommand(cmd *cobra.Command, s SqletonCommand, args []string) error {
+	// TODO(2022-12-20, manuel): we should be able to load default values for these parameters from a config file
+	// See: https://github.com/wesen/sqleton/issues/39
+	description := s.Description()
+
+	parameters, err := gatherParameters(cmd, &description, args)
+	if err != nil {
+		return err
+	}
+
+	db, err := OpenDatabaseFromViper()
+	if err != nil {
+		return errors.Wrapf(err, "Could not open database")
+	}
+
+	dbContext := context.Background()
+	err = db.PingContext(dbContext)
+	if err != nil {
+		return errors.Wrapf(err, "Could not ping database")
+	}
+
+	gp, of, err := cli.SetupProcessor(cmd)
+	if err != nil {
+		return errors.Wrapf(err, "Could not setup processor")
+	}
+
+	printQuery, _ := cmd.Flags().GetBool("print-query")
+	if printQuery {
+		query, err := s.RenderQuery(parameters)
+		if err != nil {
+			return errors.Wrapf(err, "Could not generate query")
+		}
+		fmt.Println(query)
+		return nil
+	}
+
+	// TODO(2022-12-21, manuel): Add explain functionality
+	// See: https://github.com/wesen/sqleton/issues/45
+	explain, _ := cmd.Flags().GetBool("explain")
+	_ = explain
+
+	err = s.RunQueryIntoGlaze(dbContext, db, parameters, gp)
+	if err != nil {
+		return errors.Wrapf(err, "Could not run query")
+	}
+
+	output, err := of.Output()
+	if err != nil {
+		return errors.Wrapf(err, "Could not get output")
+	}
+	fmt.Print(output)
+
+	return nil
 }
 
 func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 	description := s.Description()
+	cmd, err := NewCobraCommandFromDescription(description)
+	if err != nil {
+		return nil, err
+	}
+
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+		return runSqletonCommand(cmd, s, args)
+	}
+
+	return cmd, nil
+}
+
+func NewCobraCommandFromDescription(description SqletonCommandDescription) (*cobra.Command, error) {
 	cmd := &cobra.Command{
 		Use:   description.Name,
 		Short: description.Short,
 		Long:  description.Long,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// TODO(2022-12-20, manuel): we should be able to load default values for these parameters from a config file
-			// See: https://github.com/wesen/sqleton/issues/39
-			parameters, err := gatherFlags(cmd, description.Flags, false)
-			if err != nil {
-				return err
-			}
-
-			arguments, err := gatherArguments(args, description.Arguments, false)
-			if err != nil {
-				return err
-			}
-
-			createAlias, err := cmd.Flags().GetString("create-alias")
-			if err != nil {
-				return err
-			}
-			if createAlias != "" {
-				alias := &CommandAlias{
-					Name:             createAlias,
-					AliasFor:         description.Name,
-					ArgumentDefaults: nil,
-					FlagDefaults:     nil,
-				}
-
-				// TODO(2022-12-22,  manuel): Not sure how to parse the default args
-				// probably should look into gatherArguments, maybe add a onlyOverridden
-				parameters, err = gatherFlags(cmd, description.Flags, true)
-				if err != nil {
-					return err
-				}
-
-				arguments, err = gatherArguments(args, description.Arguments, true)
-				if err != nil {
-					return err
-				}
-
-				alias.ArgumentDefaults = arguments
-				alias.FlagDefaults = parameters
-
-				// marshal alias to yaml
-				sb := strings.Builder{}
-				encoder := yaml.NewEncoder(&sb)
-				err = encoder.Encode(alias)
-				if err != nil {
-					return err
-				}
-
-				fmt.Println(sb.String())
-				return nil
-			}
-
-			// merge parameters and arguments
-			// arguments take precedence over parameters
-			for k, v := range arguments {
-				parameters[k] = v
-			}
-
-			db, err := OpenDatabaseFromViper()
-			if err != nil {
-				return errors.Wrapf(err, "Could not open database")
-			}
-
-			dbContext := context.Background()
-			err = db.PingContext(dbContext)
-			if err != nil {
-				return errors.Wrapf(err, "Could not ping database")
-			}
-
-			gp, of, err := cli.SetupProcessor(cmd)
-			if err != nil {
-				return errors.Wrapf(err, "Could not setup processor")
-			}
-
-			printQuery, _ := cmd.Flags().GetBool("print-query")
-			if printQuery {
-				query, err := s.RenderQuery(parameters)
-				if err != nil {
-					return errors.Wrapf(err, "Could not generate query")
-				}
-				fmt.Println(query)
-				return nil
-			}
-
-			// TODO(2022-12-21, manuel): Add explain functionality
-			// See: https://github.com/wesen/sqleton/issues/45
-			explain, _ := cmd.Flags().GetBool("explain")
-			_ = explain
-
-			err = s.RunQueryIntoGlaze(dbContext, db, parameters, gp)
-			if err != nil {
-				return errors.Wrapf(err, "Could not run query")
-			}
-
-			s, err := of.Output()
-			if err != nil {
-				return errors.Wrapf(err, "Could not get output")
-			}
-			fmt.Print(s)
-
-			return nil
-		},
 	}
 
 	err := addFlags(cmd, &description)
@@ -546,9 +505,15 @@ func AddCommandsToRootCommand(rootCmd *cobra.Command, commands []*SqlCommand, al
 	for _, command := range commands {
 		// find the proper subcommand, or create if it doesn't exist
 		parentCmd := findOrCreateParentCommand(rootCmd, command.Parents)
-		cobraCommand, err := ToCobraCommand(command)
+		description := command.Description()
+		cobraCommand, err := NewCobraCommandFromDescription(description)
 		if err != nil {
 			return err
+		}
+
+		command2 := command
+		cobraCommand.RunE = func(cmd *cobra.Command, args []string) error {
+			return runSqletonCommand(cmd, command2, args)
 		}
 		parentCmd.AddCommand(cobraCommand)
 
@@ -565,9 +530,24 @@ func AddCommandsToRootCommand(rootCmd *cobra.Command, commands []*SqlCommand, al
 		alias.AliasedCommand = aliasedCommand
 
 		parentCmd := findOrCreateParentCommand(rootCmd, alias.Parents)
-		cobraCommand, err := ToCobraCommand(alias)
+		cobraCommand, err := NewCobraCommandFromDescription(alias.Description())
 		if err != nil {
 			return err
+		}
+		alias2 := alias
+		cobraCommand.RunE = func(cmd *cobra.Command, args []string) error {
+			for flagName, flagValue := range alias2.Flags {
+				err = cmd.Flags().Set(flagName, flagValue)
+				if err != nil {
+					return err
+				}
+			}
+			// TODO(2022-12-22, manuel) This is not right because the args count is checked earlier, but when,
+			// and how can i override it
+			if len(args) == 0 {
+				args = alias2.Arguments
+			}
+			return runSqletonCommand(cmd, aliasedCommand, args)
 		}
 		parentCmd.AddCommand(cobraCommand)
 	}

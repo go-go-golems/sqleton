@@ -190,6 +190,14 @@ func sqlIn(values []interface{}) string {
 	return strings.Join(strValues, ",")
 }
 
+func sqlIntIn(values []int) string {
+	strValues := make([]string, len(values))
+	for i, v := range values {
+		strValues[i] = fmt.Sprintf("%d", v)
+	}
+	return strings.Join(strValues, ",")
+}
+
 func sqlDate(date time.Time) string {
 	return "'" + date.Format("2006-01-02") + "'"
 }
@@ -207,6 +215,7 @@ func (s *SqlCommand) RenderQuery(parameters map[string]interface{}) (string, err
 	t2.Funcs(template.FuncMap{
 		"join":        strings.Join,
 		"sqlStringIn": sqlStringIn,
+		"sqlIntIn":    sqlIntIn,
 		"sqlIn":       sqlIn,
 		"sqlDate":     sqlDate,
 		"sqlDateTime": sqlDateTime,

@@ -50,7 +50,6 @@ func gatherParameters(cmd *cobra.Command, description *SqletonCommandDescription
 		cmd.Flags().Visit(func(flag *pflag.Flag) {
 			if flag.Name != "create-alias" {
 				alias.Flags[flag.Name] = flag.Value.String()
-				fmt.Printf("Flag %s changed to %s\n", flag.Name, flag.Value)
 			}
 		})
 
@@ -537,9 +536,11 @@ func AddCommandsToRootCommand(rootCmd *cobra.Command, commands []*SqlCommand, al
 		alias2 := alias
 		cobraCommand.RunE = func(cmd *cobra.Command, args []string) error {
 			for flagName, flagValue := range alias2.Flags {
-				err = cmd.Flags().Set(flagName, flagValue)
-				if err != nil {
-					return err
+				if !cmd.Flags().Changed(flagName) {
+					err = cmd.Flags().Set(flagName, flagValue)
+					if err != nil {
+						return err
+					}
 				}
 			}
 			// TODO(2022-12-22, manuel) This is not right because the args count is checked earlier, but when,

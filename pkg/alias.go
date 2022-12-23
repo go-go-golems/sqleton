@@ -73,6 +73,22 @@ func (a *CommandAlias) Description() SqletonCommandDescription {
 		newArgument := argument.Copy()
 		// TODO(2022-12-22, manuel) this needs to be handled, overriding arguments and figuring out which order
 		// is a bitch
+		//
+		// so iN command.go in cobra, prerun is run before the arg validation is done
+		// so that we could potentially override the args here
+		//
+		// the args are gotten from c.Flags().Args()
+		//
+		// it looks like in prerun, we could check if args is empty,
+		// and if so, pass in our arguments  by calling Parse() a second time,
+		// and then going over the newly set arg?
+		//
+		// It's of course going to be relying on cobra internals a bit,
+		// by assuming that calling parse a second time is not going to interfere with already set flags
+		// so maybe the best solution is really just to interleave the flags at the outset
+		// by doing our own little scanning, which is probably useful anyway if done in glazed
+		// so that we can handle different types of arg parsing.
+		//
 		//if defaultValue, ok := a.ArgumentDefaults[argument.Name]; ok {
 		//	newArgument.Default = defaultValue
 		//}

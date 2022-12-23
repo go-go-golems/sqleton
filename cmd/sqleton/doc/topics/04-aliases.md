@@ -54,10 +54,9 @@ In order to help with the arduous task of writing YAML file, you can
 automatically emit the alias file by using the `--create-alias [name]` flag:
 
 ```
-❯ sqleton wp postmeta --key-like 'refund_reason' --db ttc_prod --order-by "post_id DESC" --create-alias refunds                  
-Flag db changed to ttc_prod
-Flag key-like changed to refund_reason
-Flag order-by changed to post_id DESC
+❯ sqleton wp postmeta --key-like 'refund_reason' \
+    --db ttc_prod --order-by "post_id DESC" \
+    --create-alias refunds                  
 name: refunds
 aliasFor: postmeta
 flags:

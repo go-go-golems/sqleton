@@ -303,7 +303,7 @@ func LoadCommandAliasFromYaml(s io.Reader) (*CommandAlias, error) {
 	var alias CommandAlias
 	err := yaml.NewDecoder(s).Decode(&alias)
 	if err != nil {
-		return nil, errors.Wrap(err, "Could not decode command alias")
+		return nil, err
 	}
 
 	if !alias.IsValid() {
@@ -385,7 +385,7 @@ func LoadSqlCommandsFromEmbedFS(f embed.FS, dir string, cmdRoot string) ([]*SqlC
 
 						alias, err := LoadCommandAliasFromYaml(file)
 						if err != nil {
-							return nil, errors.Wrapf(err, "Could not load command alias from file %s", fileName)
+							return nil, err
 						}
 						alias.Source = "embed:" + fileName
 
@@ -469,7 +469,7 @@ func LoadSqlCommandsFromDirectory(dir string, cmdRoot string) ([]*SqlCommand, []
 
 						alias, err := LoadCommandAliasFromYaml(file)
 						if err != nil {
-							return nil, errors.Wrapf(err, "Could not load command alias from file %s", fileName)
+							return nil, err
 						}
 						alias.Source = "file:" + fileName
 
@@ -481,7 +481,7 @@ func LoadSqlCommandsFromDirectory(dir string, cmdRoot string) ([]*SqlCommand, []
 					}()
 
 					if err != nil {
-						_, _ = fmt.Fprintf(os.Stderr, "Could not load command or alias from file %s: %s", fileName, err)
+						_, _ = fmt.Fprintf(os.Stderr, "Could not load command or alias from file %s: %s\n", fileName, err)
 						continue
 
 					} else {

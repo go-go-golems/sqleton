@@ -36,15 +36,15 @@ func TestAddSingleRequiredArgument(t *testing.T) {
 	assert.Error(t, cmd.Args(cmd, []string{}))
 	assert.Error(t, cmd.Args(cmd, []string{"bar", "foo"}))
 
-	values, err := gatherArguments([]string{"bar"}, desc.Arguments)
+	values, err := gatherArguments([]string{"bar"}, desc.Arguments, false)
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(values))
 	assert.Equal(t, "bar", values["foo"])
 
-	_, err = gatherArguments([]string{}, desc.Arguments)
+	_, err = gatherArguments([]string{}, desc.Arguments, false)
 	assert.Error(t, err)
 
-	_, err = gatherArguments([]string{"foo", "bla"}, desc.Arguments)
+	_, err = gatherArguments([]string{"foo", "bla"}, desc.Arguments, false)
 	assert.Error(t, err)
 }
 
@@ -71,19 +71,19 @@ func TestAddTwoRequiredArguments(t *testing.T) {
 	assert.Error(t, cmd.Args(cmd, []string{"bar"}))
 	assert.Error(t, cmd.Args(cmd, []string{"bar", "foo", "baz"}))
 
-	values, err := gatherArguments([]string{"bar", "foo"}, desc.Arguments)
+	values, err := gatherArguments([]string{"bar", "foo"}, desc.Arguments, false)
 	require.Nil(t, err)
 	assert.Equal(t, 2, len(values))
 	assert.Equal(t, "bar", values["foo"])
 	assert.Equal(t, "foo", values["bar"])
 
-	_, err = gatherArguments([]string{}, desc.Arguments)
+	_, err = gatherArguments([]string{}, desc.Arguments, false)
 	assert.Error(t, err)
 
-	_, err = gatherArguments([]string{"bar"}, desc.Arguments)
+	_, err = gatherArguments([]string{"bar"}, desc.Arguments, false)
 	assert.Error(t, err)
 
-	_, err = gatherArguments([]string{"bar", "foo", "baz"}, desc.Arguments)
+	_, err = gatherArguments([]string{"bar", "foo", "baz"}, desc.Arguments, false)
 	assert.Error(t, err)
 }
 
@@ -110,22 +110,22 @@ func TestOneRequiredOneOptionalArgument(t *testing.T) {
 	assert.Error(t, cmd.Args(cmd, []string{}))
 	assert.Error(t, cmd.Args(cmd, []string{"bar", "foo", "baz"}))
 
-	values, err := gatherArguments([]string{"bar", "foo"}, desc.Arguments)
+	values, err := gatherArguments([]string{"bar", "foo"}, desc.Arguments, false)
 	require.Nil(t, err)
 	assert.Equal(t, 2, len(values))
 	assert.Equal(t, "bar", values["foo"])
 	assert.Equal(t, "foo", values["bar"])
 
-	values, err = gatherArguments([]string{"foo"}, desc.Arguments)
+	values, err = gatherArguments([]string{"foo"}, desc.Arguments, false)
 	require.Nil(t, err)
 	assert.Equal(t, 2, len(values))
 	assert.Equal(t, "foo", values["foo"])
 	assert.Equal(t, "baz", values["bar"])
 
-	_, err = gatherArguments([]string{}, desc.Arguments)
+	_, err = gatherArguments([]string{}, desc.Arguments, false)
 	assert.Error(t, err)
 
-	_, err = gatherArguments([]string{"bar", "foo", "baz"}, desc.Arguments)
+	_, err = gatherArguments([]string{"bar", "foo", "baz"}, desc.Arguments, false)
 	assert.Error(t, err)
 }
 
@@ -146,12 +146,12 @@ func TestOneOptionalArgument(t *testing.T) {
 	assert.Nil(t, cmd.Args(cmd, []string{"foo"}))
 	assert.Nil(t, cmd.Args(cmd, []string{}))
 
-	values, err := gatherArguments([]string{"foo"}, desc.Arguments)
+	values, err := gatherArguments([]string{"foo"}, desc.Arguments, false)
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(values))
 	assert.Equal(t, "foo", values["foo"])
 
-	values, err = gatherArguments([]string{}, desc.Arguments)
+	values, err = gatherArguments([]string{}, desc.Arguments, false)
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(values))
 	assert.Equal(t, "123", values["foo"])
@@ -170,17 +170,17 @@ func TestDefaultIntValue(t *testing.T) {
 	}
 	err := addArguments(cmd, &desc)
 	require.Nil(t, err)
-	values, err := gatherArguments([]string{}, desc.Arguments)
+	values, err := gatherArguments([]string{}, desc.Arguments, false)
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(values))
 	assert.Equal(t, 123, values["foo"])
 
-	values, err = gatherArguments([]string{"234"}, desc.Arguments)
+	values, err = gatherArguments([]string{"234"}, desc.Arguments, false)
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(values))
 	assert.Equal(t, 234, values["foo"])
 
-	_, err = gatherArguments([]string{"foo"}, desc.Arguments)
+	_, err = gatherArguments([]string{"foo"}, desc.Arguments, false)
 	assert.Error(t, err)
 }
 
@@ -326,15 +326,15 @@ func TestAddStringListOptionalArgument(t *testing.T) {
 	assert.Nil(t, cmd.Args(cmd, []string{"foo"}))
 	assert.Nil(t, cmd.Args(cmd, []string{}))
 
-	values, err := gatherArguments([]string{"bar", "foo"}, desc.Arguments)
+	values, err := gatherArguments([]string{"bar", "foo"}, desc.Arguments, false)
 	require.Nil(t, err)
 	assert.Equal(t, []string{"bar", "foo"}, values["foo"])
 
-	values, err = gatherArguments([]string{"foo"}, desc.Arguments)
+	values, err = gatherArguments([]string{"foo"}, desc.Arguments, false)
 	require.Nil(t, err)
 	assert.Equal(t, []string{"foo"}, values["foo"])
 
-	values, err = gatherArguments([]string{}, desc.Arguments)
+	values, err = gatherArguments([]string{}, desc.Arguments, false)
 	require.Nil(t, err)
 	assert.Equal(t, []string{"baz"}, values["foo"])
 }
@@ -535,11 +535,11 @@ func testCommandParseHelper(t *testing.T, desc SqletonCommandDescription, expect
 
 	cmd := &cobra.Command{
 		Run: func(cmd *cobra.Command, args []string) {
-			flagParameters, flagsError = gatherFlags(cmd, desc.Flags)
+			flagParameters, flagsError = gatherFlags(cmd, desc.Flags, false)
 			if flagsError != nil {
 				return
 			}
-			argumentParameters, argsError = gatherArguments(args, desc.Arguments)
+			argumentParameters, argsError = gatherArguments(args, desc.Arguments, false)
 			if argsError != nil {
 				return
 			}

@@ -8,7 +8,7 @@ import (
 	sqleton "github.com/wesen/sqleton/pkg"
 )
 
-func AddQueriesCmd(allQueries []*sqleton.SqlCommand) *cobra.Command {
+func AddQueriesCmd(allQueries []*sqleton.SqlCommand, aliases []*sqleton.CommandAlias) *cobra.Command {
 	var queriesCmd = &cobra.Command{
 		Use:   "queries",
 		Short: "Commands related to sqleton queries",
@@ -29,6 +29,18 @@ func AddQueriesCmd(allQueries []*sqleton.SqlCommand) *cobra.Command {
 					"long":   query.Long,
 					"query":  query.Query,
 					"source": query.Source,
+				}
+				err := gp.ProcessInputObject(obj)
+				if err != nil {
+					return errors.Wrapf(err, "Could not process input object")
+				}
+			}
+
+			for _, alias := range aliases {
+				obj := map[string]interface{}{
+					"name":     alias.Name,
+					"aliasFor": alias.AliasFor,
+					"source":   alias.Source,
 				}
 				err := gp.ProcessInputObject(obj)
 				if err != nil {

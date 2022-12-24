@@ -157,6 +157,7 @@ func init() {
 	rootCmd.AddCommand(cmds.DbCmd)
 	rootCmd.AddCommand(cmds.RunCmd)
 	rootCmd.AddCommand(cmds.QueryCmd)
+	rootCmd.AddCommand(cmds.SelectCmd)
 	rootCmd.AddCommand(cmds.MysqlCmd)
 
 	cmds.InitializeMysqlCmd(queriesFS, helpSystem)

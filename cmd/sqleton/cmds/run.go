@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/wesen/glazed/pkg/cli"
 	"github.com/wesen/sqleton/pkg"
+	"io"
 	"os"
 )
 
@@ -58,9 +59,47 @@ var RunCmd = &cobra.Command{
 	},
 }
 
+var QueryCmd = &cobra.Command{
+	Use:   "query <query>",
+	Short: "Run a SQL query",
+	Long:  "Run a SQL query. The query can be passed as an argument or via stdin if - is passed as the query.",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		query := args[0]
+		if args[0] == "-" {
+			inBytes, err := io.ReadAll(os.Stdin)
+			cobra.CheckErr(err)
+			query = string(inBytes)
+		}
+
+		db, err := pkg.OpenDatabaseFromViper()
+		cobra.CheckErr(err)
+
+		dbContext := context.Background()
+		err = db.PingContext(dbContext)
+		cobra.CheckErr(err)
+
+		gp, of, err := cli.SetupProcessor(cmd)
+		cobra.CheckErr(err)
+
+		err = pkg.RunQueryIntoGlaze(dbContext, db, query, map[string]interface{}{}, gp)
+		cobra.CheckErr(err)
+
+		s, err := of.Output()
+		cobra.CheckErr(err)
+
+		fmt.Print(s)
+	},
+}
+
 func init() {
 	cli.AddOutputFlags(RunCmd)
 	cli.AddTemplateFlags(RunCmd)
 	cli.AddFieldsFilterFlags(RunCmd, "")
 	cli.AddSelectFlags(RunCmd)
+
+	cli.AddOutputFlags(QueryCmd)
+	cli.AddTemplateFlags(QueryCmd)
+	cli.AddFieldsFilterFlags(QueryCmd, "")
+	cli.AddSelectFlags(QueryCmd)
 }

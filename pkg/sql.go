@@ -178,6 +178,10 @@ func (sc *SqlCommand) IsValid() bool {
 	return sc.Name != "" && sc.Query != "" && sc.Short != ""
 }
 
+func sqlString(value string) string {
+	return fmt.Sprintf("'%s'", value)
+}
+
 func sqlStringIn(values []string) string {
 	return fmt.Sprintf("'%s'", strings.Join(values, "','"))
 }
@@ -220,6 +224,7 @@ func (s *SqlCommand) RenderQuery(parameters map[string]interface{}) (string, err
 		"sqlDate":     sqlDate,
 		"sqlDateTime": sqlDateTime,
 		"sqlLike":     sqlLike,
+		"sqlString":   sqlString,
 	})
 	t := template.Must(t2.Parse(s.Query))
 	var qb strings.Builder

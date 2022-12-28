@@ -20,12 +20,12 @@ import (
 
 type SqlParameter struct {
 	Name      string        `yaml:"name"`
-	ShortFlag string        `yaml:"shortFlag"`
+	ShortFlag string        `yaml:"shortFlag,omitempty"`
 	Type      ParameterType `yaml:"type"`
-	Help      string        `yaml:"help"`
-	Default   interface{}   `yaml:"default"`
-	Choices   []string      `yaml:"choices"`
-	Required  bool          `yaml:"required"`
+	Help      string        `yaml:"help,omitempty"`
+	Default   interface{}   `yaml:"default,omitempty"`
+	Choices   []string      `yaml:"choices,omitempty"`
+	Required  bool          `yaml:"required,omitempty"`
 }
 
 func (s *SqlParameter) Copy() *SqlParameter {
@@ -165,9 +165,9 @@ func (sp *SqlParameter) CheckParameterDefaultValueValidity() error {
 type SqlCommand struct {
 	Name      string          `yaml:"name"`
 	Short     string          `yaml:"short"`
-	Long      string          `yaml:"long"`
-	Flags     []*SqlParameter `yaml:"flags"`
-	Arguments []*SqlParameter `yaml:"arguments"`
+	Long      string          `yaml:"long,omitempty"`
+	Flags     []*SqlParameter `yaml:"flags,omitempty"`
+	Arguments []*SqlParameter `yaml:"arguments,omitempty"`
 	Query     string          `yaml:"query"`
 
 	Parents []string `yaml:",omitempty"`
@@ -176,6 +176,10 @@ type SqlCommand struct {
 
 func (sc *SqlCommand) IsValid() bool {
 	return sc.Name != "" && sc.Query != "" && sc.Short != ""
+}
+
+func sqlString(value string) string {
+	return fmt.Sprintf("'%s'", value)
 }
 
 func sqlStringIn(values []string) string {
@@ -220,6 +224,7 @@ func (s *SqlCommand) RenderQuery(parameters map[string]interface{}) (string, err
 		"sqlDate":     sqlDate,
 		"sqlDateTime": sqlDateTime,
 		"sqlLike":     sqlLike,
+		"sqlString":   sqlString,
 	})
 	t := template.Must(t2.Parse(s.Query))
 	var qb strings.Builder
@@ -235,6 +240,21 @@ func RunQueryIntoGlaze(
 	dbContext context.Context,
 	db *sqlx.DB,
 	query string,
+	parameters []interface{},
+	gp *cli.GlazeProcessor) error {
+
+	rows, err := db.QueryxContext(dbContext, query, parameters...)
+	if err != nil {
+		return errors.Wrapf(err, "Could not execute query: %s", query)
+	}
+
+	return processQueryResults(rows, gp)
+}
+
+func RunNamedQueryIntoGlaze(
+	dbContext context.Context,
+	db *sqlx.DB,
+	query string,
 	parameters map[string]interface{},
 	gp *cli.GlazeProcessor) error {
 
@@ -243,6 +263,10 @@ func RunQueryIntoGlaze(
 		return errors.Wrapf(err, "Could not execute query: %s", query)
 	}
 
+	return processQueryResults(rows, gp)
+}
+
+func processQueryResults(rows *sqlx.Rows, gp *cli.GlazeProcessor) error {
 	// we need a way to order the columns
 	cols, err := rows.Columns()
 	if err != nil {
@@ -286,7 +310,7 @@ func (s *SqlCommand) RunQueryIntoGlaze(
 	if err != nil {
 		return err
 	}
-	return RunQueryIntoGlaze(ctx, db, query, parameters, gp)
+	return RunNamedQueryIntoGlaze(ctx, db, query, parameters, gp)
 }
 
 func (s *SqlCommand) Description() SqletonCommandDescription {

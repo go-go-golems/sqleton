@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/huandu/go-sqlbuilder"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/wesen/glazed/pkg/cli"
 	"github.com/wesen/sqleton/pkg"
@@ -21,60 +20,50 @@ var RunCmd = &cobra.Command{
 	Use:   "run",
 	Short: "Run a SQL query from sql files",
 	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Run: func(cmd *cobra.Command, args []string) {
 		db, err := pkg.OpenDatabaseFromViper()
-		if err != nil {
-			return errors.Wrapf(err, "Could not open database")
-		}
+		cobra.CheckErr(err)
 
 		dbContext := context.Background()
 		err = db.PingContext(dbContext)
-		if err != nil {
-			return errors.Wrapf(err, "Could not ping database")
-		}
+		cobra.CheckErr(err)
 
 		for _, arg := range args {
 			gp, of, err := cli.SetupProcessor(cmd)
-			if err != nil {
-				return errors.Wrapf(err, "Could not create glaze processors")
-			}
+			cobra.CheckErr(err)
+			query := ""
 
-			// read file
-			query, err := os.ReadFile(arg)
-			if err != nil {
-				return errors.Wrapf(err, "Could not read file: %s", arg)
+			if arg == "-" {
+				inBytes, err := io.ReadAll(os.Stdin)
+				cobra.CheckErr(err)
+				query = string(inBytes)
+			} else {
+				// read file
+				queryBytes, err := os.ReadFile(arg)
+				cobra.CheckErr(err)
+
+				query = string(queryBytes)
 			}
 
 			// TODO(2022-12-20, manuel): collect named parameters here, maybe through prerun?
 			// See: https://github.com/wesen/sqleton/issues/40
 			err = pkg.RunNamedQueryIntoGlaze(dbContext, db, string(query), map[string]interface{}{}, gp)
-			if err != nil {
-				return errors.Wrapf(err, "Could not run query")
-			}
+			cobra.CheckErr(err)
 
 			s, err := of.Output()
-			if err != nil {
-				return errors.Wrapf(err, "Could not get output")
-			}
+			cobra.CheckErr(err)
+
 			fmt.Print(s)
 		}
-
-		return nil
 	},
 }
 
 var QueryCmd = &cobra.Command{
 	Use:   "query <query>",
-	Short: "Run a SQL query",
-	Long:  "Run a SQL query. The query can be passed as an argument or via stdin if - is passed as the query.",
+	Short: "Run a SQL query passed as a CLI argument",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		query := args[0]
-		if args[0] == "-" {
-			inBytes, err := io.ReadAll(os.Stdin)
-			cobra.CheckErr(err)
-			query = string(inBytes)
-		}
 
 		db, err := pkg.OpenDatabaseFromViper()
 		cobra.CheckErr(err)
@@ -117,18 +106,27 @@ var SelectCmd = &cobra.Command{
 		cobra.CheckErr(err)
 		order, err := cmd.Flags().GetString("order-by")
 		cobra.CheckErr(err)
+		distinct, err := cmd.Flags().GetBool("distinct")
+		cobra.CheckErr(err)
 
 		sb := sqlbuilder.NewSelectBuilder()
 		sb = sb.From(table)
 
 		if count {
-			columns = []string{sb.As("COUNT(*)", "count")}
+			countColumns := strings.Join(columns, ", ")
+			if distinct {
+				countColumns = "DISTINCT " + countColumns
+			}
+			columns = []string{sb.As(fmt.Sprintf("COUNT(%s)", countColumns), "count")}
 		} else {
 			if len(columns) == 0 {
 				columns = []string{"*"}
 			}
 		}
 		sb = sb.Select(columns...)
+		if distinct && !count {
+			sb = sb.Distinct()
+		}
 
 		if where != "" {
 			sb = sb.Where(where)
@@ -162,37 +160,46 @@ var SelectCmd = &cobra.Command{
 					Type: pkg.ParameterTypeString,
 				})
 			}
-			flags = append(flags, &pkg.SqlParameter{
-				Name:    "limit",
-				Type:    pkg.ParameterTypeInteger,
-				Help:    fmt.Sprintf("Limit the number of rows (default: %d), set to 0 to disable", limit),
-				Default: limit,
-			})
-			flags = append(flags, &pkg.SqlParameter{
-				Name:    "offset",
-				Type:    pkg.ParameterTypeInteger,
-				Help:    fmt.Sprintf("Offset the number of rows (default: %d)", offset),
-				Default: offset,
-			})
-			orderByHelp := "Order by"
-			var orderDefault interface{}
-			if order != "" {
-				orderByHelp = fmt.Sprintf("Order by (default: %s)", order)
-				orderDefault = order
-			}
-			flags = append(flags, &pkg.SqlParameter{
-				Name:    "order_by",
-				Type:    pkg.ParameterTypeString,
-				Help:    orderByHelp,
-				Default: orderDefault,
-			})
+			if !count {
+				flags = append(flags, &pkg.SqlParameter{
+					Name:    "limit",
+					Type:    pkg.ParameterTypeInteger,
+					Help:    fmt.Sprintf("Limit the number of rows (default: %d), set to 0 to disable", limit),
+					Default: limit,
+				})
+				flags = append(flags, &pkg.SqlParameter{
+					Name:    "offset",
+					Type:    pkg.ParameterTypeInteger,
+					Help:    fmt.Sprintf("Offset the number of rows (default: %d)", offset),
+					Default: offset,
+				})
+				flags = append(flags, &pkg.SqlParameter{
+					Name:    "distinct",
+					Type:    pkg.ParameterTypeBool,
+					Help:    fmt.Sprintf("Whether to select distinct rows (default: %t)", distinct),
+					Default: distinct,
+				})
 
-			if count {
-				columns = []string{sb.As("COUNT(*)", "count")}
+				orderByHelp := "Order by"
+				var orderDefault interface{}
+				if order != "" {
+					orderByHelp = fmt.Sprintf("Order by (default: %s)", order)
+					orderDefault = order
+				}
+				flags = append(flags, &pkg.SqlParameter{
+					Name:    "order_by",
+					Type:    pkg.ParameterTypeString,
+					Help:    orderByHelp,
+					Default: orderDefault,
+				})
 			}
 
 			sb := &strings.Builder{}
-			_, _ = fmt.Fprintf(sb, "SELECT "+"%s FROM %s", strings.Join(columns, ", "), table)
+			_, _ = fmt.Fprintf(sb, "SELECT ")
+			if !count {
+				_, _ = fmt.Fprintf(sb, "{{ if .distinct }}DISTINCT{{ end }} ")
+			}
+			_, _ = fmt.Fprintf(sb, "%s FROM %s", strings.Join(columns, ", "), table)
 			if where != "" {
 				_, _ = fmt.Fprintf(sb, " WHERE %s", where)
 			} else {
@@ -273,4 +280,5 @@ func init() {
 	SelectCmd.Flags().StringSlice("columns", []string{}, "Columns to select")
 	SelectCmd.Flags().Bool("print-query", false, "Print the query that is run")
 	SelectCmd.Flags().String("create-query", "", "Output the query as yaml to use as a sqleton command")
+	SelectCmd.Flags().Bool("distinct", false, "Only return DISTINCT rows")
 }

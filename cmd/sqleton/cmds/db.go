@@ -89,6 +89,7 @@ func init() {
 	cli.AddTemplateFlags(dbLsCmd)
 	cli.AddFieldsFilterFlags(dbLsCmd, "")
 	cli.AddSelectFlags(dbLsCmd)
+	cli.AddRenameFlags(dbLsCmd)
 
 	DbCmd.AddCommand(dbTestConnectionCmd)
 }

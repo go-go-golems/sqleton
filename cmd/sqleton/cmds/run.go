@@ -261,16 +261,19 @@ func init() {
 	cli.AddTemplateFlags(RunCmd)
 	cli.AddFieldsFilterFlags(RunCmd, "")
 	cli.AddSelectFlags(RunCmd)
+	cli.AddRenameFlags(RunCmd)
 
 	cli.AddOutputFlags(QueryCmd)
 	cli.AddTemplateFlags(QueryCmd)
 	cli.AddFieldsFilterFlags(QueryCmd, "")
 	cli.AddSelectFlags(QueryCmd)
+	cli.AddRenameFlags(QueryCmd)
 
 	cli.AddOutputFlags(SelectCmd)
 	cli.AddTemplateFlags(SelectCmd)
 	cli.AddFieldsFilterFlags(SelectCmd, "")
 	cli.AddSelectFlags(SelectCmd)
+	cli.AddRenameFlags(SelectCmd)
 
 	SelectCmd.Flags().String("where", "", "Where clause")
 	SelectCmd.Flags().String("order-by", "", "Order by clause")

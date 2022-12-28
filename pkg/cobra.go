@@ -168,6 +168,7 @@ func NewCobraCommandFromDescription(description SqletonCommandDescription) (*cob
 	cli.AddTemplateFlags(cmd)
 	cli.AddFieldsFilterFlags(cmd, "")
 	cli.AddSelectFlags(cmd)
+	cli.AddRenameFlags(cmd)
 
 	return cmd, nil
 }

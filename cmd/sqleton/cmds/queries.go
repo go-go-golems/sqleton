@@ -62,5 +62,6 @@ func AddQueriesCmd(allQueries []*sqleton.SqlCommand, aliases []*sqleton.CommandA
 	cli.AddTemplateFlags(queriesCmd)
 	cli.AddFieldsFilterFlags(queriesCmd, "name,short,source")
 	cli.AddSelectFlags(queriesCmd)
+	cli.AddRenameFlags(queriesCmd)
 	return queriesCmd
 }

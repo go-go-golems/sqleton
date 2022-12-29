@@ -273,7 +273,8 @@ func processQueryResults(rows *sqlx.Rows, gp *cli.GlazeProcessor) error {
 		return errors.Wrapf(err, "Could not get columns")
 	}
 
-	gp.OutputFormatter().AddTableMiddleware(middlewares.NewReorderColumnOrderMiddleware(cols))
+	cols = gp.RenameColumns(cols)
+	gp.AddTableMiddlewares(middlewares.NewReorderColumnOrderMiddleware(cols))
 	// add support for renaming columns (at least to lowercase)
 	// https://github.com/wesen/glazed/issues/27
 

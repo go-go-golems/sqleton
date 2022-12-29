@@ -7,7 +7,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	"github.com/wesen/glazed/pkg/cli"
-	"github.com/wesen/glazed/pkg/middlewares"
 	"gopkg.in/yaml.v3"
 	"io"
 	"os"
@@ -273,10 +272,7 @@ func processQueryResults(rows *sqlx.Rows, gp *cli.GlazeProcessor) error {
 		return errors.Wrapf(err, "Could not get columns")
 	}
 
-	cols = gp.RenameColumns(cols)
-	gp.AddTableMiddlewares(middlewares.NewReorderColumnOrderMiddleware(cols))
-	// add support for renaming columns (at least to lowercase)
-	// https://github.com/wesen/glazed/issues/27
+	gp.OutputFormatter().SetColumnOrder(cols)
 
 	for rows.Next() {
 		row := map[string]interface{}{}

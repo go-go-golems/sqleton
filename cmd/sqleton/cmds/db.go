@@ -85,11 +85,7 @@ var dbLsCmd = &cobra.Command{
 func init() {
 	DbCmd.AddCommand(dbLsCmd)
 
-	cli.AddOutputFlags(dbLsCmd)
-	cli.AddTemplateFlags(dbLsCmd)
-	cli.AddFieldsFilterFlags(dbLsCmd, "")
-	cli.AddSelectFlags(dbLsCmd)
-	cli.AddRenameFlags(dbLsCmd)
+	cli.AddFlags(dbLsCmd, cli.NewFlagsDefaults())
 
 	DbCmd.AddCommand(dbTestConnectionCmd)
 }

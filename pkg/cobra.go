@@ -164,11 +164,7 @@ func NewCobraCommandFromDescription(description SqletonCommandDescription) (*cob
 	cmd.Flags().Bool("explain", false, "Print the query plan that will be executed")
 	cmd.Flags().String("create-alias", "", "Create an alias for the query")
 
-	cli.AddOutputFlags(cmd)
-	cli.AddTemplateFlags(cmd)
-	cli.AddFieldsFilterFlags(cmd, "")
-	cli.AddSelectFlags(cmd)
-	cli.AddRenameFlags(cmd)
+	cli.AddFlags(cmd, cli.NewFlagsDefaults())
 
 	return cmd, nil
 }
@@ -338,7 +334,7 @@ func addFlags(cmd *cobra.Command, description *SqletonCommandDescription) error 
 			}
 
 		case ParameterTypeStringList:
-			defaultValue := []string{}
+			var defaultValue []string
 
 			if parameter.Default != nil {
 				stringList, ok := parameter.Default.([]string)
@@ -365,7 +361,7 @@ func addFlags(cmd *cobra.Command, description *SqletonCommandDescription) error 
 			}
 
 		case ParameterTypeIntegerList:
-			defaultValue := []int{}
+			var defaultValue []int
 			if parameter.Default != nil {
 				defaultValue, ok = parameter.Default.([]int)
 				if !ok {

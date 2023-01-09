@@ -14,7 +14,7 @@ require (
 	github.com/spf13/viper v1.14.0
 	github.com/stretchr/testify v1.8.1
 	github.com/tj/go-naturaldate v1.3.0
-	github.com/wesen/glazed v0.1.1-0.20230106211037-97a7fb2e00b4
+	github.com/wesen/glazed v0.1.1-0.20230109213559-203457b82eb5
 	github.com/zenizh/go-capturer v0.0.0-20211219060012-52ea6c8fed04
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v3 v3.0.1

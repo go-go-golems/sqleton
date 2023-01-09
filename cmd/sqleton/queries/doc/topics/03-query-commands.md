@@ -115,4 +115,4 @@ Arguments have to obey a few rules:
 To add examples, topics, and other help pages for your query, just add a markdown
 file inside one of the directories scanned for help pages.
 
-Look at [wordpress examples](../examples/wp) for more examples.
+Look at [wordpress examples](../../../doc/examples/wp) for more examples.

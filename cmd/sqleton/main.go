@@ -5,15 +5,13 @@ import (
 	"fmt"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"gopkg.in/natefinch/lumberjack.v2"
-	"io"
-	logger "ppa-control/lib/log"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/wesen/glazed/pkg/help"
 	"github.com/wesen/sqleton/cmd/sqleton/cmds"
 	sqleton "github.com/wesen/sqleton/pkg"
+	"gopkg.in/natefinch/lumberjack.v2"
+	"io"
 	"os"
 	"strings"
 )
@@ -133,7 +131,9 @@ type logConfig struct {
 }
 
 func InitLogger(config *logConfig) error {
-	logger.InitializeLogger(config.WithCaller)
+	if config.WithCaller {
+		log.Logger = log.With().Caller().Logger()
+	}
 	// default is json
 	var logWriter io.Writer
 	if config.LogFormat == "text" {

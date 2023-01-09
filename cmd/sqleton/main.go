@@ -3,7 +3,8 @@ package main
 import (
 	"embed"
 	"fmt"
-	"github.com/prometheus/common/log"
+	"github.com/rs/zerolog/log"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/wesen/glazed/pkg/help"
@@ -83,15 +84,15 @@ func loadRepositoryCommands() ([]*sqleton.SqlCommand, []*sqleton.CommandAlias, e
 		s, err := os.Stat(repository)
 
 		if os.IsNotExist(err) {
-			log.Debugf("Repository %s does not exist", repository)
+			log.Debug().Msgf("Repository %s does not exist", repository)
 			continue
 		} else if err != nil {
-			log.Warnf("Error while checking directory %s: %s", repository, err)
+			log.Warn().Msgf("Error while checking directory %s: %s", repository, err)
 			continue
 		}
 
 		if s == nil || !s.IsDir() {
-			log.Warnf("Repository %s is not a directory", repository)
+			log.Warn().Msgf("Repository %s is not a directory", repository)
 		} else {
 			commands_, aliases_, err := sqleton.LoadSqlCommandsFromDirectory(repository, repository)
 			if err != nil {

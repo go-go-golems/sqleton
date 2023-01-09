@@ -70,6 +70,15 @@ A repository can be loaded at compile time as an `embed.FS` by using the
 The configuration flag or variable `repository` can be set to specify a custom
 repository, by default, the queries in `$HOME/.sqleton/queries` are loaded.
 
+You can specify more repositories to be loaded in addition to the default by 
+specifying a list in `config.yaml`:
+
+```yaml
+repositories:
+  - /Users/manuel/code/ttc/ttc-dbt/sqleton-queries
+  - .sqleton/queries
+```
+
 ## Using query parameters
 
 A query can also provide parameters, which are mapped to command line flags and arguments

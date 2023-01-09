@@ -250,6 +250,8 @@ github.com/tj/go-naturaldate v1.3.0 h1:OgJIPkR/Jk4bFMBLbxZ8w+QUxwjqSvzd9x+yXocY4
 github.com/tj/go-naturaldate v1.3.0/go.mod h1:rpUbjivDKiS1BlfMGc2qUKNZ/yxgthOfmytQs8d8hKk=
 github.com/wesen/glazed v0.1.1-0.20230106211037-97a7fb2e00b4 h1:/zuWj7ToTO+cElQy0EZoebmp3uT+2BJiKjc8P1XCQWY=
 github.com/wesen/glazed v0.1.1-0.20230106211037-97a7fb2e00b4/go.mod h1:AGLI7KzKuRhJRKdqCK+Ma9YcMqTehZdGocHiT6TyoxA=
+github.com/wesen/glazed v0.1.1-0.20230109213559-203457b82eb5 h1:D2LwTqCD0LU7oIn3Rmhf8yBm3kT5oeQ+13qjg3rTJ3Y=
+github.com/wesen/glazed v0.1.1-0.20230109213559-203457b82eb5/go.mod h1:AGLI7KzKuRhJRKdqCK+Ma9YcMqTehZdGocHiT6TyoxA=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

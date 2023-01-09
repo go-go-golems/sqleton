@@ -31,7 +31,7 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-func initCommands(rootCmd *cobra.Command) ([]*sqleton.SqlCommand, []*sqleton.CommandAlias, error) {
+func initCommands(rootCmd *cobra.Command, helpSystem *help.HelpSystem) ([]*sqleton.SqlCommand, []*sqleton.CommandAlias, error) {
 	// Load the variables from the environment
 	viper.SetEnvPrefix("sqleton")
 
@@ -69,8 +69,12 @@ func initCommands(rootCmd *cobra.Command) ([]*sqleton.SqlCommand, []*sqleton.Com
 	if err != nil {
 		return nil, nil, err
 	}
+	err = helpSystem.LoadSectionsFromEmbedFS(queriesFS, "queries/doc")
+	if err != nil {
+		return nil, nil, err
+	}
 
-	repositoryCommands, repositoryAliases, err := loadRepositoryCommands()
+	repositoryCommands, repositoryAliases, err := loadRepositoryCommands(helpSystem)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -86,7 +90,7 @@ func initCommands(rootCmd *cobra.Command) ([]*sqleton.SqlCommand, []*sqleton.Com
 	return commands, aliases, nil
 }
 
-func loadRepositoryCommands() ([]*sqleton.SqlCommand, []*sqleton.CommandAlias, error) {
+func loadRepositoryCommands(helpSystem *help.HelpSystem) ([]*sqleton.SqlCommand, []*sqleton.CommandAlias, error) {
 	repositories := viper.GetStringSlice("repositories")
 
 	defaultDirectory := "$HOME/.sqleton/queries"
@@ -112,12 +116,26 @@ func loadRepositoryCommands() ([]*sqleton.SqlCommand, []*sqleton.CommandAlias, e
 		if s == nil || !s.IsDir() {
 			log.Warn().Msgf("Repository %s is not a directory", repository)
 		} else {
+			docDir := fmt.Sprintf("%s/doc", repository)
 			commands_, aliases_, err := sqleton.LoadSqlCommandsFromDirectory(repository, repository)
 			if err != nil {
 				return nil, nil, err
 			}
 			commands = append(commands, commands_...)
 			aliases = append(aliases, aliases_...)
+
+			_, err = os.Stat(docDir)
+			if os.IsNotExist(err) {
+				continue
+			} else if err != nil {
+				log.Debug().Err(err).Msgf("Error while checking directory %s", docDir)
+				continue
+			}
+			err = helpSystem.LoadSectionsFromDirectory(docDir)
+			if err != nil {
+				log.Warn().Err(err).Msgf("Error while loading help sections from directory %s", repository)
+				continue
+			}
 		}
 	}
 	return commands, aliases, nil
@@ -239,7 +257,7 @@ func init() {
 	rootCmd.AddCommand(cmds.MysqlCmd)
 
 	cmds.InitializeMysqlCmd(queriesFS, helpSystem)
-	commands, aliases, err := initCommands(rootCmd)
+	commands, aliases, err := initCommands(rootCmd, helpSystem)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
 		os.Exit(1)

@@ -3,7 +3,7 @@ package main
 import (
 	"embed"
 	"fmt"
-	"github.com/pkg/errors"
+	"github.com/prometheus/common/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/wesen/glazed/pkg/help"
@@ -68,39 +68,40 @@ func initCommands(rootCmd *cobra.Command) ([]*sqleton.SqlCommand, []*sqleton.Com
 }
 
 func loadRepositoryCommands() ([]*sqleton.SqlCommand, []*sqleton.CommandAlias, error) {
-	repository := viper.GetString("repository")
-	useDefaultDirectory := false
-	if repository == "" {
-		useDefaultDirectory = true
-		repository = "$HOME/.sqleton/queries"
-	}
+	repositories := viper.GetStringSlice("repositories")
 
-	repository = os.ExpandEnv(repository)
+	defaultDirectory := "$HOME/.sqleton/queries"
+	repositories = append(repositories, defaultDirectory)
 
-	// check that repository exists and is a directory
-	s, err := os.Stat(repository)
+	commands := make([]*sqleton.SqlCommand, 0)
+	aliases := make([]*sqleton.CommandAlias, 0)
 
-	if os.IsNotExist(err) {
-		if !useDefaultDirectory {
-			return nil, nil, err
+	for _, repository := range repositories {
+		repository = os.ExpandEnv(repository)
+
+		// check that repository exists and is a directory
+		s, err := os.Stat(repository)
+
+		if os.IsNotExist(err) {
+			log.Debugf("Repository %s does not exist", repository)
+			continue
+		} else if err != nil {
+			log.Warnf("Error while checking directory %s: %s", repository, err)
+			continue
 		}
-	} else if err != nil {
-		return nil, nil, err
-	}
 
-	if s == nil || !s.IsDir() {
-		if !useDefaultDirectory {
-			return nil, nil, errors.New("repository is not a directory")
+		if s == nil || !s.IsDir() {
+			log.Warnf("Repository %s is not a directory", repository)
+		} else {
+			commands_, aliases_, err := sqleton.LoadSqlCommandsFromDirectory(repository, repository)
+			if err != nil {
+				return nil, nil, err
+			}
+			commands = append(commands, commands_...)
+			aliases = append(aliases, aliases_...)
 		}
-	} else {
-		commands, aliases, err := sqleton.LoadSqlCommandsFromDirectory(repository, repository)
-		if err != nil {
-			return nil, nil, err
-		}
-		return commands, aliases, nil
 	}
-
-	return []*sqleton.SqlCommand{}, []*sqleton.CommandAlias{}, nil
+	return commands, aliases, nil
 }
 
 func main() {

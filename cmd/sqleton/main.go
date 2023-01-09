@@ -3,7 +3,11 @@ package main
 import (
 	"embed"
 	"fmt"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"gopkg.in/natefinch/lumberjack.v2"
+	"io"
+	logger "ppa-control/lib/log"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -18,6 +22,14 @@ var rootCmd = &cobra.Command{
 	Use:   "sqleton",
 	Short: "sqleton runs SQL queries out of template files",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		// reinitialize in case things got overridden with arguments
+		err := InitLogger(&logConfig{
+			Level:      viper.GetString("log-level"),
+			LogFile:    viper.GetString("log-file"),
+			LogFormat:  viper.GetString("log-format"),
+			WithCaller: viper.GetBool("with-caller"),
+		})
+		cobra.CheckErr(err)
 	},
 }
 
@@ -46,6 +58,14 @@ func initCommands(rootCmd *cobra.Command) ([]*sqleton.SqlCommand, []*sqleton.Com
 	if err != nil {
 		return nil, nil, err
 	}
+
+	err = InitLogger(&logConfig{
+		Level:      viper.GetString("log-level"),
+		LogFile:    viper.GetString("log-file"),
+		LogFormat:  viper.GetString("log-format"),
+		WithCaller: viper.GetBool("with-caller"),
+	})
+	cobra.CheckErr(err)
 
 	commands, aliases, err := sqleton.LoadSqlCommandsFromEmbedFS(queriesFS, ".", "queries/")
 	if err != nil {
@@ -105,6 +125,56 @@ func loadRepositoryCommands() ([]*sqleton.SqlCommand, []*sqleton.CommandAlias, e
 	return commands, aliases, nil
 }
 
+type logConfig struct {
+	WithCaller bool
+	Level      string
+	LogFormat  string
+	LogFile    string
+}
+
+func InitLogger(config *logConfig) error {
+	logger.InitializeLogger(config.WithCaller)
+	// default is json
+	var logWriter io.Writer
+	if config.LogFormat == "text" {
+		logWriter = zerolog.ConsoleWriter{Out: os.Stderr}
+	} else {
+		logWriter = os.Stderr
+	}
+
+	if config.LogFile != "" {
+		logWriter = io.MultiWriter(
+			logWriter,
+			zerolog.ConsoleWriter{
+				NoColor: true,
+				Out: &lumberjack.Logger{
+					Filename:   config.LogFile,
+					MaxSize:    10, // megabytes
+					MaxBackups: 3,
+					MaxAge:     28,    //days
+					Compress:   false, // disabled by default
+				},
+			})
+	}
+
+	log.Logger = log.Output(logWriter)
+
+	switch config.Level {
+	case "debug":
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	case "info":
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	case "warn":
+		zerolog.SetGlobalLevel(zerolog.WarnLevel)
+	case "error":
+		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
+	case "fatal":
+		zerolog.SetGlobalLevel(zerolog.FatalLevel)
+	}
+
+	return nil
+}
+
 func main() {
 	_ = rootCmd.Execute()
 }
@@ -140,6 +210,12 @@ func init() {
 	rootCmd.PersistentFlags().Bool("use-dbt-profiles", false, "Use dbt profiles.yml to connect to databases")
 	rootCmd.PersistentFlags().String("dbt-profiles-path", "", "Path to dbt profiles.yml (default: ~/.dbt/profiles.yml)")
 	rootCmd.PersistentFlags().String("dbt-profile", "default", "Name of dbt profile to use (default: default)")
+
+	// logging flags
+	rootCmd.PersistentFlags().Bool("with-caller", false, "Log caller")
+	rootCmd.PersistentFlags().String("log-level", "info", "Log level (debug, info, warn, error, fatal)")
+	rootCmd.PersistentFlags().String("log-format", "text", "Log format (json, text)")
+	rootCmd.PersistentFlags().String("log-file", "", "Log file (default: stderr)")
 
 	// more normal flags
 	rootCmd.PersistentFlags().StringP("host", "H", "", "Database host")

@@ -20,14 +20,6 @@ var rootCmd = &cobra.Command{
 	Use:   "sqleton",
 	Short: "sqleton runs SQL queries out of template files",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		// reinitialize in case things got overridden with arguments
-		err := InitLogger(&logConfig{
-			Level:      viper.GetString("log-level"),
-			LogFile:    viper.GetString("log-file"),
-			LogFormat:  viper.GetString("log-format"),
-			WithCaller: viper.GetBool("with-caller"),
-		})
-		cobra.CheckErr(err)
 	},
 }
 
@@ -35,9 +27,14 @@ func initCommands(rootCmd *cobra.Command, helpSystem *help.HelpSystem) ([]*sqlet
 	// Load the variables from the environment
 	viper.SetEnvPrefix("sqleton")
 
-	viper.AddConfigPath(".")
-	viper.AddConfigPath("$HOME/.sqleton")
-	viper.AddConfigPath("/etc/sqleton")
+	configPath, _ := rootCmd.PersistentFlags().GetString("config")
+	if configPath != "" {
+		viper.SetConfigFile(configPath)
+	} else {
+		viper.AddConfigPath(".")
+		viper.AddConfigPath("$HOME/.sqleton")
+		viper.AddConfigPath("/etc/sqleton")
+	}
 
 	// Read the configuration file into Viper
 	err := viper.ReadInConfig()
@@ -57,13 +54,23 @@ func initCommands(rootCmd *cobra.Command, helpSystem *help.HelpSystem) ([]*sqlet
 		return nil, nil, err
 	}
 
+	logLevel := viper.GetString("log-level")
+	verbose, _ := rootCmd.PersistentFlags().GetBool("verbose")
+	if verbose && logLevel != "trace" {
+		logLevel = "debug"
+	}
+
 	err = InitLogger(&logConfig{
-		Level:      viper.GetString("log-level"),
+		Level:      logLevel,
 		LogFile:    viper.GetString("log-file"),
 		LogFormat:  viper.GetString("log-format"),
 		WithCaller: viper.GetBool("with-caller"),
 	})
 	cobra.CheckErr(err)
+
+	log.Debug().
+		Str("config", viper.ConfigFileUsed()).
+		Msg("Loaded configuration")
 
 	commands, aliases, err := sqleton.LoadSqlCommandsFromEmbedFS(queriesFS, ".", "queries/")
 	if err != nil {
@@ -250,6 +257,9 @@ func init() {
 	rootCmd.PersistentFlags().String("dsn", "", "Database DSN")
 	rootCmd.PersistentFlags().String("driver", "", "Database driver")
 
+	rootCmd.PersistentFlags().String("config", "", "Path to config file (default ~/.sqleton/config.yml)")
+	rootCmd.PersistentFlags().Bool("verbose", false, "Verbose output")
+
 	rootCmd.AddCommand(cmds.DbCmd)
 	rootCmd.AddCommand(cmds.RunCmd)
 	rootCmd.AddCommand(cmds.QueryCmd)
@@ -257,6 +267,13 @@ func init() {
 	rootCmd.AddCommand(cmds.MysqlCmd)
 
 	cmds.InitializeMysqlCmd(queriesFS, helpSystem)
+
+	// parse the flags one time just to catch --config
+	err = rootCmd.ParseFlags(os.Args[1:])
+	if err != nil {
+		panic(err)
+	}
+
 	commands, aliases, err := initCommands(rootCmd, helpSystem)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)

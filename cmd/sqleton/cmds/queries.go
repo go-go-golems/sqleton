@@ -1,7 +1,6 @@
 package cmds
 
 import (
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/wesen/glazed/pkg/cli"
 	"github.com/wesen/glazed/pkg/middlewares"
@@ -12,11 +11,9 @@ func AddQueriesCmd(allQueries []*sqleton.SqlCommand, aliases []*sqleton.CommandA
 	var queriesCmd = &cobra.Command{
 		Use:   "queries",
 		Short: "Commands related to sqleton queries",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Run: func(cmd *cobra.Command, args []string) {
 			gp, of, err := cli.SetupProcessor(cmd)
-			if err != nil {
-				return errors.Wrapf(err, "Could not create glaze processors")
-			}
+			cobra.CheckErr(err)
 			of.AddTableMiddleware(
 				middlewares.NewReorderColumnOrderMiddleware(
 					[]string{"name", "short", "long", "source", "query"}),
@@ -31,9 +28,7 @@ func AddQueriesCmd(allQueries []*sqleton.SqlCommand, aliases []*sqleton.CommandA
 					"source": query.Source,
 				}
 				err := gp.ProcessInputObject(obj)
-				if err != nil {
-					return errors.Wrapf(err, "Could not process input object")
-				}
+				cobra.CheckErr(err)
 			}
 
 			for _, alias := range aliases {
@@ -42,19 +37,13 @@ func AddQueriesCmd(allQueries []*sqleton.SqlCommand, aliases []*sqleton.CommandA
 					"aliasFor": alias.AliasFor,
 					"source":   alias.Source,
 				}
-				err := gp.ProcessInputObject(obj)
-				if err != nil {
-					return errors.Wrapf(err, "Could not process input object")
-				}
+				err = gp.ProcessInputObject(obj)
+				cobra.CheckErr(err)
 			}
 
 			s, err := of.Output()
-			if err != nil {
-				return errors.Wrapf(err, "Could not get output")
-			}
+			cobra.CheckErr(err)
 			cmd.Println(s)
-
-			return nil
 		},
 	}
 

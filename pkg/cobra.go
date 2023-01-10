@@ -15,16 +15,17 @@ import (
 	"time"
 )
 
-// TODO(2022-12-21, manuel): Additional parameter/argument ideas
-// - number range
-// - date range (with human language parsing?)
-// - handle floats
-// - generate choices/ranges from SQL statements
-
 // refTime is used to set a reference time for natural date parsing for unit test purposes
 var refTime *time.Time
 
-func gatherParameters(cmd *cobra.Command, description *SqletonCommandDescription, args []string) (map[string]interface{}, error) {
+// gatherParameters takes a cobra command, an argument list as well as a description
+// of the sqleton command arguments, and returns a list of parsed parameters as a
+// hashmap. It does so by parsing both the flags and the positional arguments.
+func gatherParameters(
+	cmd *cobra.Command,
+	description *SqletonCommandDescription,
+	args []string,
+) (map[string]interface{}, error) {
 	parameters, err := gatherFlags(cmd, description.Flags, false)
 	if err != nil {
 		return nil, err
@@ -74,6 +75,9 @@ func gatherParameters(cmd *cobra.Command, description *SqletonCommandDescription
 	return parameters, nil
 }
 
+// runSqletonCommand actually runs the given SqletonCommand by using the cobra command
+// to parse the necessary flags. It then first pings the database, and then renders
+// the query results into a GlazedProcessor.
 func runSqletonCommand(cmd *cobra.Command, s SqletonCommand, args []string) error {
 	// TODO(2022-12-20, manuel): we should be able to load default values for these parameters from a config file
 	// See: https://github.com/wesen/sqleton/issues/39
@@ -129,6 +133,9 @@ func runSqletonCommand(cmd *cobra.Command, s SqletonCommand, args []string) erro
 	return nil
 }
 
+// ToCobraCommand converts a SqletonCommand into a concrete cobra command.
+// It adds the necessary flags to the cobra command, configures the positional arguments
+// validity checks and sets the Run command to actually run the command.
 func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 	description := s.Description()
 	cmd, err := NewCobraCommandFromDescription(description)
@@ -136,8 +143,9 @@ func ToCobraCommand(s SqletonCommand) (*cobra.Command, error) {
 		return nil, err
 	}
 
-	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		return runSqletonCommand(cmd, s, args)
+	cmd.Run = func(cmd *cobra.Command, args []string) {
+		err := runSqletonCommand(cmd, s, args)
+		cobra.CheckErr(err)
 	}
 
 	return cmd, nil
@@ -169,6 +177,11 @@ func NewCobraCommandFromDescription(description SqletonCommandDescription) (*cob
 	return cmd, nil
 }
 
+// addArguments adds the arguments (not the flags) of a SqletonCommandDescription to a cobra command
+// as positional arguments.
+// An optional argument cannot be followed by a required argument.
+// Similarly, a list of arguments cannot be followed by any argument (since we otherwise wouldn't
+// know how many belong to the list and where to do the cut off).
 func addArguments(cmd *cobra.Command, description *SqletonCommandDescription) error {
 	minArgs := 0
 	// -1 signifies unbounded
@@ -210,6 +223,9 @@ func addArguments(cmd *cobra.Command, description *SqletonCommandDescription) er
 	return nil
 }
 
+// gatherArguments parses the positional arguments passed as a list of strings into a map of
+// parsed values. If onlyProvided is true, then only arguments that are provided are returned
+// (i.e. the default values are not included).
 func gatherArguments(args []string, arguments []*SqlParameter, onlyProvided bool) (map[string]interface{}, error) {
 	_ = args
 	result := make(map[string]interface{})
@@ -250,6 +266,8 @@ func gatherArguments(args []string, arguments []*SqlParameter, onlyProvided bool
 	return result, nil
 }
 
+// addFlags takes the parameters from a SqletonCommandDescription and converts them
+// to cobra flags, before adding them to the Flags() of a the passed cobra command.
 func addFlags(cmd *cobra.Command, description *SqletonCommandDescription) error {
 	for _, parameter := range description.Flags {
 		err := parameter.CheckParameterDefaultValueValidity()
@@ -398,6 +416,12 @@ func addFlags(cmd *cobra.Command, description *SqletonCommandDescription) error 
 	return nil
 }
 
+// gatherFlags gathers the flags from the cobra command, and parses them according
+// to the parameter description passed in params. The result is a map of parameter
+// names to parsed values. If onlyProvided is true, only parameters that are provided
+// by the user are returned (i.e. not the default values).
+// If a parameter cannot be parsed correctly, or is missing even though it is not optional,
+// an error is returned.
 func gatherFlags(cmd *cobra.Command, params []*SqlParameter, onlyProvided bool) (map[string]interface{}, error) {
 	parameters := map[string]interface{}{}
 
@@ -476,6 +500,7 @@ func gatherFlags(cmd *cobra.Command, params []*SqlParameter, onlyProvided bool) 
 	return parameters, nil
 }
 
+// findOrCreateParentCommand will create empty commands to anchor the passed in parents.
 func findOrCreateParentCommand(rootCmd *cobra.Command, parents []string) *cobra.Command {
 	parentCmd := rootCmd
 	for _, parent := range parents {
@@ -508,8 +533,9 @@ func AddCommandsToRootCommand(rootCmd *cobra.Command, commands []*SqlCommand, al
 		}
 
 		command2 := command
-		cobraCommand.RunE = func(cmd *cobra.Command, args []string) error {
-			return runSqletonCommand(cmd, command2, args)
+		cobraCommand.Run = func(cmd *cobra.Command, args []string) {
+			err := runSqletonCommand(cmd, command2, args)
+			cobra.CheckErr(err)
 		}
 		parentCmd.AddCommand(cobraCommand)
 
@@ -531,13 +557,11 @@ func AddCommandsToRootCommand(rootCmd *cobra.Command, commands []*SqlCommand, al
 			return err
 		}
 		alias2 := alias
-		cobraCommand.RunE = func(cmd *cobra.Command, args []string) error {
+		cobraCommand.Run = func(cmd *cobra.Command, args []string) {
 			for flagName, flagValue := range alias2.Flags {
 				if !cmd.Flags().Changed(flagName) {
 					err = cmd.Flags().Set(flagName, flagValue)
-					if err != nil {
-						return err
-					}
+					cobra.CheckErr(err)
 				}
 			}
 			// TODO(2022-12-22, manuel) This is not right because the args count is checked earlier, but when,
@@ -545,7 +569,8 @@ func AddCommandsToRootCommand(rootCmd *cobra.Command, commands []*SqlCommand, al
 			if len(args) == 0 {
 				args = alias2.Arguments
 			}
-			return runSqletonCommand(cmd, aliasedCommand, args)
+			err = runSqletonCommand(cmd, aliasedCommand, args)
+			cobra.CheckErr(err)
 		}
 		parentCmd.AddCommand(cobraCommand)
 	}

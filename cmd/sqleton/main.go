@@ -6,7 +6,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"github.com/wesen/glazed/pkg/help"
 	"github.com/wesen/sqleton/cmd/sqleton/cmds"
@@ -21,14 +20,32 @@ var rootCmd = &cobra.Command{
 	Use:   "sqleton",
 	Short: "sqleton runs SQL queries out of template files",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		// reinitialize the logger because we can now parse --log-level and co
+		// from the command line flag
+		initLogger()
 	},
 }
 
-func initCommands(rootCmd *cobra.Command, helpSystem *help.HelpSystem) ([]*sqleton.SqlCommand, []*sqleton.CommandAlias, error) {
+func initLogger() {
+	logLevel := viper.GetString("log-level")
+	verbose := viper.GetBool("verbose")
+	if verbose && logLevel != "trace" {
+		logLevel = "debug"
+	}
+
+	err := InitLogger(&logConfig{
+		Level:      logLevel,
+		LogFile:    viper.GetString("log-file"),
+		LogFormat:  viper.GetString("log-format"),
+		WithCaller: viper.GetBool("with-caller"),
+	})
+	cobra.CheckErr(err)
+}
+
+func initCommands(rootCmd *cobra.Command, configPath string, helpSystem *help.HelpSystem) ([]*sqleton.SqlCommand, []*sqleton.CommandAlias, error) {
 	// Load the variables from the environment
 	viper.SetEnvPrefix("sqleton")
 
-	configPath, _ := rootCmd.PersistentFlags().GetString("config")
 	if configPath != "" {
 		viper.SetConfigFile(configPath)
 	} else {
@@ -55,19 +72,9 @@ func initCommands(rootCmd *cobra.Command, helpSystem *help.HelpSystem) ([]*sqlet
 		return nil, nil, err
 	}
 
-	logLevel := viper.GetString("log-level")
-	verbose, _ := rootCmd.PersistentFlags().GetBool("verbose")
-	if verbose && logLevel != "trace" {
-		logLevel = "debug"
-	}
-
-	err = InitLogger(&logConfig{
-		Level:      logLevel,
-		LogFile:    viper.GetString("log-file"),
-		LogFormat:  viper.GetString("log-format"),
-		WithCaller: viper.GetBool("with-caller"),
-	})
-	cobra.CheckErr(err)
+	// this still won't pick up on --verbose to show debug logging when the commands
+	// are parsed, but at least it will configure it based on the config file
+	initLogger()
 
 	log.Debug().
 		Str("config", viper.ConfigFileUsed()).
@@ -270,12 +277,16 @@ func init() {
 	cmds.InitializeMysqlCmd(queriesFS, helpSystem)
 
 	// parse the flags one time just to catch --config
-	err = rootCmd.ParseFlags(os.Args[1:])
-	if err != nil && err != pflag.ErrHelp {
-		cobra.CheckErr(err)
+	configFile := ""
+	for idx, arg := range os.Args {
+		if arg == "--config" {
+			if len(os.Args) > idx+1 {
+				configFile = os.Args[idx+1]
+			}
+		}
 	}
 
-	commands, aliases, err := initCommands(rootCmd, helpSystem)
+	commands, aliases, err := initCommands(rootCmd, configFile, helpSystem)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
 		os.Exit(1)

@@ -8,6 +8,7 @@ require (
 	github.com/huandu/go-sqlbuilder v1.18.0
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/pkg/errors v0.9.1
+	github.com/radovskyb/watcher v1.0.7
 	github.com/rs/zerolog v1.28.0
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/pflag v1.0.5
@@ -16,6 +17,7 @@ require (
 	github.com/tj/go-naturaldate v1.3.0
 	github.com/wesen/glazed v0.1.1-0.20230109213559-203457b82eb5
 	github.com/zenizh/go-capturer v0.0.0-20211219060012-52ea6c8fed04
+	golang.org/x/sync v0.1.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v3 v3.0.1
 )

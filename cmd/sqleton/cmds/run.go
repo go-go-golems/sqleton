@@ -3,11 +3,12 @@ package cmds
 import (
 	"context"
 	"fmt"
-	"github.com/fsnotify/fsnotify"
 	"github.com/jmoiron/sqlx"
+	"github.com/radovskyb/watcher"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
 	"syscall"
+	"time"
 
 	"github.com/huandu/go-sqlbuilder"
 	"github.com/spf13/cobra"
@@ -101,12 +102,9 @@ var RunCmd = &cobra.Command{
 // watchQueries takes a list of file names containing SQL queries.
 // It will watch for changes and run the appropriate query again when a change is detected.
 func watchQueries(ctx context.Context, db *sqlx.DB, args []string) error {
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		return err
-	}
+	w := watcher.New()
+	w.SetMaxEvents(1)
 
-	defer watcher.Close()
 	queries := make(map[string]string)
 	for _, arg := range args {
 		queryBytes, err := os.ReadFile(arg)
@@ -116,50 +114,43 @@ func watchQueries(ctx context.Context, db *sqlx.DB, args []string) error {
 
 		queries[arg] = string(queryBytes)
 
-		err = watcher.Add(arg)
+		err = w.Add(arg)
 		if err != nil {
 			return err
 		}
 	}
 
-	done := make(chan bool)
-
 	// Start a goroutine to handle fsnotify events
 	go func() {
-		defer close(done)
-
 		log.Debug().Msg("Watching for changes")
 		for {
 			select {
 			case <-ctx.Done():
 				log.Debug().Msg("Context cancelled, stopping watcher")
+				w.Close()
 				return
 
-			case err, ok := <-watcher.Errors:
+			case <-w.Closed:
+				return
+
+			case err, ok := <-w.Error:
 				if !ok {
 					log.Debug().Msg("Watcher closed, stopping watcher")
 					return
 				}
 				log.Error().Err(err).Msg("Watcher error")
 
-			case event, ok := <-watcher.Events:
+			case event, ok := <-w.Event:
 				if !ok {
 					log.Debug().Msg("Watcher channel closed, stopping watcher")
 					return
 				}
 				log.Debug().Str("event", event.String()).Msg("Event received")
-				event.Op &= ^fsnotify.Chmod
-				if event.Op&fsnotify.Write == fsnotify.Write {
-					log.Debug().Str("modifiedFile", event.Name).Msg("modified file")
-				}
 			}
 		}
 	}()
 
-	// Wait indefinitely
-	<-done
-
-	return nil
+	return w.Start(time.Millisecond * 100)
 }
 
 var QueryCmd = &cobra.Command{

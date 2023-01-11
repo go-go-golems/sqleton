@@ -6,6 +6,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"github.com/wesen/glazed/pkg/help"
 	"github.com/wesen/sqleton/cmd/sqleton/cmds"
@@ -270,8 +271,8 @@ func init() {
 
 	// parse the flags one time just to catch --config
 	err = rootCmd.ParseFlags(os.Args[1:])
-	if err != nil {
-		panic(err)
+	if err != nil && err != pflag.ErrHelp {
+		cobra.CheckErr(err)
 	}
 
 	commands, aliases, err := initCommands(rootCmd, helpSystem)

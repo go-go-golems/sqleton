@@ -3,6 +3,11 @@ package cmds
 import (
 	"context"
 	"fmt"
+	"github.com/fsnotify/fsnotify"
+	"github.com/jmoiron/sqlx"
+	"github.com/rs/zerolog/log"
+	"golang.org/x/sync/errgroup"
+	"syscall"
 
 	"github.com/huandu/go-sqlbuilder"
 	"github.com/spf13/cobra"
@@ -19,43 +24,142 @@ import (
 var RunCmd = &cobra.Command{
 	Use:   "run",
 	Short: "Run a SQL query from sql files",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		db, err := pkg.OpenDatabaseFromViper()
 		cobra.CheckErr(err)
 
-		dbContext := context.Background()
-		err = db.PingContext(dbContext)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		err = db.PingContext(ctx)
 		cobra.CheckErr(err)
 
-		for _, arg := range args {
-			gp, of, err := cli.SetupProcessor(cmd)
-			cobra.CheckErr(err)
-			query := ""
+		watch, _ := cmd.Flags().GetBool("watch")
 
-			if arg == "-" {
-				inBytes, err := io.ReadAll(os.Stdin)
-				cobra.CheckErr(err)
-				query = string(inBytes)
-			} else {
-				// read file
-				queryBytes, err := os.ReadFile(arg)
-				cobra.CheckErr(err)
+		errGroup, ctx2 := errgroup.WithContext(ctx)
+		errGroup.Go(func() error {
+			return pkg.CancelOnSignal(ctx2, syscall.SIGINT, func() {
+				cancel()
+			})
+		})
 
-				query = string(queryBytes)
-			}
+		if watch {
+			errGroup.Go(func() error {
+				return watchQueries(ctx2, db, args)
+			})
+		} else {
+			errGroup.Go(func() error {
+				for _, arg := range args {
+					query := ""
 
-			// TODO(2022-12-20, manuel): collect named parameters here, maybe through prerun?
-			// See: https://github.com/wesen/sqleton/issues/40
-			err = pkg.RunNamedQueryIntoGlaze(dbContext, db, string(query), map[string]interface{}{}, gp)
-			cobra.CheckErr(err)
+					if arg == "-" {
+						inBytes, err := io.ReadAll(os.Stdin)
+						if err != nil {
+							return err
+						}
+						query = string(inBytes)
+					} else {
+						// read file
+						queryBytes, err := os.ReadFile(arg)
+						if err != nil {
+							return err
+						}
 
-			s, err := of.Output()
-			cobra.CheckErr(err)
+						query = string(queryBytes)
+					}
 
-			fmt.Print(s)
+					// TODO(2022-12-20, manuel): collect named parameters here, maybe through prerun?
+					// See: https://github.com/wesen/sqleton/issues/40
+
+					gp, of, err := cli.SetupProcessor(cmd)
+					if err != nil {
+						return err
+					}
+
+					err = pkg.RunNamedQueryIntoGlaze(ctx2, db, string(query), map[string]interface{}{}, gp)
+					if err != nil {
+						return err
+					}
+
+					s, err := of.Output()
+					if err != nil {
+						return err
+					}
+
+					fmt.Print(s)
+				}
+				return nil
+			})
 		}
+
+		err = errGroup.Wait()
+		cobra.CheckErr(err)
 	},
+}
+
+// watchQueries takes a list of file names containing SQL queries.
+// It will watch for changes and run the appropriate query again when a change is detected.
+func watchQueries(ctx context.Context, db *sqlx.DB, args []string) error {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return err
+	}
+
+	defer watcher.Close()
+	queries := make(map[string]string)
+	for _, arg := range args {
+		queryBytes, err := os.ReadFile(arg)
+		if err != nil {
+			return err
+		}
+
+		queries[arg] = string(queryBytes)
+
+		err = watcher.Add(arg)
+		if err != nil {
+			return err
+		}
+	}
+
+	done := make(chan bool)
+
+	// Start a goroutine to handle fsnotify events
+	go func() {
+		defer close(done)
+
+		log.Debug().Msg("Watching for changes")
+		for {
+			select {
+			case <-ctx.Done():
+				log.Debug().Msg("Context cancelled, stopping watcher")
+				return
+
+			case err, ok := <-watcher.Errors:
+				if !ok {
+					log.Debug().Msg("Watcher closed, stopping watcher")
+					return
+				}
+				log.Error().Err(err).Msg("Watcher error")
+
+			case event, ok := <-watcher.Events:
+				if !ok {
+					log.Debug().Msg("Watcher channel closed, stopping watcher")
+					return
+				}
+				log.Debug().Str("event", event.String()).Msg("Event received")
+				event.Op &= ^fsnotify.Chmod
+				if event.Op&fsnotify.Write == fsnotify.Write {
+					log.Debug().Str("modifiedFile", event.Name).Msg("modified file")
+				}
+			}
+		}
+	}()
+
+	// Wait indefinitely
+	<-done
+
+	return nil
 }
 
 var QueryCmd = &cobra.Command{
@@ -258,6 +362,8 @@ var SelectCmd = &cobra.Command{
 
 func init() {
 	cli.AddFlags(RunCmd, cli.NewFlagsDefaults())
+	RunCmd.Flags().Bool("watch", false, "Watch for changes and rerun the query")
+
 	cli.AddFlags(QueryCmd, cli.NewFlagsDefaults())
 
 	cli.AddFlags(SelectCmd, cli.NewFlagsDefaults())

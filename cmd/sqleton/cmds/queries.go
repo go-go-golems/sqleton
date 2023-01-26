@@ -3,11 +3,12 @@ package cmds
 import (
 	"github.com/spf13/cobra"
 	"github.com/wesen/glazed/pkg/cli"
+	cmds2 "github.com/wesen/glazed/pkg/cmds"
 	"github.com/wesen/glazed/pkg/middlewares"
 	sqleton "github.com/wesen/sqleton/pkg"
 )
 
-func AddQueriesCmd(allQueries []*sqleton.SqlCommand, aliases []*sqleton.CommandAlias) *cobra.Command {
+func AddQueriesCmd(allQueries []*sqleton.SqlCommand, aliases []*cmds2.CommandAlias) *cobra.Command {
 	var queriesCmd = &cobra.Command{
 		Use:   "queries",
 		Short: "Commands related to sqleton queries",
@@ -20,12 +21,13 @@ func AddQueriesCmd(allQueries []*sqleton.SqlCommand, aliases []*sqleton.CommandA
 			)
 
 			for _, query := range allQueries {
+				description := query.Description()
 				obj := map[string]interface{}{
-					"name":   query.Name,
-					"short":  query.Short,
-					"long":   query.Long,
+					"name":   description.Name,
+					"short":  description.Short,
+					"long":   description.Long,
 					"query":  query.Query,
-					"source": query.Source,
+					"source": description.Source,
 				}
 				err := gp.ProcessInputObject(obj)
 				cobra.CheckErr(err)

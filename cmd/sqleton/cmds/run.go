@@ -3,6 +3,7 @@ package cmds
 import (
 	"context"
 	"fmt"
+	"github.com/wesen/glazed/pkg/cmds"
 
 	"github.com/huandu/go-sqlbuilder"
 	"github.com/spf13/cobra"
@@ -153,29 +154,29 @@ var SelectCmd = &cobra.Command{
 				short = fmt.Sprintf("Select"+" from %s where %s", table, where)
 			}
 
-			flags := []*pkg.SqlParameter{}
+			flags := []*cmds.Parameter{}
 			if where == "" {
-				flags = append(flags, &pkg.SqlParameter{
+				flags = append(flags, &cmds.Parameter{
 					Name: "where",
-					Type: pkg.ParameterTypeString,
+					Type: cmds.ParameterTypeString,
 				})
 			}
 			if !count {
-				flags = append(flags, &pkg.SqlParameter{
+				flags = append(flags, &cmds.Parameter{
 					Name:    "limit",
-					Type:    pkg.ParameterTypeInteger,
+					Type:    cmds.ParameterTypeInteger,
 					Help:    fmt.Sprintf("Limit the number of rows (default: %d), set to 0 to disable", limit),
 					Default: limit,
 				})
-				flags = append(flags, &pkg.SqlParameter{
+				flags = append(flags, &cmds.Parameter{
 					Name:    "offset",
-					Type:    pkg.ParameterTypeInteger,
+					Type:    cmds.ParameterTypeInteger,
 					Help:    fmt.Sprintf("Offset the number of rows (default: %d)", offset),
 					Default: offset,
 				})
-				flags = append(flags, &pkg.SqlParameter{
+				flags = append(flags, &cmds.Parameter{
 					Name:    "distinct",
-					Type:    pkg.ParameterTypeBool,
+					Type:    cmds.ParameterTypeBool,
 					Help:    fmt.Sprintf("Whether to select distinct rows (default: %t)", distinct),
 					Default: distinct,
 				})
@@ -186,9 +187,9 @@ var SelectCmd = &cobra.Command{
 					orderByHelp = fmt.Sprintf("Order by (default: %s)", order)
 					orderDefault = order
 				}
-				flags = append(flags, &pkg.SqlParameter{
+				flags = append(flags, &cmds.Parameter{
 					Name:    "order_by",
-					Type:    pkg.ParameterTypeString,
+					Type:    cmds.ParameterTypeString,
 					Help:    orderByHelp,
 					Default: orderDefault,
 				})
@@ -211,12 +212,12 @@ var SelectCmd = &cobra.Command{
 			_, _ = fmt.Fprintf(sb, "\nOFFSET {{ .offset }}")
 
 			query := sb.String()
-			sqlCommand := &pkg.SqlCommand{
+			sqlCommand := pkg.NewSqlCommand(&cmds.CommandDescription{
 				Name:  createQuery,
 				Short: short,
 				Flags: flags,
-				Query: query,
-			}
+			},
+				query)
 
 			// marshal to yaml
 			yamlBytes, err := yaml.Marshal(sqlCommand)

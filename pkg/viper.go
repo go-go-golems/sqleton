@@ -48,6 +48,15 @@ func (c *DatabaseConfig) LogVerbose() {
 			Str("dbt-profiles-path", c.DbtProfilesPath).
 			Str("dbt-profile", c.DbtProfile).
 			Msg("Using dbt profiles")
+
+		log.Debug().
+			Str("host", c.Host).
+			Str("database", c.Database).
+			Str("user", c.User).
+			Int("port", c.Port).
+			Str("schema", c.Schema).
+			Str("type", c.Type).
+			Msg("Using connection string")
 	} else if c.DSN != "" {
 		log.Debug().
 			Str("dsn", c.DSN).
@@ -98,6 +107,8 @@ func (c *DatabaseConfig) GetSource() (*Source, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		//
 
 		for _, s := range sources {
 			if s.Name == c.DbtProfile {

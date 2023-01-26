@@ -7,6 +7,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	cmds2 "github.com/wesen/glazed/pkg/cmds"
 	"github.com/wesen/glazed/pkg/help"
 	"github.com/wesen/sqleton/cmd/sqleton/cmds"
 	sqleton "github.com/wesen/sqleton/pkg"
@@ -42,7 +43,9 @@ func initLogger() {
 	cobra.CheckErr(err)
 }
 
-func initCommands(rootCmd *cobra.Command, configPath string, helpSystem *help.HelpSystem) ([]*sqleton.SqlCommand, []*sqleton.CommandAlias, error) {
+func initCommands(
+	rootCmd *cobra.Command, configPath string, helpSystem *help.HelpSystem,
+) ([]*sqleton.SqlCommand, []*cmds2.CommandAlias, error) {
 	// Load the variables from the environment
 	viper.SetEnvPrefix("sqleton")
 
@@ -52,6 +55,11 @@ func initCommands(rootCmd *cobra.Command, configPath string, helpSystem *help.He
 		viper.AddConfigPath(".")
 		viper.AddConfigPath("$HOME/.sqleton")
 		viper.AddConfigPath("/etc/sqleton")
+
+		xdgConfigPath, err := os.UserConfigDir()
+		if err == nil {
+			viper.AddConfigPath(xdgConfigPath + "/sqleton")
+		}
 	}
 
 	// Read the configuration file into Viper
@@ -80,10 +88,16 @@ func initCommands(rootCmd *cobra.Command, configPath string, helpSystem *help.He
 		Str("config", viper.ConfigFileUsed()).
 		Msg("Loaded configuration")
 
-	commands, aliases, err := sqleton.LoadSqlCommandsFromEmbedFS(queriesFS, ".", "queries/")
+	loader := &sqleton.SqlCommandLoader{}
+	var commands []*sqleton.SqlCommand
+	commands_, aliases, err := cmds2.LoadCommandsFromEmbedFS(loader, queriesFS, ".", "queries/")
 	if err != nil {
 		return nil, nil, err
 	}
+	for _, command := range commands_ {
+		commands = append(commands, command.(*sqleton.SqlCommand))
+	}
+
 	err = helpSystem.LoadSectionsFromEmbedFS(queriesFS, "queries/doc")
 	if err != nil {
 		return nil, nil, err
@@ -97,7 +111,12 @@ func initCommands(rootCmd *cobra.Command, configPath string, helpSystem *help.He
 	commands = append(commands, repositoryCommands...)
 	aliases = append(aliases, repositoryAliases...)
 
-	err = sqleton.AddCommandsToRootCommand(rootCmd, commands, aliases)
+	var cobraCommands []cmds2.CobraCommand
+	for _, command := range commands {
+		cobraCommands = append(cobraCommands, command)
+	}
+
+	err = cmds2.AddCommandsToRootCommand(rootCmd, cobraCommands, aliases)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -105,14 +124,16 @@ func initCommands(rootCmd *cobra.Command, configPath string, helpSystem *help.He
 	return commands, aliases, nil
 }
 
-func loadRepositoryCommands(helpSystem *help.HelpSystem) ([]*sqleton.SqlCommand, []*sqleton.CommandAlias, error) {
+func loadRepositoryCommands(helpSystem *help.HelpSystem) ([]*sqleton.SqlCommand, []*cmds2.CommandAlias, error) {
 	repositories := viper.GetStringSlice("repositories")
+
+	loader := &sqleton.SqlCommandLoader{}
 
 	defaultDirectory := "$HOME/.sqleton/queries"
 	repositories = append(repositories, defaultDirectory)
 
 	commands := make([]*sqleton.SqlCommand, 0)
-	aliases := make([]*sqleton.CommandAlias, 0)
+	aliases := make([]*cmds2.CommandAlias, 0)
 
 	for _, repository := range repositories {
 		repository = os.ExpandEnv(repository)
@@ -132,11 +153,13 @@ func loadRepositoryCommands(helpSystem *help.HelpSystem) ([]*sqleton.SqlCommand,
 			log.Warn().Msgf("Repository %s is not a directory", repository)
 		} else {
 			docDir := fmt.Sprintf("%s/doc", repository)
-			commands_, aliases_, err := sqleton.LoadSqlCommandsFromDirectory(repository, repository)
+			commands_, aliases_, err := cmds2.LoadCommandsFromDirectory(loader, repository, repository)
 			if err != nil {
 				return nil, nil, err
 			}
-			commands = append(commands, commands_...)
+			for _, command := range commands_ {
+				commands = append(commands, command.(*sqleton.SqlCommand))
+			}
 			aliases = append(aliases, aliases_...)
 
 			_, err = os.Stat(docDir)

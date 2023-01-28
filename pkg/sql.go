@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 	"github.com/wesen/glazed/pkg/cli"
 	"github.com/wesen/glazed/pkg/cmds"
 	"gopkg.in/yaml.v3"
@@ -36,6 +37,17 @@ type SqlCommand struct {
 	Query       string
 }
 
+func (s *SqlCommand) BuildCobraCommand() (*cobra.Command, error) {
+	cmd, err := cmds.NewCobraCommand(s)
+	if err != nil {
+		return nil, err
+	}
+	cmd.Flags().Bool("print-query", false, "Print the query that will be executed")
+	cmd.Flags().Bool("explain", false, "Print the query plan that will be executed")
+
+	return cmd, nil
+}
+
 func NewSqlCommand(description *cmds.CommandDescription, query string) *SqlCommand {
 	return &SqlCommand{
 		description: description,
@@ -43,7 +55,7 @@ func NewSqlCommand(description *cmds.CommandDescription, query string) *SqlComma
 	}
 }
 
-func (s *SqlCommand) Run() error {
+func (s *SqlCommand) Run(map[string]interface{}) error {
 	//TODO implement me
 	panic("implement me")
 }

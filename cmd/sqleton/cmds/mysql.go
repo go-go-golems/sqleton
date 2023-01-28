@@ -21,7 +21,7 @@ func InitializeMysqlCmd(queriesFS embed.FS, _ *help.HelpSystem) {
 		},
 		"SHOW PROCESSLIST",
 	)
-	cmd, err := cmds2.ToCobraCommand(showProcessSqlCmd)
+	cmd, err := showProcessSqlCmd.BuildCobraCommand()
 	if err != nil {
 		panic(err)
 	}

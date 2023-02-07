@@ -2,12 +2,12 @@ package cmds
 
 import (
 	"fmt"
+	"github.com/go-go-golems/glazed/pkg/cli"
+	"github.com/go-go-golems/glazed/pkg/helpers"
+	"github.com/go-go-golems/glazed/pkg/middlewares"
+	"github.com/go-go-golems/sqleton/pkg"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/wesen/glazed/pkg/cli"
-	"github.com/wesen/glazed/pkg/helpers"
-	"github.com/wesen/glazed/pkg/middlewares"
-	"github.com/wesen/sqleton/pkg"
 	"os"
 
 	_ "github.com/go-sql-driver/mysql" // MySQL driver for database/sql

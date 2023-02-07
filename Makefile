@@ -32,4 +32,4 @@ release:
 	GOPROXY=proxy.golang.org go list -m github.com/wesen/sqleton@${VERSION}
 
 bump-glazed:
-	go get github.com/wesen/glazed@latest
+	go get github.com/go-go-golems/glazed@latest

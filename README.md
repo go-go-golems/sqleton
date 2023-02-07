@@ -12,8 +12,8 @@ sqleton is a tool to easily run SQL commands.
 - easily make a self-contained CLI to interact with your application
 - extend the CLI application with your own repository of commands
   - create aliases for existing commands to save flag presets
-- rich data format output thanks to [glazed](https://github.com/wesen/glazed)
-- rich help system courtesy of [glazed](https://github.com/wesen/glazed)
+- rich data format output thanks to [glazed](https://github.com/go-go-golems/glazed)
+- rich help system courtesy of [glazed](https://github.com/go-go-golems/glazed)
     - easily add documentation to your CLI by editing markdown files
 - support for connection information from:
     - environment variables
@@ -113,5 +113,5 @@ all you need to do is add a markdown file in the doc/ directory!
 +--------------------------+--------------------------------------------------------+
 ```
 
-It makes heavy use of my [glazed](https://github.com/wesen/glazed) library,
+It makes heavy use of my [glazed](https://github.com/go-go-golems/glazed) library,
 and in many ways is a test-driver for its development presets

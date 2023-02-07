@@ -28,6 +28,6 @@ SectionType: GeneralTopic
 
 sqleton is a tool to make it easy to run SQL commands against databases.
 
-sqleton uses the [glazed](https://github.com/wesen/glazed) help system.
+sqleton uses the [glazed](https://github.com/go-go-golems/glazed) help system.
 
 sqleton allows you to use the `dbt` profiles file for quickly referencing databases.

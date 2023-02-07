@@ -2,10 +2,10 @@ package cmds
 
 import (
 	"embed"
+	cmds2 "github.com/go-go-golems/glazed/pkg/cmds"
+	"github.com/go-go-golems/glazed/pkg/help"
+	sqleton "github.com/go-go-golems/sqleton/pkg"
 	"github.com/spf13/cobra"
-	cmds2 "github.com/wesen/glazed/pkg/cmds"
-	"github.com/wesen/glazed/pkg/help"
-	sqleton "github.com/wesen/sqleton/pkg"
 )
 
 var MysqlCmd = &cobra.Command{

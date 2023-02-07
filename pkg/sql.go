@@ -3,11 +3,11 @@ package pkg
 import (
 	"context"
 	"fmt"
+	"github.com/go-go-golems/glazed/pkg/cli"
+	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/wesen/glazed/pkg/cli"
-	"github.com/wesen/glazed/pkg/cmds"
 	"gopkg.in/yaml.v3"
 	"io"
 	"strings"

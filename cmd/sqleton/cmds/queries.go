@@ -1,11 +1,11 @@
 package cmds
 
 import (
+	"github.com/go-go-golems/glazed/pkg/cli"
+	cmds2 "github.com/go-go-golems/glazed/pkg/cmds"
+	"github.com/go-go-golems/glazed/pkg/middlewares"
+	sqleton "github.com/go-go-golems/sqleton/pkg"
 	"github.com/spf13/cobra"
-	"github.com/wesen/glazed/pkg/cli"
-	cmds2 "github.com/wesen/glazed/pkg/cmds"
-	"github.com/wesen/glazed/pkg/middlewares"
-	sqleton "github.com/wesen/sqleton/pkg"
 )
 
 func AddQueriesCmd(allQueries []*sqleton.SqlCommand, aliases []*cmds2.CommandAlias) *cobra.Command {

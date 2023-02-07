@@ -3,10 +3,10 @@ package pkg
 import (
 	"context"
 	"fmt"
+	"github.com/go-go-golems/glazed/pkg/cli"
+	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/wesen/glazed/pkg/cli"
-	"github.com/wesen/glazed/pkg/cmds"
 )
 
 // RunFromCobra actually runs the given SqletonCommand by using the cobra command

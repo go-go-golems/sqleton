@@ -3,7 +3,7 @@ package main
 import (
 	"embed"
 	"fmt"
-	cmds2 "github.com/go-go-golems/glazed/pkg/cmds"
+	glazed_cmds "github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/help"
 	"github.com/go-go-golems/sqleton/cmd/sqleton/cmds"
 	sqleton "github.com/go-go-golems/sqleton/pkg"
@@ -45,7 +45,7 @@ func initLogger() {
 
 func initCommands(
 	rootCmd *cobra.Command, configPath string, helpSystem *help.HelpSystem,
-) ([]*sqleton.SqlCommand, []*cmds2.CommandAlias, error) {
+) ([]*sqleton.SqlCommand, []*glazed_cmds.CommandAlias, error) {
 	// Load the variables from the environment
 	viper.SetEnvPrefix("sqleton")
 
@@ -90,7 +90,7 @@ func initCommands(
 
 	loader := &sqleton.SqlCommandLoader{}
 	var commands []*sqleton.SqlCommand
-	commands_, aliases, err := cmds2.LoadCommandsFromEmbedFS(loader, queriesFS, ".", "queries/")
+	commands_, aliases, err := glazed_cmds.LoadCommandsFromFS(loader, queriesFS, "embed", ".", "queries/")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -98,7 +98,7 @@ func initCommands(
 		commands = append(commands, command.(*sqleton.SqlCommand))
 	}
 
-	err = helpSystem.LoadSectionsFromEmbedFS(queriesFS, "queries/doc")
+	err = helpSystem.LoadSectionsFromFS(queriesFS, "queries/doc")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -111,12 +111,12 @@ func initCommands(
 	commands = append(commands, repositoryCommands...)
 	aliases = append(aliases, repositoryAliases...)
 
-	var cobraCommands []cmds2.CobraCommand
+	var cobraCommands []glazed_cmds.CobraCommand
 	for _, command := range commands {
 		cobraCommands = append(cobraCommands, command)
 	}
 
-	err = cmds2.AddCommandsToRootCommand(rootCmd, cobraCommands, aliases)
+	err = glazed_cmds.AddCommandsToRootCommand(rootCmd, cobraCommands, aliases)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -124,7 +124,7 @@ func initCommands(
 	return commands, aliases, nil
 }
 
-func loadRepositoryCommands(helpSystem *help.HelpSystem) ([]*sqleton.SqlCommand, []*cmds2.CommandAlias, error) {
+func loadRepositoryCommands(helpSystem *help.HelpSystem) ([]*sqleton.SqlCommand, []*glazed_cmds.CommandAlias, error) {
 	repositories := viper.GetStringSlice("repositories")
 
 	loader := &sqleton.SqlCommandLoader{}
@@ -133,7 +133,7 @@ func loadRepositoryCommands(helpSystem *help.HelpSystem) ([]*sqleton.SqlCommand,
 	repositories = append(repositories, defaultDirectory)
 
 	commands := make([]*sqleton.SqlCommand, 0)
-	aliases := make([]*cmds2.CommandAlias, 0)
+	aliases := make([]*glazed_cmds.CommandAlias, 0)
 
 	for _, repository := range repositories {
 		repository = os.ExpandEnv(repository)
@@ -153,7 +153,7 @@ func loadRepositoryCommands(helpSystem *help.HelpSystem) ([]*sqleton.SqlCommand,
 			log.Warn().Msgf("Repository %s is not a directory", repository)
 		} else {
 			docDir := fmt.Sprintf("%s/doc", repository)
-			commands_, aliases_, err := cmds2.LoadCommandsFromDirectory(loader, repository, repository)
+			commands_, aliases_, err := glazed_cmds.LoadCommandsFromFS(loader, os.DirFS(repository), "file", ".", repository)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -169,7 +169,7 @@ func loadRepositoryCommands(helpSystem *help.HelpSystem) ([]*sqleton.SqlCommand,
 				log.Debug().Err(err).Msgf("Error while checking directory %s", docDir)
 				continue
 			}
-			err = helpSystem.LoadSectionsFromDirectory(docDir)
+			err = helpSystem.LoadSectionsFromFS(os.DirFS(docDir), ".")
 			if err != nil {
 				log.Warn().Err(err).Msgf("Error while loading help sections from directory %s", repository)
 				continue
@@ -243,7 +243,7 @@ var queriesFS embed.FS
 
 func init() {
 	helpSystem := help.NewHelpSystem()
-	err := helpSystem.LoadSectionsFromEmbedFS(docFS, ".")
+	err := helpSystem.LoadSectionsFromFS(docFS, ".")
 	if err != nil {
 		panic(err)
 	}

@@ -2,13 +2,16 @@ package cmds
 
 import (
 	"github.com/go-go-golems/glazed/pkg/cli"
-	cmds2 "github.com/go-go-golems/glazed/pkg/cmds"
+	glazed_cmds "github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	sqleton "github.com/go-go-golems/sqleton/pkg"
 	"github.com/spf13/cobra"
 )
 
-func AddQueriesCmd(allQueries []*sqleton.SqlCommand, aliases []*cmds2.CommandAlias) *cobra.Command {
+// TODO(manuel, 2023-02-07) This should go to glazed into the commands section
+// although, it's actually printing out the query in this case, and probably should be
+// used for application specification additional information anyway
+func AddQueriesCmd(allQueries []*sqleton.SqlCommand, aliases []*glazed_cmds.CommandAlias) *cobra.Command {
 	var queriesCmd = &cobra.Command{
 		Use:   "queries",
 		Short: "Commands related to sqleton queries",

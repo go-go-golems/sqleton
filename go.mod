@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/go-go-golems/clay v0.0.0-20230208051353-c4c2f51311e7
-	github.com/go-go-golems/glazed v0.2.3
+	github.com/go-go-golems/glazed v0.2.4
 	github.com/go-sql-driver/mysql v1.7.0
 	github.com/huandu/go-sqlbuilder v1.18.0
 	github.com/jmoiron/sqlx v1.3.5

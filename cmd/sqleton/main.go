@@ -59,12 +59,6 @@ func init() {
 	rootCmd.PersistentFlags().String("dbt-profiles-path", "", "Path to dbt profiles.yml (default: ~/.dbt/profiles.yml)")
 	rootCmd.PersistentFlags().String("dbt-profile", "default", "Name of dbt profile to use (default: default)")
 
-	// logging flags
-	rootCmd.PersistentFlags().Bool("with-caller", false, "Log caller")
-	rootCmd.PersistentFlags().String("log-level", "info", "Log level (debug, info, warn, error, fatal)")
-	rootCmd.PersistentFlags().String("log-format", "text", "Log format (json, text)")
-	rootCmd.PersistentFlags().String("log-file", "", "Log file (default: stderr)")
-
 	// more normal flags
 	rootCmd.PersistentFlags().StringP("host", "H", "", "Database host")
 	rootCmd.PersistentFlags().StringP("database", "D", "", "Database name")
@@ -79,8 +73,6 @@ func init() {
 	// dsn and driver
 	rootCmd.PersistentFlags().String("dsn", "", "Database DSN")
 	rootCmd.PersistentFlags().String("driver", "", "Database driver")
-
-	rootCmd.PersistentFlags().Bool("verbose", false, "Verbose output")
 
 	rootCmd.AddCommand(cmds.DbCmd)
 	rootCmd.AddCommand(cmds.RunCmd)

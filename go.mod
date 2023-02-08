@@ -3,6 +3,7 @@ module github.com/go-go-golems/sqleton
 go 1.19
 
 require (
+	github.com/go-go-golems/glazed v0.2.3
 	github.com/go-sql-driver/mysql v1.7.0
 	github.com/huandu/go-sqlbuilder v1.18.0
 	github.com/jmoiron/sqlx v1.3.5
@@ -27,7 +28,6 @@ require (
 	github.com/charmbracelet/glamour v0.6.0 // indirect
 	github.com/dlclark/regexp2 v1.4.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
-	github.com/go-go-golems/glazed v0.2.3 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/css v1.0.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
@@ -49,7 +49,6 @@ require (
 	github.com/muesli/reflow v0.3.0 // indirect
 	github.com/muesli/termenv v0.13.0 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
-	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.5 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/scylladb/termtables v0.0.0-20191203121021-c4c0b6d42ff4 // indirect

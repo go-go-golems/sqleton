@@ -90,7 +90,7 @@ func initCommands(
 
 	loader := &sqleton.SqlCommandLoader{}
 	var commands []*sqleton.SqlCommand
-	commands_, aliases, err := glazed_cmds.LoadCommandsFromEmbedFS(loader, queriesFS, ".", "queries/")
+	commands_, aliases, err := glazed_cmds.LoadCommandsFromFS(loader, queriesFS, "embed", ".", "queries/")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -153,7 +153,7 @@ func loadRepositoryCommands(helpSystem *help.HelpSystem) ([]*sqleton.SqlCommand,
 			log.Warn().Msgf("Repository %s is not a directory", repository)
 		} else {
 			docDir := fmt.Sprintf("%s/doc", repository)
-			commands_, aliases_, err := glazed_cmds.LoadCommandsFromDirectory(loader, repository, repository)
+			commands_, aliases_, err := glazed_cmds.LoadCommandsFromFS(loader, os.DirFS(repository), "file", ".", repository)
 			if err != nil {
 				return nil, nil, err
 			}

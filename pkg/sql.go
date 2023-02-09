@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds"
+	"github.com/go-go-golems/glazed/pkg/helpers"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -120,28 +121,27 @@ func padRight(value string, length int) string {
 }
 
 func (s *SqlCommand) RenderQuery(parameters map[string]interface{}) (string, error) {
-	t2 := template.New("query")
-	t2.Funcs(template.FuncMap{
-		"join":         strings.Join,
-		"sqlStringIn":  sqlStringIn,
-		"sqlIntIn":     sqlIntIn,
-		"sqlIn":        sqlIn,
-		"sqlDate":      sqlDate,
-		"sqlDateTime":  sqlDateTime,
-		"sqlLike":      sqlLike,
-		"sqlString":    sqlString,
-		"stripNewline": stripNewline,
-		"padLeft":      padLeft,
-		"padRight":     padRight,
-	})
-	t := template.Must(t2.Parse(s.Query))
-	var qb strings.Builder
-	err := t.Execute(&qb, parameters)
-	if err != nil {
-		return "", errors.Wrap(err, "Could not execute query template")
-	}
 
-	return qb.String(), nil
+	t2 := helpers.CreateTemplate("query").
+		Funcs(template.FuncMap{
+			"join":         strings.Join,
+			"sqlStringIn":  sqlStringIn,
+			"sqlIntIn":     sqlIntIn,
+			"sqlIn":        sqlIn,
+			"sqlDate":      sqlDate,
+			"sqlDateTime":  sqlDateTime,
+			"sqlLike":      sqlLike,
+			"sqlString":    sqlString,
+			"stripNewline": stripNewline,
+			"padLeft":      padLeft,
+			"padRight":     padRight,
+		})
+	t, err := t2.Parse(s.Query)
+	if err != nil {
+		return "", errors.Wrap(err, "Could not parse query template")
+	}
+	return helpers.RenderTemplate(t, parameters)
+
 }
 
 func RunQueryIntoGlaze(

@@ -4,6 +4,7 @@ import (
 	"embed"
 	"fmt"
 	clay "github.com/go-go-golems/clay/pkg"
+	glazed_cmds "github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/help"
 	"github.com/go-go-golems/sqleton/cmd/sqleton/cmds"
 	"github.com/go-go-golems/sqleton/pkg"
@@ -103,15 +104,17 @@ func init() {
 			{
 				FS:      queriesFS,
 				Name:    "embed",
-				Root:    "queries/",
+				Root:    ".",
 				DocRoot: "queries/doc",
 			},
 		},
 		Repositories: repositories,
 	}
 
+	yamlLoader := glazed_cmds.NewYAMLFSCommandLoader(
+		&pkg.SqlCommandLoader{}, "", "")
 	commands, aliases, err := locations.LoadCommands(
-		&pkg.SqlCommandLoader{}, helpSystem, rootCmd)
+		yamlLoader, helpSystem, rootCmd)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
 		os.Exit(1)

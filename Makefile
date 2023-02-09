@@ -34,3 +34,4 @@ release:
 bump-glazed:
 	go get github.com/go-go-golems/glazed@main
 	go get github.com/go-go-golems/clay@main
+	go mod tidy

@@ -154,27 +154,27 @@ var SelectCmd = &cobra.Command{
 				short = fmt.Sprintf("Select"+" from %s where %s", table, where)
 			}
 
-			flags := []*cmds.Parameter{}
+			flags := []*cmds.ParameterDefinition{}
 			if where == "" {
-				flags = append(flags, &cmds.Parameter{
+				flags = append(flags, &cmds.ParameterDefinition{
 					Name: "where",
 					Type: cmds.ParameterTypeString,
 				})
 			}
 			if !count {
-				flags = append(flags, &cmds.Parameter{
+				flags = append(flags, &cmds.ParameterDefinition{
 					Name:    "limit",
 					Type:    cmds.ParameterTypeInteger,
 					Help:    fmt.Sprintf("Limit the number of rows (default: %d), set to 0 to disable", limit),
 					Default: limit,
 				})
-				flags = append(flags, &cmds.Parameter{
+				flags = append(flags, &cmds.ParameterDefinition{
 					Name:    "offset",
 					Type:    cmds.ParameterTypeInteger,
 					Help:    fmt.Sprintf("Offset the number of rows (default: %d)", offset),
 					Default: offset,
 				})
-				flags = append(flags, &cmds.Parameter{
+				flags = append(flags, &cmds.ParameterDefinition{
 					Name:    "distinct",
 					Type:    cmds.ParameterTypeBool,
 					Help:    fmt.Sprintf("Whether to select distinct rows (default: %t)", distinct),
@@ -187,7 +187,7 @@ var SelectCmd = &cobra.Command{
 					orderByHelp = fmt.Sprintf("Order by (default: %s)", order)
 					orderDefault = order
 				}
-				flags = append(flags, &cmds.Parameter{
+				flags = append(flags, &cmds.ParameterDefinition{
 					Name:    "order_by",
 					Type:    cmds.ParameterTypeString,
 					Help:    orderByHelp,

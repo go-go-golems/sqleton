@@ -17,7 +17,7 @@ func (s *SqlCommand) RunFromCobra(cmd *cobra.Command, args []string) error {
 	// See: https://github.com/wesen/sqleton/issues/39
 	description := s.Description()
 
-	parameters, err := cmds.GatherParameters(cmd, description, args)
+	parameters, err := cmds.GatherParametersFromCobraCommand(cmd, description, args)
 	if err != nil {
 		return err
 	}

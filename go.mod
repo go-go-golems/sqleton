@@ -3,8 +3,8 @@ module github.com/go-go-golems/sqleton
 go 1.19
 
 require (
-	github.com/go-go-golems/clay v0.0.0-20230209230840-8ae39b3e6203
-	github.com/go-go-golems/glazed v0.2.5-0.20230209230455-03ed8a509375
+	github.com/go-go-golems/clay v0.0.4-0.20230212031243-7b71a27205a1
+	github.com/go-go-golems/glazed v0.2.5
 	github.com/go-sql-driver/mysql v1.7.0
 	github.com/huandu/go-sqlbuilder v1.18.0
 	github.com/jmoiron/sqlx v1.3.5

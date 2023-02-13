@@ -38,6 +38,10 @@ type SqlCommand struct {
 	Query       string
 }
 
+func (s *SqlCommand) String() string {
+	return fmt.Sprintf("SqlCommand{Name: %s, Parents: %s}", s.description.Name, strings.Join(s.description.Parents, " "))
+}
+
 func (s *SqlCommand) BuildCobraCommand() (*cobra.Command, error) {
 	cmd, err := cmds.NewCobraCommand(s)
 	if err != nil {

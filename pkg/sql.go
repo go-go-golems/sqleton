@@ -47,7 +47,10 @@ func (s *SqlCommand) BuildCobraCommand() (*cobra.Command, error) {
 	cmd.Flags().Bool("explain", false, "Print the query plan that will be executed")
 
 	// add glazed flags
-	cli.AddFlags(cmd, cli.NewFlagsDefaults())
+	err = cli.AddFlags(cmd, cli.NewFlagsDefaults())
+	if err != nil {
+		return nil, err
+	}
 
 	return cmd, nil
 }

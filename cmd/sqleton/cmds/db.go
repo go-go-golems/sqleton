@@ -88,7 +88,10 @@ var dbLsCmd = &cobra.Command{
 func init() {
 	DbCmd.AddCommand(dbLsCmd)
 
-	cli.AddFlags(dbLsCmd, cli.NewFlagsDefaults())
+	err := cli.AddFlags(dbLsCmd, cli.NewFlagsDefaults())
+	if err != nil {
+		panic(err)
+	}
 
 	DbCmd.AddCommand(dbTestConnectionCmd)
 }

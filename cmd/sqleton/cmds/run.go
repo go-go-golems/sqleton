@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 
-	"github.com/go-go-golems/glazed/pkg/cli"
+	cli "github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/sqleton/pkg"
 	"github.com/huandu/go-sqlbuilder"
 	"github.com/spf13/cobra"
@@ -258,10 +258,20 @@ var SelectCmd = &cobra.Command{
 }
 
 func init() {
-	cli.AddFlags(RunCmd, cli.NewFlagsDefaults())
-	cli.AddFlags(QueryCmd, cli.NewFlagsDefaults())
+	err := cli.AddFlags(RunCmd, cli.NewFlagsDefaults())
+	if err != nil {
+		panic(err)
+	}
+	err = cli.AddFlags(QueryCmd, cli.NewFlagsDefaults())
+	if err != nil {
+		panic(err)
+	}
 
-	cli.AddFlags(SelectCmd, cli.NewFlagsDefaults())
+	err = cli.AddFlags(SelectCmd, cli.NewFlagsDefaults())
+	if err != nil {
+		panic(err)
+	}
+
 	SelectCmd.Flags().String("where", "", "Where clause")
 	SelectCmd.Flags().String("order-by", "", "Order by clause")
 	SelectCmd.Flags().Int("limit", 50, "Limit clause (default 50, 0 for no limit)")

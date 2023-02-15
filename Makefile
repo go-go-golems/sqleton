@@ -35,3 +35,8 @@ bump-glazed:
 	go get github.com/go-go-golems/glazed@main
 	go get github.com/go-go-golems/clay@main
 	go mod tidy
+
+SQLETON_BINARY=$(shell which sqleton)
+install:
+	go build -o ./dist/sqleton ./cmd/sqleton && \
+		cp ./dist/sqleton $(SQLETON_BINARY)

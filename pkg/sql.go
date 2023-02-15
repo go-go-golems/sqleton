@@ -18,16 +18,16 @@ import (
 
 type SqletonCommand interface {
 	cmds.CobraCommand
-	RunQueryIntoGlaze(ctx context.Context, db *sqlx.DB, parameters map[string]interface{}, gp *cli.GlazeProcessor) error
+	RunQueryIntoGlaze(ctx context.Context, db *sqlx.DB, parameters map[string]interface{}, gp *cmds.GlazeProcessor) error
 	RenderQuery(parameters map[string]interface{}) (string, error)
 }
 
 type SqlCommandDescription struct {
-	Name      string            `yaml:"name"`
-	Short     string            `yaml:"short"`
-	Long      string            `yaml:"long,omitempty"`
-	Flags     []*cmds.Parameter `yaml:"flags,omitempty"`
-	Arguments []*cmds.Parameter `yaml:"arguments,omitempty"`
+	Name      string                      `yaml:"name"`
+	Short     string                      `yaml:"short"`
+	Long      string                      `yaml:"long,omitempty"`
+	Flags     []*cmds.ParameterDefinition `yaml:"flags,omitempty"`
+	Arguments []*cmds.ParameterDefinition `yaml:"arguments,omitempty"`
 
 	Query string `yaml:"query"`
 }
@@ -51,7 +51,10 @@ func (s *SqlCommand) BuildCobraCommand() (*cobra.Command, error) {
 	cmd.Flags().Bool("explain", false, "Print the query plan that will be executed")
 
 	// add glazed flags
-	cli.AddFlags(cmd, cli.NewFlagsDefaults())
+	err = cli.AddFlags(cmd, cli.NewFlagsDefaults())
+	if err != nil {
+		return nil, err
+	}
 
 	return cmd, nil
 }
@@ -63,7 +66,7 @@ func NewSqlCommand(description *cmds.CommandDescription, query string) *SqlComma
 	}
 }
 
-func (s *SqlCommand) Run(map[string]interface{}) error {
+func (s *SqlCommand) Run(map[string]interface{}, *cmds.GlazeProcessor) error {
 	//TODO implement me
 	panic("implement me")
 }
@@ -153,7 +156,7 @@ func RunQueryIntoGlaze(
 	db *sqlx.DB,
 	query string,
 	parameters []interface{},
-	gp *cli.GlazeProcessor) error {
+	gp *cmds.GlazeProcessor) error {
 
 	rows, err := db.QueryxContext(dbContext, query, parameters...)
 	if err != nil {
@@ -168,7 +171,7 @@ func RunNamedQueryIntoGlaze(
 	db *sqlx.DB,
 	query string,
 	parameters map[string]interface{},
-	gp *cli.GlazeProcessor) error {
+	gp *cmds.GlazeProcessor) error {
 
 	rows, err := db.NamedQueryContext(dbContext, query, parameters)
 	if err != nil {
@@ -178,7 +181,7 @@ func RunNamedQueryIntoGlaze(
 	return processQueryResults(rows, gp)
 }
 
-func processQueryResults(rows *sqlx.Rows, gp *cli.GlazeProcessor) error {
+func processQueryResults(rows *sqlx.Rows, gp *cmds.GlazeProcessor) error {
 	// we need a way to order the columns
 	cols, err := rows.Columns()
 	if err != nil {
@@ -214,7 +217,7 @@ func (s *SqlCommand) RunQueryIntoGlaze(
 	ctx context.Context,
 	db *sqlx.DB,
 	parameters map[string]interface{},
-	gp *cli.GlazeProcessor) error {
+	gp *cmds.GlazeProcessor) error {
 
 	query, err := s.RenderQuery(parameters)
 	if err != nil {
@@ -242,8 +245,8 @@ func (scl *SqlCommandLoader) LoadCommandAliasFromYAML(s io.Reader) ([]*cmds.Comm
 
 func (scl *SqlCommandLoader) LoadCommandFromYAML(s io.Reader) ([]cmds.Command, error) {
 	scd := &SqlCommandDescription{
-		Flags:     []*cmds.Parameter{},
-		Arguments: []*cmds.Parameter{},
+		Flags:     []*cmds.ParameterDefinition{},
+		Arguments: []*cmds.ParameterDefinition{},
 	}
 	err := yaml.NewDecoder(s).Decode(scd)
 	if err != nil {

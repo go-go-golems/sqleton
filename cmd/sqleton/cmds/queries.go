@@ -53,8 +53,9 @@ func AddQueriesCmd(allQueries []*sqleton.SqlCommand, aliases []*glazed_cmds.Comm
 	}
 
 	flagsDefaults := cli.NewFlagsDefaults()
-	flagsDefaults.FieldsFilter.Fields = "name,short,source"
-	cli.AddFlags(queriesCmd, flagsDefaults)
+	flagsDefaults.FieldsFilter.Fields = []string{"name", "short", "source"}
+	err := cli.AddFlags(queriesCmd, flagsDefaults)
+	cobra.CheckErr(err)
 
 	return queriesCmd
 }

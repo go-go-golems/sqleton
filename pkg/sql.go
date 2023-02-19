@@ -47,8 +47,9 @@ func (s *SqlCommand) BuildCobraCommand() (*cobra.Command, error) {
 	if err != nil {
 		return nil, err
 	}
-	cmd.Flags().Bool("print-query", false, "Print the query that will be executed")
-	cmd.Flags().Bool("explain", false, "Print the query plan that will be executed")
+	// adding those flags as persistent flags so aliases benefit from them too
+	cmd.PersistentFlags().Bool("print-query", false, "Print the query that will be executed")
+	cmd.PersistentFlags().Bool("explain", false, "Print the query plan that will be executed")
 
 	// add glazed flags
 	err = cli.AddFlags(cmd, cli.NewFlagsDefaults())

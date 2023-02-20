@@ -60,6 +60,24 @@ func init() {
 	rootCmd.PersistentFlags().String("dbt-profiles-path", "", "Path to dbt profiles.yml (default: ~/.dbt/profiles.yml)")
 	rootCmd.PersistentFlags().String("dbt-profile", "default", "Name of dbt profile to use (default: default)")
 
+	glazed_cmds.AddFlagGroupToCobraCommand(rootCmd, "dbt", "DBT sources", []*glazed_cmds.ParameterDefinition{
+		{
+			Name: "use-dbt-profiles",
+			Type: "bool",
+			Help: "Use dbt profiles.yml to connect to databases",
+		},
+		{
+			Name: "dbt-profiles-path",
+			Type: "string",
+			Help: "Path to dbt profiles.yml (default: ~/.dbt/profiles.yml)",
+		},
+		{
+			Name: "dbt-profile",
+			Type: "string",
+			Help: "Name of dbt profile to use (default: default)",
+		},
+	})
+
 	// more normal flags
 	rootCmd.PersistentFlags().StringP("host", "H", "", "Database host")
 	rootCmd.PersistentFlags().StringP("database", "D", "", "Database name")

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-go-golems/glazed/pkg/cli"
-	"github.com/go-go-golems/glazed/pkg/cmds"
+	cobra2 "github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -17,7 +17,7 @@ func (s *SqlCommand) RunFromCobra(cmd *cobra.Command, args []string) error {
 	// See: https://github.com/wesen/sqleton/issues/39
 	description := s.Description()
 
-	parameters, err := cmds.GatherParametersFromCobraCommand(cmd, description, args)
+	parameters, err := cobra2.GatherParametersFromCobraCommand(cmd, description, args)
 	if err != nil {
 		return err
 	}

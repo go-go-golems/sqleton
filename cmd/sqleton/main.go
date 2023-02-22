@@ -139,7 +139,10 @@ func init() {
 		Repositories: repositories,
 	}
 
-	yamlLoader := glazed_cmds.NewYAMLFSCommandLoader(&pkg.SqlCommandLoader{}, "", "")
+	yamlLoader := glazed_cmds.NewYAMLFSCommandLoader(
+		&pkg.SqlCommandLoader{
+			DBConnectionFactory: pkg.OpenDatabaseFromViper,
+		}, "", "")
 	commands, aliases, err := locations.LoadCommands(yamlLoader, helpSystem, rootCmd)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)

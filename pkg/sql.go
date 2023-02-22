@@ -40,7 +40,7 @@ type DBConnectionFactory func() (*sqlx.DB, error)
 type SqlCommand struct {
 	description         *cmds.CommandDescription
 	Query               string
-	DBConnectionFactory DBConnectionFactory
+	dbConnectionFactory DBConnectionFactory
 }
 
 func (s *SqlCommand) String() string {
@@ -49,6 +49,7 @@ func (s *SqlCommand) String() string {
 
 func NewSqlCommand(
 	description *cmds.CommandDescription,
+	factory DBConnectionFactory,
 	query string,
 ) (*SqlCommand, error) {
 	glazedParameterLayer, err := cli.NewGlazedParameterLayers()
@@ -65,17 +66,18 @@ func NewSqlCommand(
 	)
 
 	return &SqlCommand{
-		description: description,
-		Query:       query,
+		description:         description,
+		dbConnectionFactory: factory,
+		Query:               query,
 	}, nil
 }
 
 func (s *SqlCommand) Run(ps map[string]interface{}, gp *cmds.GlazeProcessor) error {
-	if s.DBConnectionFactory == nil {
+	if s.dbConnectionFactory == nil {
 		return fmt.Errorf("dbConnectionFactory is not set")
 	}
 
-	db, err := s.DBConnectionFactory()
+	db, err := s.dbConnectionFactory()
 	if err != nil {
 		return err
 	}
@@ -260,6 +262,7 @@ func (s *SqlCommand) RunQueryIntoGlaze(
 }
 
 type SqlCommandLoader struct {
+	DBConnectionFactory DBConnectionFactory
 }
 
 func (scl *SqlCommandLoader) LoadCommandAliasFromYAML(s io.Reader) ([]*cmds.CommandAlias, error) {
@@ -292,6 +295,7 @@ func (scl *SqlCommandLoader) LoadCommandFromYAML(s io.Reader) ([]cmds.Command, e
 			cmds.WithArguments(scd.Arguments...),
 			cmds.WithLayers(scd.Layers...),
 		),
+		scl.DBConnectionFactory,
 		scd.Query,
 	)
 	if err != nil {

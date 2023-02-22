@@ -18,11 +18,11 @@ func init() {
 			glazed_cmds.WithShort("List MySQL processes"),
 			glazed_cmds.WithLong("SHOW PROCESSLIST"),
 		),
+		sqleton.OpenDatabaseFromViper,
 		"SHOW PROCESSLIST")
 	if err != nil {
 		panic(err)
 	}
-	psCommand.DBConnectionFactory = sqleton.OpenDatabaseFromViper
 	cobraPsCommand, err := cli.BuildCobraCommand(psCommand)
 	if err != nil {
 		panic(err)

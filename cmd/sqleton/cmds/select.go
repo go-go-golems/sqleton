@@ -153,6 +153,7 @@ func (sc *SelectCommand) Run(ps map[string]interface{}, gp *cmds.GlazeProcessor)
 			Short: short,
 			Flags: flags,
 		},
+			pkg.OpenDatabaseFromViper,
 			query)
 		if err != nil {
 			return err

@@ -60,7 +60,7 @@ var dbLsCmd = &cobra.Command{
 		sources, err := pkg.ParseDbtProfiles(dbtProfilesPath)
 		cobra.CheckErr(err)
 
-		gp, of, err := cli.SetupProcessor(cmd)
+		gp, of, err := cli.CreateGlazedProcessorFromCobra(cmd)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Could not create glaze  procersors: %v\n", err)
 			os.Exit(1)
@@ -88,7 +88,7 @@ var dbLsCmd = &cobra.Command{
 func init() {
 	DbCmd.AddCommand(dbLsCmd)
 
-	err := cli.AddFlags(dbLsCmd, cli.NewFlagsDefaults())
+	err := cli.AddGlazedProcessorFlagsToCobraCommand(dbLsCmd, nil)
 	if err != nil {
 		panic(err)
 	}

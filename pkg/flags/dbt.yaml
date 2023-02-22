@@ -1,0 +1,18 @@
+slug: dbt
+name: Dbt flags
+Description: |
+  These are the flags used to connect to a dbt project.
+
+flags:
+  - name: dbt-profiles-path
+    type: string
+    help: Path to dbt profiles.yml file
+    default: ""
+  - name: use-dbt-profiles
+    type: bool
+    help: Use dbt profiles.yml file
+    default: false
+  - name: dbt-profile
+    type: string
+    help: dbt profile to use
+    default: ""

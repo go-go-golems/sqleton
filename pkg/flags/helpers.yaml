@@ -1,0 +1,21 @@
+slug: sql-helpers
+name: SQL helpers
+Description: |
+  Helpers flags to print queries and explain
+flags:
+  - name: explain
+    type: bool
+    help: Explain the query
+    default: false
+#  - name: explain-format
+#    type: string
+#    help: Explain format (json, tree, dot)
+#    default: tree
+#  - name: explain-type
+#    type: string
+#    help: Explain type (extended, partitions, format, triggers, analyze, costs, buffers, timing, summary)
+#    default: summary
+  - name: print-query
+    type: bool
+    help: Print the query
+    default: false

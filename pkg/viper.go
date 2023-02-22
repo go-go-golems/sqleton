@@ -31,7 +31,7 @@ func NewDatabaseConfigFromViper() *DatabaseConfig {
 		Password:        viper.GetString("password"),
 		Port:            viper.GetInt("port"),
 		Schema:          viper.GetString("schema"),
-		Type:            viper.GetString("type"),
+		Type:            viper.GetString("db-type"),
 		DSN:             viper.GetString("dsn"),
 		Driver:          viper.GetString("driver"),
 		DbtProfilesPath: viper.GetString("dbt-profiles-path"),

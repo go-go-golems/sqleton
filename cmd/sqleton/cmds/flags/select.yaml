@@ -1,0 +1,37 @@
+slug: select
+name: Select flags
+Description: |
+  These are the flags used to select data from a database.
+flags:
+  - name: where
+    type: string
+    help: Where clause
+    default: ""
+  - name: order-by
+    type: string
+    help: Order by clause
+    default: ""
+  - name: limit
+    type: int
+    help: Limit clause (0 for no limit)
+    default: 50
+  - name: offset
+    type: int
+    help: Offset clause
+    default: 0
+  - name: count
+    type: bool
+    help: Count rows
+    default: false
+  - name: columns
+    type: stringList
+    help: Columns to select
+    default: []
+  - name: create-query
+    type: string
+    help: Output the query as yaml to use as a sqleton command
+    default: ""
+  - name: distinct
+    type: bool
+    help: Select distinct rows
+    default: false

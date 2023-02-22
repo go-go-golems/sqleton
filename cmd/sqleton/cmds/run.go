@@ -19,7 +19,7 @@ type RunCommand struct {
 	dbConnectionFactory pkg.DBConnectionFactory
 }
 
-func (c *RunCommand) Run(ps map[string]interface{}, gp *cmds.GlazeProcessor) error {
+func (c *RunCommand) Run(ctx context.Context, ps map[string]interface{}, gp *cmds.GlazeProcessor) error {
 	inputFiles, ok := ps["input-files"].([]string)
 	if !ok {
 		return fmt.Errorf("input-files is not a string list")

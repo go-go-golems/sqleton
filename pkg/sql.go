@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 	"io"
+	"os"
 	"strings"
 	"text/template"
 	"time"
@@ -60,7 +61,12 @@ func NewSqlCommand(
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create SQL connection parameter layer")
 	}
+	sqlHelpersParameterLayer, err := NewSqlHelpersParameterLayer()
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create SQL helpers parameter layer")
+	}
 	description.Layers = append(description.Layers,
+		sqlHelpersParameterLayer,
 		glazedParameterLayer,
 		sqlConnectionParameterLayer,
 	)
@@ -72,7 +78,7 @@ func NewSqlCommand(
 	}, nil
 }
 
-func (s *SqlCommand) Run(ps map[string]interface{}, gp *cmds.GlazeProcessor) error {
+func (s *SqlCommand) Run(ctx context.Context, ps map[string]interface{}, gp *cmds.GlazeProcessor) error {
 	if s.dbConnectionFactory == nil {
 		return fmt.Errorf("dbConnectionFactory is not set")
 	}
@@ -82,8 +88,7 @@ func (s *SqlCommand) Run(ps map[string]interface{}, gp *cmds.GlazeProcessor) err
 		return err
 	}
 
-	dbContext := context.Background()
-	err = db.PingContext(dbContext)
+	err = db.PingContext(ctx)
 	if err != nil {
 		return errors.Wrapf(err, "Could not ping database")
 	}
@@ -95,10 +100,11 @@ func (s *SqlCommand) Run(ps map[string]interface{}, gp *cmds.GlazeProcessor) err
 			return errors.Wrapf(err, "Could not generate query")
 		}
 		fmt.Println(query)
+		os.Exit(0)
 		return nil
 	}
 
-	err = s.RunQueryIntoGlaze(dbContext, db, ps, gp)
+	err = s.RunQueryIntoGlaze(ctx, db, ps, gp)
 	if err != nil {
 		return errors.Wrapf(err, "Could not run query")
 	}
@@ -162,7 +168,7 @@ func padRight(value string, length int) string {
 	return fmt.Sprintf("%-*s", length, value)
 }
 
-func (s *SqlCommand) RenderQuery(parameters map[string]interface{}) (string, error) {
+func (s *SqlCommand) RenderQuery(ps map[string]interface{}) (string, error) {
 
 	t2 := helpers.CreateTemplate("query").
 		Funcs(template.FuncMap{
@@ -183,7 +189,7 @@ func (s *SqlCommand) RenderQuery(parameters map[string]interface{}) (string, err
 		return "", errors.Wrap(err, "Could not parse query template")
 	}
 
-	return helpers.RenderTemplate(t, parameters)
+	return helpers.RenderTemplate(t, ps)
 }
 
 func RunQueryIntoGlaze(
@@ -251,14 +257,14 @@ func processQueryResults(rows *sqlx.Rows, gp *cmds.GlazeProcessor) error {
 func (s *SqlCommand) RunQueryIntoGlaze(
 	ctx context.Context,
 	db *sqlx.DB,
-	parameters map[string]interface{},
+	ps map[string]interface{},
 	gp *cmds.GlazeProcessor) error {
 
-	query, err := s.RenderQuery(parameters)
+	query, err := s.RenderQuery(ps)
 	if err != nil {
 		return err
 	}
-	return RunNamedQueryIntoGlaze(ctx, db, query, parameters, gp)
+	return RunNamedQueryIntoGlaze(ctx, db, query, ps, gp)
 }
 
 type SqlCommandLoader struct {

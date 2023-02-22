@@ -2,7 +2,7 @@
 
 all: gifs
 
-VERSION=v0.1.4
+VERSION=v0.1.5
 
 TAPES=$(shell ls doc/vhs/*tape)
 gifs: $(TAPES)
@@ -19,7 +19,7 @@ test:
 
 build:
 	go generate ./...
-	go build
+	go build ./...
 
 goreleaser:
 	goreleaser release --snapshot --rm-dist

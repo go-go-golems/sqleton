@@ -33,7 +33,7 @@ flags:
     help: Database schema (when applicable)
     default: ""
     shorthand: s
-  - name: type
+  - name: db-type
     type: string
     help: Database type (mysql, postgres, etc.)
     default: mysql

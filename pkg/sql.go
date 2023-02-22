@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds"
+	"github.com/go-go-golems/glazed/pkg/cmds/layers"
+	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/helpers"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
@@ -22,7 +24,12 @@ type SqletonCommand interface {
 }
 
 type SqlCommandDescription struct {
-	cmds.CommandDescription
+	Name      string                            `yaml:"name"`
+	Short     string                            `yaml:"short"`
+	Long      string                            `yaml:"long,omitempty"`
+	Flags     []*parameters.ParameterDefinition `yaml:"flags,omitempty"`
+	Arguments []*parameters.ParameterDefinition `yaml:"arguments,omitempty"`
+	Layers    []layers.ParameterLayer           `yaml:"layers,omitempty"`
 
 	Query string `yaml:"query"`
 }

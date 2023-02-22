@@ -4,6 +4,7 @@ import (
 	"embed"
 	"fmt"
 	clay "github.com/go-go-golems/clay/pkg"
+	"github.com/go-go-golems/glazed/pkg/cli"
 	glazed_cmds "github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/help"
 	"github.com/go-go-golems/sqleton/cmd/sqleton/cmds"
@@ -55,51 +56,60 @@ func init() {
 	helpCmd := help.NewCobraHelpCommand(helpSystem)
 	rootCmd.SetHelpCommand(helpCmd)
 
-	// db connection persistent base flags
-	rootCmd.PersistentFlags().Bool("use-dbt-profiles", false, "Use dbt profiles.yml to connect to databases")
-	rootCmd.PersistentFlags().String("dbt-profiles-path", "", "Path to dbt profiles.yml (default: ~/.dbt/profiles.yml)")
-	rootCmd.PersistentFlags().String("dbt-profile", "default", "Name of dbt profile to use (default: default)")
-
-	glazed_cmds.AddFlagGroupToCobraCommand(rootCmd, "dbt", "DBT sources", []*glazed_cmds.ParameterDefinition{
-		{
-			Name: "use-dbt-profiles",
-			Type: "bool",
-			Help: "Use dbt profiles.yml to connect to databases",
-		},
-		{
-			Name: "dbt-profiles-path",
-			Type: "string",
-			Help: "Path to dbt profiles.yml (default: ~/.dbt/profiles.yml)",
-		},
-		{
-			Name: "dbt-profile",
-			Type: "string",
-			Help: "Name of dbt profile to use (default: default)",
-		},
-	})
-
-	// more normal flags
-	rootCmd.PersistentFlags().StringP("host", "H", "", "Database host")
-	rootCmd.PersistentFlags().StringP("database", "D", "", "Database name")
-	rootCmd.PersistentFlags().StringP("user", "u", "", "Database user")
-	rootCmd.PersistentFlags().StringP("password", "p", "", "Database password")
-	rootCmd.PersistentFlags().IntP("port", "P", 3306, "Database port")
-	rootCmd.PersistentFlags().StringP("schema", "s", "", "Database schema (when applicable)")
-	rootCmd.PersistentFlags().StringP("type", "t", "mysql", "Database type (mysql, postgres, etc.)")
-
-	rootCmd.PersistentFlags().String("repository", "", "Directory with additional commands to load (default ~/.sqleton/queries)")
-
-	// dsn and driver
-	rootCmd.PersistentFlags().String("dsn", "", "Database DSN")
-	rootCmd.PersistentFlags().String("driver", "", "Database driver")
-
 	rootCmd.AddCommand(cmds.DbCmd)
-	rootCmd.AddCommand(cmds.RunCmd)
-	rootCmd.AddCommand(cmds.QueryCmd)
-	rootCmd.AddCommand(cmds.SelectCmd)
-	rootCmd.AddCommand(cmds.MysqlCmd)
 
-	cmds.InitializeMysqlCmd(queriesFS, helpSystem)
+	dbtParameterLayer, err := pkg.NewDbtParameterLayer()
+	if err != nil {
+		panic(err)
+	}
+	sqlConnectionParameterLayer, err := pkg.NewSqlConnectionParameterLayer()
+	if err != nil {
+		panic(err)
+	}
+
+	runCommand, err := cmds.NewRunCommand(pkg.OpenDatabaseFromViper,
+		glazed_cmds.WithLayers(
+			dbtParameterLayer,
+			sqlConnectionParameterLayer,
+		))
+	if err != nil {
+		panic(err)
+	}
+	cobraRunCommand, err := cli.BuildCobraCommand(runCommand)
+	if err != nil {
+		panic(err)
+	}
+	rootCmd.AddCommand(cobraRunCommand)
+
+	selectCommand, err := cmds.NewSelectCommand(pkg.OpenDatabaseFromViper,
+		glazed_cmds.WithLayers(
+			dbtParameterLayer,
+			sqlConnectionParameterLayer,
+		))
+	if err != nil {
+		panic(err)
+	}
+	cobraSelectCommand, err := cli.BuildCobraCommand(selectCommand)
+	if err != nil {
+		panic(err)
+	}
+	rootCmd.AddCommand(cobraSelectCommand)
+
+	queryCommand, err := cmds.NewQueryCommand(pkg.OpenDatabaseFromViper,
+		glazed_cmds.WithLayers(
+			dbtParameterLayer,
+			sqlConnectionParameterLayer,
+		))
+	if err != nil {
+		panic(err)
+	}
+	cobraQueryCommand, err := cli.BuildCobraCommand(queryCommand)
+	if err != nil {
+		panic(err)
+	}
+	rootCmd.AddCommand(cobraQueryCommand)
+
+	rootCmd.AddCommand(cmds.MysqlCmd)
 
 	err = clay.InitViper("sqleton", rootCmd)
 	if err != nil {
@@ -129,10 +139,8 @@ func init() {
 		Repositories: repositories,
 	}
 
-	yamlLoader := glazed_cmds.NewYAMLFSCommandLoader(
-		&pkg.SqlCommandLoader{}, "", "")
-	commands, aliases, err := locations.LoadCommands(
-		yamlLoader, helpSystem, rootCmd)
+	yamlLoader := glazed_cmds.NewYAMLFSCommandLoader(&pkg.SqlCommandLoader{}, "", "")
+	commands, aliases, err := locations.LoadCommands(yamlLoader, helpSystem, rootCmd)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
 		os.Exit(1)
@@ -143,6 +151,14 @@ func init() {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
 		os.Exit(1)
 	}
-	queriesCmd := cmds.AddQueriesCmd(sqlCommands, aliases)
-	rootCmd.AddCommand(queriesCmd)
+	queriesCommand, err := cmds.NewQueriesCommand(sqlCommands, aliases)
+	if err != nil {
+		panic(err)
+	}
+	cobraQueriesCommand, err := cli.BuildCobraCommand(queriesCommand)
+	if err != nil {
+		panic(err)
+	}
+
+	rootCmd.AddCommand(cobraQueriesCommand)
 }

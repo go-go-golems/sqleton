@@ -8,7 +8,6 @@ import (
 	"github.com/go-go-golems/glazed/pkg/helpers"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 	"io"
 	"strings"
@@ -17,67 +16,93 @@ import (
 )
 
 type SqletonCommand interface {
-	cmds.CobraCommand
+	cmds.Command
 	RunQueryIntoGlaze(ctx context.Context, db *sqlx.DB, parameters map[string]interface{}, gp *cmds.GlazeProcessor) error
 	RenderQuery(parameters map[string]interface{}) (string, error)
 }
 
 type SqlCommandDescription struct {
-	Name      string                      `yaml:"name"`
-	Short     string                      `yaml:"short"`
-	Long      string                      `yaml:"long,omitempty"`
-	Flags     []*cmds.ParameterDefinition `yaml:"flags,omitempty"`
-	Arguments []*cmds.ParameterDefinition `yaml:"arguments,omitempty"`
+	cmds.CommandDescription
 
 	Query string `yaml:"query"`
 }
 
+type DBConnectionFactory func() (*sqlx.DB, error)
+
 // SqlCommand describes a command line command that runs a query
 type SqlCommand struct {
-	description *cmds.CommandDescription
-	Query       string
+	description         *cmds.CommandDescription
+	Query               string
+	DBConnectionFactory DBConnectionFactory
 }
 
 func (s *SqlCommand) String() string {
 	return fmt.Sprintf("SqlCommand{Name: %s, Parents: %s}", s.description.Name, strings.Join(s.description.Parents, " "))
 }
 
-func (s *SqlCommand) BuildCobraCommand() (*cobra.Command, error) {
-	cmd, err := cmds.NewCobraCommand(s)
+func NewSqlCommand(
+	description *cmds.CommandDescription,
+	query string,
+) (*SqlCommand, error) {
+	glazedParameterLayer, err := cli.NewGlazedParameterLayers()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "could not create Glazed parameter layer")
 	}
-	// adding those flags as persistent flags so aliases benefit from them too
-	cmd.PersistentFlags().Bool("print-query", false, "Print the query that will be executed")
-	cmd.PersistentFlags().Bool("explain", false, "Print the query plan that will be executed")
-
-	// add glazed flags
-	err = cli.AddFlags(cmd, cli.NewFlagsDefaults())
+	sqlConnectionParameterLayer, err := NewSqlConnectionParameterLayer()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "could not create SQL connection parameter layer")
 	}
+	description.Layers = append(description.Layers,
+		glazedParameterLayer,
+		sqlConnectionParameterLayer,
+	)
 
-	return cmd, nil
-}
-
-func NewSqlCommand(description *cmds.CommandDescription, query string) *SqlCommand {
 	return &SqlCommand{
 		description: description,
 		Query:       query,
-	}
+	}, nil
 }
 
-func (s *SqlCommand) Run(map[string]interface{}, *cmds.GlazeProcessor) error {
-	//TODO implement me
-	panic("implement me")
+func (s *SqlCommand) Run(ps map[string]interface{}, gp *cmds.GlazeProcessor) error {
+	if s.DBConnectionFactory == nil {
+		return fmt.Errorf("dbConnectionFactory is not set")
+	}
+
+	db, err := s.DBConnectionFactory()
+	if err != nil {
+		return err
+	}
+
+	dbContext := context.Background()
+	err = db.PingContext(dbContext)
+	if err != nil {
+		return errors.Wrapf(err, "Could not ping database")
+	}
+
+	printQuery, _ := ps["print-query"].(bool)
+	if printQuery {
+		query, err := s.RenderQuery(ps)
+		if err != nil {
+			return errors.Wrapf(err, "Could not generate query")
+		}
+		fmt.Println(query)
+		return nil
+	}
+
+	err = s.RunQueryIntoGlaze(dbContext, db, ps, gp)
+	if err != nil {
+		return errors.Wrapf(err, "Could not run query")
+	}
+
+	return nil
 }
 
 func (s *SqlCommand) Description() *cmds.CommandDescription {
 	return s.description
 }
 
-func (sc *SqlCommand) IsValid() bool {
-	return sc.description.Name != "" && sc.Query != "" && sc.description.Short != ""
+func (s *SqlCommand) IsValid() bool {
+	return s.description.Name != "" && s.Query != "" && s.description.Short != ""
 }
 
 func sqlString(value string) string {
@@ -148,8 +173,8 @@ func (s *SqlCommand) RenderQuery(parameters map[string]interface{}) (string, err
 	if err != nil {
 		return "", errors.Wrap(err, "Could not parse query template")
 	}
-	return helpers.RenderTemplate(t, parameters)
 
+	return helpers.RenderTemplate(t, parameters)
 }
 
 func RunQueryIntoGlaze(
@@ -245,24 +270,25 @@ func (scl *SqlCommandLoader) LoadCommandAliasFromYAML(s io.Reader) ([]*cmds.Comm
 }
 
 func (scl *SqlCommandLoader) LoadCommandFromYAML(s io.Reader) ([]cmds.Command, error) {
-	scd := &SqlCommandDescription{
-		Flags:     []*cmds.ParameterDefinition{},
-		Arguments: []*cmds.ParameterDefinition{},
-	}
+	scd := &SqlCommandDescription{}
 	err := yaml.NewDecoder(s).Decode(scd)
 	if err != nil {
 		return nil, err
 	}
 
-	sq := &SqlCommand{
-		Query: scd.Query,
-		description: &cmds.CommandDescription{
-			Name:      scd.Name,
-			Short:     scd.Short,
-			Long:      scd.Long,
-			Flags:     scd.Flags,
-			Arguments: scd.Arguments,
-		},
+	sq, err := NewSqlCommand(
+		cmds.NewCommandDescription(
+			scd.Name,
+			cmds.WithShort(scd.Short),
+			cmds.WithLong(scd.Long),
+			cmds.WithFlags(scd.Flags...),
+			cmds.WithArguments(scd.Arguments...),
+			cmds.WithLayers(scd.Layers...),
+		),
+		scd.Query,
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	if !sq.IsValid() {

@@ -1,9 +1,8 @@
 package cmds
 
 import (
-	"embed"
-	cmds2 "github.com/go-go-golems/glazed/pkg/cmds"
-	"github.com/go-go-golems/glazed/pkg/help"
+	"github.com/go-go-golems/glazed/pkg/cli"
+	glazed_cmds "github.com/go-go-golems/glazed/pkg/cmds"
 	sqleton "github.com/go-go-golems/sqleton/pkg"
 	"github.com/spf13/cobra"
 )
@@ -13,18 +12,20 @@ var MysqlCmd = &cobra.Command{
 	Short: "MySQL commands",
 }
 
-func InitializeMysqlCmd(queriesFS embed.FS, _ *help.HelpSystem) {
-	showProcessSqlCmd := sqleton.NewSqlCommand(
-		&cmds2.CommandDescription{Name: "ps",
-			Short: "List MySQL processes",
-			Long:  "SHOW PROCESSLIST",
-		},
-		"SHOW PROCESSLIST",
-	)
-	cmd, err := showProcessSqlCmd.BuildCobraCommand()
+func init() {
+	psCommand, err := sqleton.NewSqlCommand(
+		glazed_cmds.NewCommandDescription("ps",
+			glazed_cmds.WithShort("List MySQL processes"),
+			glazed_cmds.WithLong("SHOW PROCESSLIST"),
+		),
+		"SHOW PROCESSLIST")
 	if err != nil {
 		panic(err)
 	}
-
-	MysqlCmd.AddCommand(cmd)
+	psCommand.DBConnectionFactory = sqleton.OpenDatabaseFromViper
+	cobraPsCommand, err := cli.BuildCobraCommand(psCommand)
+	if err != nil {
+		panic(err)
+	}
+	MysqlCmd.AddCommand(cobraPsCommand)
 }

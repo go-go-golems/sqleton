@@ -5,57 +5,77 @@ import (
 	glazed_cmds "github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	sqleton "github.com/go-go-golems/sqleton/pkg"
-	"github.com/spf13/cobra"
 )
 
-// TODO(manuel, 2023-02-07) This should go to glazed into the commands section
-// although, it's actually printing out the query in this case, and probably should be
-// used for application specification additional information anyway
-func AddQueriesCmd(allQueries []*sqleton.SqlCommand, aliases []*glazed_cmds.CommandAlias) *cobra.Command {
-	var queriesCmd = &cobra.Command{
-		Use:   "queries",
-		Short: "Commands related to sqleton queries",
-		Run: func(cmd *cobra.Command, args []string) {
-			gp, of, err := cli.SetupProcessor(cmd)
-			cobra.CheckErr(err)
-			of.AddTableMiddleware(
-				middlewares.NewReorderColumnOrderMiddleware(
-					[]string{"name", "short", "long", "source", "query"}),
-			)
+type QueriesCommand struct {
+	description *glazed_cmds.CommandDescription
+	queries     []*sqleton.SqlCommand
+	aliases     []*glazed_cmds.CommandAlias
+}
 
-			for _, query := range allQueries {
-				description := query.Description()
-				obj := map[string]interface{}{
-					"name":   description.Name,
-					"short":  description.Short,
-					"long":   description.Long,
-					"query":  query.Query,
-					"source": description.Source,
-				}
-				err := gp.ProcessInputObject(obj)
-				cobra.CheckErr(err)
-			}
+func (q *QueriesCommand) Description() *glazed_cmds.CommandDescription {
+	return q.description
+}
 
-			for _, alias := range aliases {
-				obj := map[string]interface{}{
-					"name":     alias.Name,
-					"aliasFor": alias.AliasFor,
-					"source":   alias.Source,
-				}
-				err = gp.ProcessInputObject(obj)
-				cobra.CheckErr(err)
-			}
+func (q *QueriesCommand) Run(ps map[string]interface{}, gp *glazed_cmds.GlazeProcessor) error {
+	gp.OutputFormatter().AddTableMiddleware(
+		middlewares.NewReorderColumnOrderMiddleware(
+			[]string{"name", "short", "long", "source", "query"}),
+	)
 
-			s, err := of.Output()
-			cobra.CheckErr(err)
-			cmd.Println(s)
-		},
+	for _, query := range q.queries {
+		description := query.Description()
+		obj := map[string]interface{}{
+			"name":   description.Name,
+			"short":  description.Short,
+			"long":   description.Long,
+			"query":  query.Query,
+			"source": description.Source,
+		}
+		err := gp.ProcessInputObject(obj)
+		if err != nil {
+			return err
+		}
 	}
 
-	flagsDefaults := cli.NewFlagsDefaults()
-	flagsDefaults.FieldsFilter.Fields = []string{"name", "short", "source"}
-	err := cli.AddFlags(queriesCmd, flagsDefaults)
-	cobra.CheckErr(err)
+	for _, alias := range q.aliases {
+		obj := map[string]interface{}{
+			"name":     alias.Name,
+			"aliasFor": alias.AliasFor,
+			"source":   alias.Source,
+		}
+		err := gp.ProcessInputObject(obj)
+		if err != nil {
+			return err
+		}
+	}
 
-	return queriesCmd
+	return nil
+}
+
+func NewQueriesCommand(
+	allQueries []*sqleton.SqlCommand,
+	aliases []*glazed_cmds.CommandAlias,
+	options ...glazed_cmds.CommandDescriptionOption,
+) (*QueriesCommand, error) {
+	glazeParameterLayer, err := cli.NewGlazedParameterLayers()
+	if err != nil {
+		return nil, err
+	}
+
+	glazeParameterLayer.FieldsFiltersParameterLayer.Defaults.Fields = []string{"name", "short", "source"}
+
+	options_ := append([]glazed_cmds.CommandDescriptionOption{
+		glazed_cmds.WithShort("Commands related to sqleton queries"),
+		glazed_cmds.WithLayers(glazeParameterLayer),
+	}, options...)
+
+	return &QueriesCommand{
+		queries: allQueries,
+		aliases: aliases,
+		description: glazed_cmds.NewCommandDescription(
+			"queries",
+			options_...,
+		),
+	}, nil
 }

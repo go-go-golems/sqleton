@@ -37,7 +37,7 @@ func (q *QueryCommand) Description() *cmds.CommandDescription {
 	return q.description
 }
 
-func (q *QueryCommand) Run(ps map[string]interface{}, gp *cmds.GlazeProcessor) error {
+func (q *QueryCommand) Run(ctx context.Context, ps map[string]interface{}, gp *cmds.GlazeProcessor) error {
 	query := ps["query"].(string)
 
 	db, err := q.dbConnectionFactory()

@@ -36,7 +36,7 @@ func (sc *SelectCommand) Description() *cmds.CommandDescription {
 	return sc.description
 }
 
-func (sc *SelectCommand) Run(ps map[string]interface{}, gp *cmds.GlazeProcessor) error {
+func (sc *SelectCommand) Run(ctx context.Context, ps map[string]interface{}, gp *cmds.GlazeProcessor) error {
 	columns, _ := ps["columns"].([]string)
 	limit, _ := ps["limit"].(int)
 	offset, _ := ps["offset"].(int)

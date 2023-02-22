@@ -1,6 +1,7 @@
 package cmds
 
 import (
+	"context"
 	"github.com/go-go-golems/glazed/pkg/cli"
 	glazed_cmds "github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
@@ -17,7 +18,7 @@ func (q *QueriesCommand) Description() *glazed_cmds.CommandDescription {
 	return q.description
 }
 
-func (q *QueriesCommand) Run(ps map[string]interface{}, gp *glazed_cmds.GlazeProcessor) error {
+func (q *QueriesCommand) Run(ctx context.Context, ps map[string]interface{}, gp *glazed_cmds.GlazeProcessor) error {
 	gp.OutputFormatter().AddTableMiddleware(
 		middlewares.NewReorderColumnOrderMiddleware(
 			[]string{"name", "short", "long", "source", "query"}),

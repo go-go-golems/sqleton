@@ -77,11 +77,12 @@ func NewSqlCommand(
 	}, nil
 }
 
-func (s *SqlCommand) Run(ctx context.Context, parsedLayers []*layers.ParsedParameterLayer, ps map[string]interface{}, gp *cmds.GlazeProcessor) error {
+func (s *SqlCommand) Run(ctx context.Context, parsedLayers map[string]*layers.ParsedParameterLayer, ps map[string]interface{}, gp *cmds.GlazeProcessor) error {
 	if s.dbConnectionFactory == nil {
 		return fmt.Errorf("dbConnectionFactory is not set")
 	}
 
+	// at this point, the factory can probably be passed the sqleton-connection parsed layer
 	db, err := s.dbConnectionFactory()
 	if err != nil {
 		return err

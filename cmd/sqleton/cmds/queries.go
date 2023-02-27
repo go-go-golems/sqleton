@@ -21,7 +21,7 @@ func (q *QueriesCommand) Description() *glazed_cmds.CommandDescription {
 
 func (q *QueriesCommand) Run(
 	ctx context.Context,
-	parsedLayers []*layers.ParsedParameterLayer,
+	parsedLayers map[string]*layers.ParsedParameterLayer,
 	ps map[string]interface{},
 	gp *glazed_cmds.GlazeProcessor,
 ) error {

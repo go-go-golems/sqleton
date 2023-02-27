@@ -38,7 +38,7 @@ func (cp *ConnectionParameterLayer) ParseFlagsFromCobraCommand(_ *cobra.Command)
 			v := viper.GetInt(f.Name)
 			ps[f.Name] = v
 		default:
-			return nil, errors.Errorf("Unknown parameter type %s", f.Type)
+			return nil, errors.Errorf("Unknown DB Connection parameter type %s for flag: %s", f.Type, f.Name)
 		}
 	}
 
@@ -85,8 +85,11 @@ func (d *DbtParameterLayer) ParseFlagsFromCobraCommand(_ *cobra.Command) (map[st
 		case parameters.ParameterTypeInteger:
 			v := viper.GetInt(f.Name)
 			ps[f.Name] = v
+		case parameters.ParameterTypeBool:
+			v := viper.GetBool(f.Name)
+			ps[f.Name] = v
 		default:
-			return nil, errors.Errorf("Unknown parameter type %s", f.Type)
+			return nil, errors.Errorf("Unknown DBT parameter type %s for flag %s", f.Type, f.Name)
 		}
 	}
 

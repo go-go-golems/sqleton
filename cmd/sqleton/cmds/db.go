@@ -3,6 +3,7 @@ package cmds
 import (
 	"fmt"
 	"github.com/go-go-golems/glazed/pkg/cli"
+	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/helpers"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/sqleton/pkg"
@@ -28,7 +29,60 @@ var dbTestConnectionCmd = &cobra.Command{
 	Use:   "test",
 	Short: "Test the connection to a database",
 	Run: func(cmd *cobra.Command, args []string) {
-		config := pkg.NewDatabaseConfigFromViper()
+		connectionLayer, err := pkg.NewSqlConnectionParameterLayer()
+		cobra.CheckErr(err)
+
+		ps, err := connectionLayer.ParseFlagsFromCobraCommand(cmd)
+		cobra.CheckErr(err)
+
+		parsedLayers := map[string]*layers.ParsedParameterLayer{
+			"sqleton-connection": &layers.ParsedParameterLayer{
+				Layer:      connectionLayer,
+				Parameters: ps,
+			},
+		}
+
+		config, err := pkg.NewConfigFromParsedLayers(parsedLayers)
+		cobra.CheckErr(err)
+
+		fmt.Printf("Testing connection to %s\n", config.ToString())
+		db, err := config.Connect()
+		cobra.CheckErr(err)
+
+		cobra.CheckErr(err)
+		defer db.Close()
+
+		err = db.Ping()
+		cobra.CheckErr(err)
+
+		fmt.Println("Connection successful")
+	},
+}
+
+// dbTestConnectionCmdWithPrefix is a test command to use
+// configuration flags and settings with a prefix, which can be used to
+// mix sqleton commands with say, escuse-me commands
+var dbTestConnectionCmdWithPrefix = &cobra.Command{
+	Use:   "test-prefix",
+	Short: "Test the connection to a database, but all sqleton flags have the test- prefix",
+	Run: func(cmd *cobra.Command, args []string) {
+		connectionLayer, err := pkg.NewSqlConnectionParameterLayer(
+			layers.WithPrefix("test-"),
+		)
+		cobra.CheckErr(err)
+
+		ps, err := connectionLayer.ParseFlagsFromCobraCommand(cmd)
+		cobra.CheckErr(err)
+
+		parsedLayers := map[string]*layers.ParsedParameterLayer{
+			"sqleton-connection": &layers.ParsedParameterLayer{
+				Layer:      connectionLayer,
+				Parameters: ps,
+			},
+		}
+
+		config, err := pkg.NewConfigFromParsedLayers(parsedLayers)
+		cobra.CheckErr(err)
 
 		fmt.Printf("Testing connection to %s\n", config.ToString())
 		db, err := config.Connect()
@@ -93,5 +147,17 @@ func init() {
 		panic(err)
 	}
 
+	connectionLayer, err := pkg.NewSqlConnectionParameterLayer()
+	cobra.CheckErr(err)
+	err = connectionLayer.AddFlagsToCobraCommand(dbTestConnectionCmd)
+	cobra.CheckErr(err)
 	DbCmd.AddCommand(dbTestConnectionCmd)
+
+	connectionLayer, err = pkg.NewSqlConnectionParameterLayer(
+		layers.WithPrefix("test-"),
+	)
+	cobra.CheckErr(err)
+	err = connectionLayer.AddFlagsToCobraCommand(dbTestConnectionCmdWithPrefix)
+	cobra.CheckErr(err)
+	DbCmd.AddCommand(dbTestConnectionCmdWithPrefix)
 }

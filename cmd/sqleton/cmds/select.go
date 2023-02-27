@@ -171,7 +171,7 @@ func (sc *SelectCommand) Run(
 			Short: short,
 			Flags: flags,
 		},
-			pkg.OpenDatabaseFromViper,
+			pkg.OpenDatabaseFromSqletonConnectionLayer,
 			query)
 		if err != nil {
 			return err
@@ -197,7 +197,7 @@ func (sc *SelectCommand) Run(
 		return nil
 	}
 
-	db, err := sc.dbConnectionFactory()
+	db, err := sc.dbConnectionFactory(parsedLayers)
 	if err != nil {
 		return err
 	}

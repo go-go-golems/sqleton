@@ -30,7 +30,7 @@ func (c *RunCommand) Run(
 		return fmt.Errorf("input-files is not a string list")
 	}
 
-	db, err := c.dbConnectionFactory()
+	db, err := c.dbConnectionFactory(parsedLayers)
 	if err != nil {
 		return errors.Wrap(err, "could not open database")
 	}

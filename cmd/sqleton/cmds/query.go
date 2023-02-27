@@ -46,7 +46,7 @@ func (q *QueryCommand) Run(
 ) error {
 	query := ps["query"].(string)
 
-	db, err := q.dbConnectionFactory()
+	db, err := q.dbConnectionFactory(parsedLayers)
 	if err != nil {
 		return err
 	}

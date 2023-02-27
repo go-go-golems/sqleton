@@ -18,7 +18,7 @@ func init() {
 			glazed_cmds.WithShort("List MySQL processes"),
 			glazed_cmds.WithLong("SHOW PROCESSLIST"),
 		),
-		sqleton.OpenDatabaseFromViper,
+		sqleton.OpenDatabaseFromSqletonConnectionLayer,
 		"SHOW PROCESSLIST")
 	if err != nil {
 		panic(err)

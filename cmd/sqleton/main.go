@@ -67,7 +67,7 @@ func init() {
 		panic(err)
 	}
 
-	runCommand, err := cmds.NewRunCommand(pkg.OpenDatabaseFromViper,
+	runCommand, err := cmds.NewRunCommand(pkg.OpenDatabaseFromSqletonConnectionLayer,
 		glazed_cmds.WithLayers(
 			dbtParameterLayer,
 			sqlConnectionParameterLayer,
@@ -81,7 +81,7 @@ func init() {
 	}
 	rootCmd.AddCommand(cobraRunCommand)
 
-	selectCommand, err := cmds.NewSelectCommand(pkg.OpenDatabaseFromViper,
+	selectCommand, err := cmds.NewSelectCommand(pkg.OpenDatabaseFromSqletonConnectionLayer,
 		glazed_cmds.WithLayers(
 			dbtParameterLayer,
 			sqlConnectionParameterLayer,
@@ -95,7 +95,7 @@ func init() {
 	}
 	rootCmd.AddCommand(cobraSelectCommand)
 
-	queryCommand, err := cmds.NewQueryCommand(pkg.OpenDatabaseFromViper,
+	queryCommand, err := cmds.NewQueryCommand(pkg.OpenDatabaseFromSqletonConnectionLayer,
 		glazed_cmds.WithLayers(
 			dbtParameterLayer,
 			sqlConnectionParameterLayer,
@@ -141,7 +141,7 @@ func init() {
 
 	yamlLoader := glazed_cmds.NewYAMLFSCommandLoader(
 		&pkg.SqlCommandLoader{
-			DBConnectionFactory: pkg.OpenDatabaseFromViper,
+			DBConnectionFactory: pkg.OpenDatabaseFromSqletonConnectionLayer,
 		}, "", "")
 	commands, aliases, err := locations.LoadCommands(yamlLoader, helpSystem, rootCmd)
 	if err != nil {

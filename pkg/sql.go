@@ -34,7 +34,7 @@ type SqlCommandDescription struct {
 	Query string `yaml:"query"`
 }
 
-type DBConnectionFactory func() (*sqlx.DB, error)
+type DBConnectionFactory func(parsedLayers map[string]*layers.ParsedParameterLayer) (*sqlx.DB, error)
 
 // SqlCommand describes a command line command that runs a query
 type SqlCommand struct {
@@ -83,7 +83,7 @@ func (s *SqlCommand) Run(ctx context.Context, parsedLayers map[string]*layers.Pa
 	}
 
 	// at this point, the factory can probably be passed the sqleton-connection parsed layer
-	db, err := s.dbConnectionFactory()
+	db, err := s.dbConnectionFactory(parsedLayers)
 	if err != nil {
 		return err
 	}

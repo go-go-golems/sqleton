@@ -88,7 +88,7 @@ var dbLsCmd = &cobra.Command{
 func init() {
 	DbCmd.AddCommand(dbLsCmd)
 
-	err := cli.AddGlazedProcessorFlagsToCobraCommand(dbLsCmd, nil)
+	err := cli.AddGlazedProcessorFlagsToCobraCommand(dbLsCmd)
 	if err != nil {
 		panic(err)
 	}

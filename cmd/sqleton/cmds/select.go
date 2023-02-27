@@ -36,7 +36,13 @@ func (sc *SelectCommand) Description() *cmds.CommandDescription {
 	return sc.description
 }
 
-func (sc *SelectCommand) Run(ctx context.Context, ps map[string]interface{}, gp *cmds.GlazeProcessor) error {
+func (sc *SelectCommand) Run(
+	ctx context.Context,
+	parsedLayers []*layers.ParsedParameterLayer,
+	ps map[string]interface{},
+	gp *cmds.GlazeProcessor,
+) error {
+	// TODO(2023-02-27) Use the SelectParameterLayer to parse this
 	columns, _ := ps["columns"].([]string)
 	limit, _ := ps["limit"].(int)
 	offset, _ := ps["offset"].(int)
@@ -184,13 +190,12 @@ func (sc *SelectCommand) Run(ctx context.Context, ps map[string]interface{}, gp 
 		return err
 	}
 
-	dbContext := context.Background()
-	err = db.PingContext(dbContext)
+	err = db.PingContext(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = pkg.RunQueryIntoGlaze(dbContext, db, query, queryArgs, gp)
+	err = pkg.RunQueryIntoGlaze(ctx, db, query, queryArgs, gp)
 	if err != nil {
 		return err
 	}

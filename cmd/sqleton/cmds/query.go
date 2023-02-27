@@ -3,6 +3,7 @@ package cmds
 import (
 	"context"
 	"github.com/go-go-golems/glazed/pkg/cmds"
+	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/sqleton/pkg"
 )
@@ -37,7 +38,12 @@ func (q *QueryCommand) Description() *cmds.CommandDescription {
 	return q.description
 }
 
-func (q *QueryCommand) Run(ctx context.Context, ps map[string]interface{}, gp *cmds.GlazeProcessor) error {
+func (q *QueryCommand) Run(
+	ctx context.Context,
+	parsedLayers []*layers.ParsedParameterLayer,
+	ps map[string]interface{},
+	gp *cmds.GlazeProcessor,
+) error {
 	query := ps["query"].(string)
 
 	db, err := q.dbConnectionFactory()
@@ -45,13 +51,12 @@ func (q *QueryCommand) Run(ctx context.Context, ps map[string]interface{}, gp *c
 		return err
 	}
 
-	dbContext := context.Background()
-	err = db.PingContext(dbContext)
+	err = db.PingContext(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = pkg.RunNamedQueryIntoGlaze(dbContext, db, query, map[string]interface{}{}, gp)
+	err = pkg.RunNamedQueryIntoGlaze(ctx, db, query, map[string]interface{}{}, gp)
 	if err != nil {
 		return err
 	}

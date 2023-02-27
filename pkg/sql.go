@@ -77,7 +77,7 @@ func NewSqlCommand(
 	}, nil
 }
 
-func (s *SqlCommand) Run(ctx context.Context, ps map[string]interface{}, gp *cmds.GlazeProcessor) error {
+func (s *SqlCommand) Run(ctx context.Context, parsedLayers []*layers.ParsedParameterLayer, ps map[string]interface{}, gp *cmds.GlazeProcessor) error {
 	if s.dbConnectionFactory == nil {
 		return fmt.Errorf("dbConnectionFactory is not set")
 	}

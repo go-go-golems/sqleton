@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-go-golems/glazed/pkg/cmds"
+	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/pkg/errors"
 
@@ -19,7 +20,11 @@ type RunCommand struct {
 	dbConnectionFactory pkg.DBConnectionFactory
 }
 
-func (c *RunCommand) Run(ctx context.Context, ps map[string]interface{}, gp *cmds.GlazeProcessor) error {
+func (c *RunCommand) Run(
+	ctx context.Context,
+	parsedLayers []*layers.ParsedParameterLayer,
+	ps map[string]interface{},
+	gp *cmds.GlazeProcessor) error {
 	inputFiles, ok := ps["input-files"].([]string)
 	if !ok {
 		return fmt.Errorf("input-files is not a string list")
@@ -30,8 +35,7 @@ func (c *RunCommand) Run(ctx context.Context, ps map[string]interface{}, gp *cmd
 		return errors.Wrap(err, "could not open database")
 	}
 
-	dbContext := context.Background()
-	err = db.PingContext(dbContext)
+	err = db.PingContext(ctx)
 	if err != nil {
 		return errors.Wrapf(err, "Could not ping database")
 	}
@@ -59,7 +63,7 @@ func (c *RunCommand) Run(ctx context.Context, ps map[string]interface{}, gp *cmd
 
 		// TODO(2022-12-20, manuel): collect named parameters here, maybe through prerun?
 		// See: https://github.com/wesen/sqleton/issues/40
-		err = pkg.RunNamedQueryIntoGlaze(dbContext, db, query, map[string]interface{}{}, gp)
+		err = pkg.RunNamedQueryIntoGlaze(ctx, db, query, map[string]interface{}{}, gp)
 		cobra.CheckErr(err)
 	}
 

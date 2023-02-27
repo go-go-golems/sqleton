@@ -29,20 +29,9 @@ func NewSqlConnectionParameterLayer(options ...layers.ParameterLayerOptions) (*C
 
 func (cp *ConnectionParameterLayer) ParseFlagsFromCobraCommand(cmd *cobra.Command) (map[string]interface{}, error) {
 	// actually hijack and load everything from viper instead of cobra...
-	ps := make(map[string]interface{})
-
-	for _, f := range cp.Flags {
-		flagName := cp.Prefix + f.Name
-		switch f.Type {
-		case parameters.ParameterTypeString:
-			v := viper.GetString(flagName)
-			ps[f.Name] = v
-		case parameters.ParameterTypeInteger:
-			v := viper.GetInt(flagName)
-			ps[f.Name] = v
-		default:
-			return nil, errors.Errorf("Unknown DB Connection parameter type %s for flag: %s", f.Type, f.Name)
-		}
+	ps, err := parameters.GatherFlagsFromViper(cp.Flags, false, cp.Prefix)
+	if err != nil {
+		return nil, err
 	}
 
 	// now load from flag overrides

@@ -3,8 +3,8 @@ module github.com/go-go-golems/sqleton
 go 1.19
 
 require (
-	github.com/go-go-golems/clay v0.0.6-0.20230222151015-3d0fba6da4ce
-	github.com/go-go-golems/glazed v0.2.14
+	github.com/go-go-golems/clay v0.0.6
+	github.com/go-go-golems/glazed v0.2.17
 	github.com/go-sql-driver/mysql v1.7.0
 	github.com/huandu/go-sqlbuilder v1.18.0
 	github.com/jmoiron/sqlx v1.3.5
@@ -58,6 +58,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
 	github.com/tj/go-naturaldate v1.3.0 // indirect
+	github.com/wesen/filepathx v1.0.1-0.20230227021146-d1c2e34eff6e // indirect
 	github.com/yuin/goldmark v1.5.4 // indirect
 	github.com/yuin/goldmark-emoji v1.0.1 // indirect
 	golang.org/x/crypto v0.5.0 // indirect

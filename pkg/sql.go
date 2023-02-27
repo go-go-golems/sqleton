@@ -12,7 +12,6 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 	"io"
-	"os"
 	"strings"
 	"text/template"
 	"time"
@@ -100,8 +99,7 @@ func (s *SqlCommand) Run(ctx context.Context, ps map[string]interface{}, gp *cmd
 			return errors.Wrapf(err, "Could not generate query")
 		}
 		fmt.Println(query)
-		os.Exit(0)
-		return nil
+		return &cmds.ExitWithoutGlazeError{}
 	}
 
 	err = s.RunQueryIntoGlaze(ctx, db, ps, gp)

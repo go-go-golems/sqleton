@@ -2,42 +2,26 @@ package pkg
 
 import (
 	"fmt"
+	"github.com/go-go-golems/glazed/pkg/cmds/layers"
+	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"github.com/spf13/viper"
 )
 
 type DatabaseConfig struct {
-	Host            string
-	Database        string
-	User            string
-	Password        string
-	Port            int
-	Schema          string
-	Type            string
-	DSN             string
-	Driver          string
-	DbtProfilesPath string
-	DbtProfile      string
-	UseDbtProfiles  bool
-}
-
-func NewDatabaseConfigFromViper() *DatabaseConfig {
-	return &DatabaseConfig{
-		Host:            viper.GetString("host"),
-		Database:        viper.GetString("database"),
-		User:            viper.GetString("user"),
-		Password:        viper.GetString("password"),
-		Port:            viper.GetInt("port"),
-		Schema:          viper.GetString("schema"),
-		Type:            viper.GetString("db-type"),
-		DSN:             viper.GetString("dsn"),
-		Driver:          viper.GetString("driver"),
-		DbtProfilesPath: viper.GetString("dbt-profiles-path"),
-		DbtProfile:      viper.GetString("dbt-profile"),
-		UseDbtProfiles:  viper.GetBool("use-dbt-profiles"),
-	}
+	Host            string `glazed.parameter:"host"`
+	Database        string `glazed.parameter:"database"`
+	User            string `glazed.parameter:"user"`
+	Password        string `glazed.parameter:"password"`
+	Port            int    `glazed.parameter:"port"`
+	Schema          string `glazed.parameter:"schema"`
+	Type            string `glazed.parameter:"db-type"`
+	DSN             string `glazed.parameter:"dsn"`
+	Driver          string `glazed.parameter:"driver"`
+	DbtProfilesPath string `glazed.parameter:"dbt-profiles-path"`
+	DbtProfile      string `glazed.parameter:"dbt-profile"`
+	UseDbtProfiles  bool   `glazed.parameter:"use-dbt-profiles"`
 }
 
 // LogVerbose just outputs information about the database config to the
@@ -150,7 +134,23 @@ func (c *DatabaseConfig) Connect() (*sqlx.DB, error) {
 	return db, err
 }
 
-func OpenDatabaseFromViper() (*sqlx.DB, error) {
-	config := NewDatabaseConfigFromViper()
+func OpenDatabaseFromSqletonConnectionLayer(parsedLayers map[string]*layers.ParsedParameterLayer) (*sqlx.DB, error) {
+	config, err2 := NewConfigFromParsedLayers(parsedLayers)
+	if err2 != nil {
+		return nil, err2
+	}
 	return config.Connect()
+}
+
+func NewConfigFromParsedLayers(parsedLayers map[string]*layers.ParsedParameterLayer) (*DatabaseConfig, error) {
+	sqletonConnectionLayer, ok := parsedLayers["sqleton-connection"]
+	if !ok {
+		return nil, errors.New("No sqleton-connection layer found")
+	}
+	config := &DatabaseConfig{}
+	err := parameters.InitializeStructFromParameters(config, sqletonConnectionLayer.Parameters)
+	if err != nil {
+		return nil, err
+	}
+	return config, nil
 }

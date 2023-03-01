@@ -42,7 +42,7 @@ func (q *QueryCommand) Run(
 	ctx context.Context,
 	parsedLayers map[string]*layers.ParsedParameterLayer,
 	ps map[string]interface{},
-	gp *cmds.GlazeProcessor,
+	gp cmds.Processor,
 ) error {
 	query := ps["query"].(string)
 

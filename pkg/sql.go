@@ -19,7 +19,12 @@ import (
 
 type SqletonCommand interface {
 	cmds.Command
-	RunQueryIntoGlaze(ctx context.Context, db *sqlx.DB, parameters map[string]interface{}, gp *cmds.GlazeProcessor) error
+	RunQueryIntoGlaze(
+		ctx context.Context,
+		db *sqlx.DB,
+		parameters map[string]interface{},
+		gp cmds.Processor,
+	) error
 	RenderQuery(parameters map[string]interface{}) (string, error)
 }
 
@@ -77,7 +82,12 @@ func NewSqlCommand(
 	}, nil
 }
 
-func (s *SqlCommand) Run(ctx context.Context, parsedLayers map[string]*layers.ParsedParameterLayer, ps map[string]interface{}, gp *cmds.GlazeProcessor) error {
+func (s *SqlCommand) Run(
+	ctx context.Context,
+	parsedLayers map[string]*layers.ParsedParameterLayer,
+	ps map[string]interface{},
+	gp cmds.Processor,
+) error {
 	if s.dbConnectionFactory == nil {
 		return fmt.Errorf("dbConnectionFactory is not set")
 	}
@@ -196,7 +206,7 @@ func RunQueryIntoGlaze(
 	db *sqlx.DB,
 	query string,
 	parameters []interface{},
-	gp *cmds.GlazeProcessor) error {
+	gp cmds.Processor) error {
 
 	rows, err := db.QueryxContext(dbContext, query, parameters...)
 	if err != nil {
@@ -211,7 +221,7 @@ func RunNamedQueryIntoGlaze(
 	db *sqlx.DB,
 	query string,
 	parameters map[string]interface{},
-	gp *cmds.GlazeProcessor) error {
+	gp cmds.Processor) error {
 
 	rows, err := db.NamedQueryContext(dbContext, query, parameters)
 	if err != nil {
@@ -221,7 +231,7 @@ func RunNamedQueryIntoGlaze(
 	return processQueryResults(rows, gp)
 }
 
-func processQueryResults(rows *sqlx.Rows, gp *cmds.GlazeProcessor) error {
+func processQueryResults(rows *sqlx.Rows, gp cmds.Processor) error {
 	// we need a way to order the columns
 	cols, err := rows.Columns()
 	if err != nil {
@@ -257,7 +267,7 @@ func (s *SqlCommand) RunQueryIntoGlaze(
 	ctx context.Context,
 	db *sqlx.DB,
 	ps map[string]interface{},
-	gp *cmds.GlazeProcessor) error {
+	gp cmds.Processor) error {
 
 	query, err := s.RenderQuery(ps)
 	if err != nil {
@@ -270,11 +280,18 @@ type SqlCommandLoader struct {
 	DBConnectionFactory DBConnectionFactory
 }
 
-func (scl *SqlCommandLoader) LoadCommandAliasFromYAML(s io.Reader) ([]*cmds.CommandAlias, error) {
+func (scl *SqlCommandLoader) LoadCommandAliasFromYAML(
+	s io.Reader,
+	options ...cmds.CommandDescriptionOption,
+) ([]*cmds.CommandAlias, error) {
 	var alias cmds.CommandAlias
 	err := yaml.NewDecoder(s).Decode(&alias)
 	if err != nil {
 		return nil, err
+	}
+
+	for _, option := range options {
+		option(alias.Description())
 	}
 
 	if !alias.IsValid() {
@@ -284,27 +301,35 @@ func (scl *SqlCommandLoader) LoadCommandAliasFromYAML(s io.Reader) ([]*cmds.Comm
 	return []*cmds.CommandAlias{&alias}, nil
 }
 
-func (scl *SqlCommandLoader) LoadCommandFromYAML(s io.Reader) ([]cmds.Command, error) {
+func (scl *SqlCommandLoader) LoadCommandFromYAML(s io.Reader, options ...cmds.CommandDescriptionOption) ([]cmds.Command, error) {
 	scd := &SqlCommandDescription{}
 	err := yaml.NewDecoder(s).Decode(scd)
 	if err != nil {
 		return nil, err
 	}
 
+	options_ := []cmds.CommandDescriptionOption{
+		cmds.WithShort(scd.Short),
+		cmds.WithLong(scd.Long),
+		cmds.WithFlags(scd.Flags...),
+		cmds.WithArguments(scd.Arguments...),
+		cmds.WithLayers(scd.Layers...),
+	}
+	options_ = append(options_, options...)
+
 	sq, err := NewSqlCommand(
 		cmds.NewCommandDescription(
 			scd.Name,
-			cmds.WithShort(scd.Short),
-			cmds.WithLong(scd.Long),
-			cmds.WithFlags(scd.Flags...),
-			cmds.WithArguments(scd.Arguments...),
-			cmds.WithLayers(scd.Layers...),
 		),
 		scl.DBConnectionFactory,
 		scd.Query,
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	for _, option := range options_ {
+		option(sq.Description())
 	}
 
 	if !sq.IsValid() {

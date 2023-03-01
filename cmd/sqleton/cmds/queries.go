@@ -65,15 +65,15 @@ func NewQueriesCommand(
 	aliases []*glazed_cmds.CommandAlias,
 	options ...glazed_cmds.CommandDescriptionOption,
 ) (*QueriesCommand, error) {
-	glazeParameterLayer, err := cli.NewGlazedParameterLayers()
-	if err != nil {
-		return nil, err
-	}
-
-	defaults := &cli.FieldsFilterFlagsDefaults{
-		Fields: []string{"name", "short", "source"},
-	}
-	err = glazeParameterLayer.FieldsFiltersParameterLayer.InitializeParameterDefaultsFromStruct(defaults)
+	glazeParameterLayer, err := cli.NewGlazedParameterLayers(
+		cli.WithFieldsFiltersParameterLayerOptions(
+			layers.WithDefaults(
+				&cli.FieldsFilterFlagsDefaults{
+					Fields: []string{"name", "short", "source"},
+				},
+			),
+		),
+	)
 	if err != nil {
 		return nil, err
 	}

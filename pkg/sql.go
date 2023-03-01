@@ -280,11 +280,18 @@ type SqlCommandLoader struct {
 	DBConnectionFactory DBConnectionFactory
 }
 
-func (scl *SqlCommandLoader) LoadCommandAliasFromYAML(s io.Reader) ([]*cmds.CommandAlias, error) {
+func (scl *SqlCommandLoader) LoadCommandAliasFromYAML(
+	s io.Reader,
+	options ...cmds.CommandDescriptionOption,
+) ([]*cmds.CommandAlias, error) {
 	var alias cmds.CommandAlias
 	err := yaml.NewDecoder(s).Decode(&alias)
 	if err != nil {
 		return nil, err
+	}
+
+	for _, option := range options {
+		option(alias.Description())
 	}
 
 	if !alias.IsValid() {
@@ -294,27 +301,35 @@ func (scl *SqlCommandLoader) LoadCommandAliasFromYAML(s io.Reader) ([]*cmds.Comm
 	return []*cmds.CommandAlias{&alias}, nil
 }
 
-func (scl *SqlCommandLoader) LoadCommandFromYAML(s io.Reader) ([]cmds.Command, error) {
+func (scl *SqlCommandLoader) LoadCommandFromYAML(s io.Reader, options ...cmds.CommandDescriptionOption) ([]cmds.Command, error) {
 	scd := &SqlCommandDescription{}
 	err := yaml.NewDecoder(s).Decode(scd)
 	if err != nil {
 		return nil, err
 	}
 
+	options_ := []cmds.CommandDescriptionOption{
+		cmds.WithShort(scd.Short),
+		cmds.WithLong(scd.Long),
+		cmds.WithFlags(scd.Flags...),
+		cmds.WithArguments(scd.Arguments...),
+		cmds.WithLayers(scd.Layers...),
+	}
+	options_ = append(options_, options...)
+
 	sq, err := NewSqlCommand(
 		cmds.NewCommandDescription(
 			scd.Name,
-			cmds.WithShort(scd.Short),
-			cmds.WithLong(scd.Long),
-			cmds.WithFlags(scd.Flags...),
-			cmds.WithArguments(scd.Arguments...),
-			cmds.WithLayers(scd.Layers...),
 		),
 		scl.DBConnectionFactory,
 		scd.Query,
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	for _, option := range options_ {
+		option(sq.Description())
 	}
 
 	if !sq.IsValid() {

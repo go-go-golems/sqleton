@@ -33,6 +33,14 @@ changelog:
     exclude:
       - '^docs:'
       - '^test:'
+brews:
+  - name: sqleton
+    description: "Sqleton is a tool for querying databases"
+    homepage: "https://github.com/go-go-golems/sqleton"
+    tap:
+      owner: go-go-golems
+      name: homebrew-go-go
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
 
 # modelines, feel free to remove those if you don't want/use them:
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json

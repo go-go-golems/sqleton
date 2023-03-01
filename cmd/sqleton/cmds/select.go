@@ -51,7 +51,7 @@ func (sc *SelectCommand) Run(
 	ctx context.Context,
 	parsedLayers map[string]*layers.ParsedParameterLayer,
 	ps map[string]interface{},
-	gp *cmds.GlazeProcessor,
+	gp cmds.Processor,
 ) error {
 	// TODO(2023-02-27) Use the SelectParameterLayer to parse this
 	s := &SelectCommandSettings{}

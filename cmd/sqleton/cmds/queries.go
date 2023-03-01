@@ -23,7 +23,7 @@ func (q *QueriesCommand) Run(
 	ctx context.Context,
 	parsedLayers map[string]*layers.ParsedParameterLayer,
 	ps map[string]interface{},
-	gp *glazed_cmds.GlazeProcessor,
+	gp glazed_cmds.Processor,
 ) error {
 	gp.OutputFormatter().AddTableMiddleware(
 		middlewares.NewReorderColumnOrderMiddleware(

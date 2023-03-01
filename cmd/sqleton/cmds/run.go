@@ -24,7 +24,7 @@ func (c *RunCommand) Run(
 	ctx context.Context,
 	parsedLayers map[string]*layers.ParsedParameterLayer,
 	ps map[string]interface{},
-	gp *cmds.GlazeProcessor) error {
+	gp cmds.Processor) error {
 	inputFiles, ok := ps["input-files"].([]string)
 	if !ok {
 		return fmt.Errorf("input-files is not a string list")

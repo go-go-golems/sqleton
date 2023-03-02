@@ -2,6 +2,7 @@ package cmds
 
 import (
 	"context"
+	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
@@ -17,6 +18,10 @@ func NewQueryCommand(
 	dbConnectionFactory pkg.DBConnectionFactory,
 	options ...cmds.CommandDescriptionOption,
 ) (*QueryCommand, error) {
+	glazeParameterLayer, err := cli.NewGlazedParameterLayers()
+	if err != nil {
+		return nil, err
+	}
 	options_ := append([]cmds.CommandDescriptionOption{
 		cmds.WithShort("Run a SQL query passed as a CLI argument"),
 		cmds.WithArguments(parameters.NewParameterDefinition(
@@ -26,6 +31,7 @@ func NewQueryCommand(
 			parameters.WithRequired(true),
 		),
 		),
+		cmds.WithLayers(glazeParameterLayer),
 	}, options...)
 
 	return &QueryCommand{

@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
@@ -79,11 +82,6 @@ func (c *DatabaseConfig) ToString() string {
 }
 
 func (c *DatabaseConfig) GetSource() (*Source, error) {
-	// TODO(2022-12-18, manuel) This is where we would add support for DSN/Driver loading
-	// See https://github.com/wesen/sqleton/issues/21
-	_ = c.DSN
-	_ = c.Driver
-
 	var source *Source
 
 	if c.UseDbtProfiles {
@@ -116,17 +114,32 @@ func (c *DatabaseConfig) GetSource() (*Source, error) {
 		}
 	}
 
+	if source.Type == "sqlite" {
+		source.Type = "sqlite3"
+	}
+
 	return source, nil
 }
 
 func (c *DatabaseConfig) Connect() (*sqlx.DB, error) {
 	c.LogVerbose()
 
-	s, err := c.GetSource()
-	if err != nil {
-		return nil, err
+	var dbType string
+	connectionString := ""
+	if c.DSN != "" {
+		dbType = c.Driver
+		connectionString = c.DSN
+	} else {
+		s, err := c.GetSource()
+		if err != nil {
+			return nil, err
+		}
+
+		dbType = s.Type
+		connectionString = s.ToConnectionString()
+
 	}
-	db, err := sqlx.Connect(s.Type, s.ToConnectionString())
+	db, err := sqlx.Connect(dbType, connectionString)
 
 	// TODO(2022-12-18, manuel): this is where we would add support for a ro connection
 	// https://github.com/wesen/sqleton/issues/24

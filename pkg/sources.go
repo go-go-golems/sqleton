@@ -26,6 +26,8 @@ func (s *Source) ToConnectionString() string {
 	case "mysql":
 		return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", s.Username, s.Password, s.Hostname, s.Port, s.Database)
 	case "sqlite":
+		fallthrough
+	case "sqlite3":
 		return s.Database
 	default:
 		return ""

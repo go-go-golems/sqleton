@@ -53,13 +53,10 @@ func (sc *SelectCommand) Run(
 	ps map[string]interface{},
 	gp cmds.Processor,
 ) error {
-	// TODO(2023-02-27) Use the SelectParameterLayer to parse this
 	s := &SelectCommandSettings{}
-	selectLayer, ok := parsedLayers["select"]
-	if !ok {
-		return fmt.Errorf("select layer not found")
-	}
-	err := parameters.InitializeStructFromParameters(s, selectLayer.Parameters)
+
+	// pass in ps so we also get the `table` arguments
+	err := parameters.InitializeStructFromParameters(s, ps)
 	if err != nil {
 		return errors.Wrap(err, "Failed to initialize select command settings")
 	}

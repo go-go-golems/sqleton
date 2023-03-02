@@ -35,6 +35,7 @@ flags:
     type: bool
     help: Select distinct rows
     default: false
+arguments:
   - name: table
     type: string
     help: Table to select from

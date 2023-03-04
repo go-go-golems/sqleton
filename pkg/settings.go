@@ -16,7 +16,9 @@ type ConnectionParameterLayer struct {
 	layers.ParameterLayerImpl
 }
 
-func NewSqlConnectionParameterLayer(options ...layers.ParameterLayerOptions) (*ConnectionParameterLayer, error) {
+func NewSqlConnectionParameterLayer(
+	options ...layers.ParameterLayerOptions,
+) (*ConnectionParameterLayer, error) {
 	layer, err := layers.NewParameterLayerFromYAML(connectionFlagsYaml, options...)
 	if err != nil {
 		return nil, err

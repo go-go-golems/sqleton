@@ -280,18 +280,11 @@ type SqlCommandLoader struct {
 	DBConnectionFactory DBConnectionFactory
 }
 
-func (scl *SqlCommandLoader) LoadCommandAliasFromYAML(
-	s io.Reader,
-	options ...cmds.CommandDescriptionOption,
-) ([]*cmds.CommandAlias, error) {
+func (scl *SqlCommandLoader) LoadCommandAliasFromYAML(s io.Reader) ([]*cmds.CommandAlias, error) {
 	var alias cmds.CommandAlias
 	err := yaml.NewDecoder(s).Decode(&alias)
 	if err != nil {
 		return nil, err
-	}
-
-	for _, option := range options {
-		option(alias.Description())
 	}
 
 	if !alias.IsValid() {
@@ -301,7 +294,10 @@ func (scl *SqlCommandLoader) LoadCommandAliasFromYAML(
 	return []*cmds.CommandAlias{&alias}, nil
 }
 
-func (scl *SqlCommandLoader) LoadCommandFromYAML(s io.Reader, options ...cmds.CommandDescriptionOption) ([]cmds.Command, error) {
+func (scl *SqlCommandLoader) LoadCommandFromYAML(
+	s io.Reader,
+	options ...cmds.CommandDescriptionOption,
+) ([]cmds.Command, error) {
 	scd := &SqlCommandDescription{}
 	err := yaml.NewDecoder(s).Decode(scd)
 	if err != nil {
@@ -337,4 +333,25 @@ func (scl *SqlCommandLoader) LoadCommandFromYAML(s io.Reader, options ...cmds.Co
 	}
 
 	return []cmds.Command{sq}, nil
+}
+
+func LoadSqletonCommandFromYAML(
+	s io.Reader,
+	factory DBConnectionFactory,
+	options ...cmds.CommandDescriptionOption) (cmds.Command, error) {
+	loader := &SqlCommandLoader{
+		DBConnectionFactory: factory,
+	}
+
+	cmds_, err := loader.LoadCommandFromYAML(s, options...)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(cmds_) != 1 {
+		return nil, errors.New("expected only one command")
+	}
+
+	return cmds_[0], nil
+
 }

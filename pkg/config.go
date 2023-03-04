@@ -165,5 +165,14 @@ func NewConfigFromParsedLayers(parsedLayers map[string]*layers.ParsedParameterLa
 	if err != nil {
 		return nil, err
 	}
+
+	dbtLayer, ok := parsedLayers["dbt"]
+	if !ok {
+		return nil, errors.New("No dbt layer found")
+	}
+	err = parameters.InitializeStructFromParameters(config, dbtLayer.Parameters)
+	if err != nil {
+		return nil, err
+	}
 	return config, nil
 }

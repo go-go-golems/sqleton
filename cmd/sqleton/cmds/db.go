@@ -153,6 +153,11 @@ func init() {
 	cobra.CheckErr(err)
 	DbCmd.AddCommand(dbTestConnectionCmd)
 
+	dbtParameterLayer, err := pkg.NewDbtParameterLayer()
+	cobra.CheckErr(err)
+	err = dbtParameterLayer.AddFlagsToCobraCommand(dbTestConnectionCmd)
+	cobra.CheckErr(err)
+
 	connectionLayer, err = pkg.NewSqlConnectionParameterLayer(
 		layers.WithPrefix("test-"),
 	)

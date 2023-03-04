@@ -65,6 +65,10 @@ func NewSqlCommand(
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create SQL connection parameter layer")
 	}
+	dbtParameterLayer, err := NewDbtParameterLayer()
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create dbt parameter layer")
+	}
 	sqlHelpersParameterLayer, err := NewSqlHelpersParameterLayer()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create SQL helpers parameter layer")
@@ -73,6 +77,7 @@ func NewSqlCommand(
 		sqlHelpersParameterLayer,
 		glazedParameterLayer,
 		sqlConnectionParameterLayer,
+		dbtParameterLayer,
 	)
 
 	return &SqlCommand{
@@ -273,7 +278,7 @@ func (s *SqlCommand) RunQueryIntoGlaze(
 	if err != nil {
 		return err
 	}
-	return RunNamedQueryIntoGlaze(ctx, db, query, ps, gp)
+	return RunQueryIntoGlaze(ctx, db, query, []interface{}{}, gp)
 }
 
 type SqlCommandLoader struct {

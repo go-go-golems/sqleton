@@ -132,7 +132,7 @@ func init() {
 			{
 				FS:      queriesFS,
 				Name:    "embed",
-				Root:    ".",
+				Root:    "queries",
 				DocRoot: "queries/doc",
 			},
 		},

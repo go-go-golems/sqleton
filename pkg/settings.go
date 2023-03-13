@@ -81,6 +81,7 @@ func (d *DbtParameterLayer) ParseFlagsFromCobraCommand(cmd *cobra.Command) (map[
 	ps := make(map[string]interface{})
 
 	for _, f := range d.Flags {
+		//exhaustive:ignore
 		switch f.Type {
 		case parameters.ParameterTypeString:
 			v := viper.GetString(d.Prefix + f.Name)

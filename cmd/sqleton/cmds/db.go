@@ -25,25 +25,41 @@ var DbCmd = &cobra.Command{
 	Short: "Manage databases",
 }
 
+func createConfigFromCobra(cmd *cobra.Command) *pkg.DatabaseConfig {
+	connectionLayer, err := pkg.NewSqlConnectionParameterLayer()
+	cobra.CheckErr(err)
+
+	ps, err := connectionLayer.ParseFlagsFromCobraCommand(cmd)
+	cobra.CheckErr(err)
+
+	dbtLayer, err := pkg.NewDbtParameterLayer()
+	cobra.CheckErr(err)
+
+	ps2, err := dbtLayer.ParseFlagsFromCobraCommand(cmd)
+	cobra.CheckErr(err)
+
+	parsedLayers := map[string]*layers.ParsedParameterLayer{
+		"sqleton-connection": {
+			Layer:      connectionLayer,
+			Parameters: ps,
+		},
+		"dbt": {
+			Layer:      dbtLayer,
+			Parameters: ps2,
+		},
+	}
+
+	config, err := pkg.NewConfigFromParsedLayers(parsedLayers)
+	cobra.CheckErr(err)
+
+	return config
+}
+
 var dbTestConnectionCmd = &cobra.Command{
 	Use:   "test",
 	Short: "Test the connection to a database",
 	Run: func(cmd *cobra.Command, args []string) {
-		connectionLayer, err := pkg.NewSqlConnectionParameterLayer()
-		cobra.CheckErr(err)
-
-		ps, err := connectionLayer.ParseFlagsFromCobraCommand(cmd)
-		cobra.CheckErr(err)
-
-		parsedLayers := map[string]*layers.ParsedParameterLayer{
-			"sqleton-connection": &layers.ParsedParameterLayer{
-				Layer:      connectionLayer,
-				Parameters: ps,
-			},
-		}
-
-		config, err := pkg.NewConfigFromParsedLayers(parsedLayers)
-		cobra.CheckErr(err)
+		config := createConfigFromCobra(cmd)
 
 		fmt.Printf("Testing connection to %s\n", config.ToString())
 		db, err := config.Connect()
@@ -66,24 +82,7 @@ var dbTestConnectionCmdWithPrefix = &cobra.Command{
 	Use:   "test-prefix",
 	Short: "Test the connection to a database, but all sqleton flags have the test- prefix",
 	Run: func(cmd *cobra.Command, args []string) {
-		connectionLayer, err := pkg.NewSqlConnectionParameterLayer(
-			layers.WithPrefix("test-"),
-		)
-		cobra.CheckErr(err)
-
-		ps, err := connectionLayer.ParseFlagsFromCobraCommand(cmd)
-		cobra.CheckErr(err)
-
-		parsedLayers := map[string]*layers.ParsedParameterLayer{
-			"sqleton-connection": &layers.ParsedParameterLayer{
-				Layer:      connectionLayer,
-				Parameters: ps,
-			},
-		}
-
-		config, err := pkg.NewConfigFromParsedLayers(parsedLayers)
-		cobra.CheckErr(err)
-
+		config := createConfigFromCobra(cmd)
 		fmt.Printf("Testing connection to %s\n", config.ToString())
 		db, err := config.Connect()
 		cobra.CheckErr(err)
@@ -149,12 +148,13 @@ func init() {
 
 	connectionLayer, err := pkg.NewSqlConnectionParameterLayer()
 	cobra.CheckErr(err)
+	dbtParameterLayer, err := pkg.NewDbtParameterLayer()
+	cobra.CheckErr(err)
+
 	err = connectionLayer.AddFlagsToCobraCommand(dbTestConnectionCmd)
 	cobra.CheckErr(err)
 	DbCmd.AddCommand(dbTestConnectionCmd)
 
-	dbtParameterLayer, err := pkg.NewDbtParameterLayer()
-	cobra.CheckErr(err)
 	err = dbtParameterLayer.AddFlagsToCobraCommand(dbTestConnectionCmd)
 	cobra.CheckErr(err)
 

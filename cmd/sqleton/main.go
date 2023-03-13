@@ -26,7 +26,58 @@ var rootCmd = &cobra.Command{
 }
 
 func main() {
+	// first, check if the args are "run-command file.yaml",
+	// because we need to load the file and then run the command itself.
+	// we need to do this before cobra, because we don't know which flags to load yet
+	if len(os.Args) >= 3 && os.Args[1] == "run-command" && os.Args[2] != "--help" {
+		// load the command
+		loader := &pkg.SqlCommandLoader{
+			DBConnectionFactory: pkg.OpenDatabaseFromSqletonConnectionLayer,
+		}
+		f, err := os.Open(os.Args[2])
+		if err != nil {
+			fmt.Printf("Could not open file: %v\n", err)
+			os.Exit(1)
+		}
+		cmds, err := loader.LoadCommandFromYAML(f)
+		if err != nil {
+			fmt.Printf("Could not load command: %v\n", err)
+			os.Exit(1)
+		}
+		if len(cmds) != 1 {
+			fmt.Printf("Expected exactly one command, got %d", len(cmds))
+		}
+
+		cobraCommand, err := cli.BuildCobraCommand(cmds[0])
+		if err != nil {
+			fmt.Printf("Could not build cobra command: %v\n", err)
+			os.Exit(1)
+		}
+
+		_, err = initRootCmd()
+		cobra.CheckErr(err)
+
+		rootCmd.AddCommand(cobraCommand)
+		restArgs := os.Args[3:]
+		os.Args = append([]string{os.Args[0], cobraCommand.Use}, restArgs...)
+	} else {
+		helpSystem, err := initRootCmd()
+		cobra.CheckErr(err)
+
+		err = initAllCommands(helpSystem)
+		cobra.CheckErr(err)
+	}
+
 	_ = rootCmd.Execute()
+}
+
+var runCommandCmd = &cobra.Command{
+	Use:   "run-command",
+	Short: "Run a command from a file",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		panic(fmt.Errorf("not implemented"))
+	},
 }
 
 //go:embed doc/*
@@ -35,11 +86,11 @@ var docFS embed.FS
 //go:embed queries/*
 var queriesFS embed.FS
 
-func init() {
+func initRootCmd() (*help.HelpSystem, error) {
 	helpSystem := help.NewHelpSystem()
 	err := helpSystem.LoadSectionsFromFS(docFS, ".")
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	helpFunc, usageFunc := help.GetCobraHelpUsageFuncs(helpSystem)
@@ -56,61 +107,6 @@ func init() {
 	helpCmd := help.NewCobraHelpCommand(helpSystem)
 	rootCmd.SetHelpCommand(helpCmd)
 
-	rootCmd.AddCommand(cmds.DbCmd)
-
-	dbtParameterLayer, err := pkg.NewDbtParameterLayer()
-	if err != nil {
-		panic(err)
-	}
-	sqlConnectionParameterLayer, err := pkg.NewSqlConnectionParameterLayer()
-	if err != nil {
-		panic(err)
-	}
-
-	runCommand, err := cmds.NewRunCommand(pkg.OpenDatabaseFromSqletonConnectionLayer,
-		glazed_cmds.WithLayers(
-			dbtParameterLayer,
-			sqlConnectionParameterLayer,
-		))
-	if err != nil {
-		panic(err)
-	}
-	cobraRunCommand, err := cli.BuildCobraCommand(runCommand)
-	if err != nil {
-		panic(err)
-	}
-	rootCmd.AddCommand(cobraRunCommand)
-
-	selectCommand, err := cmds.NewSelectCommand(pkg.OpenDatabaseFromSqletonConnectionLayer,
-		glazed_cmds.WithLayers(
-			dbtParameterLayer,
-			sqlConnectionParameterLayer,
-		))
-	if err != nil {
-		panic(err)
-	}
-	cobraSelectCommand, err := cli.BuildCobraCommand(selectCommand)
-	if err != nil {
-		panic(err)
-	}
-	rootCmd.AddCommand(cobraSelectCommand)
-
-	queryCommand, err := cmds.NewQueryCommand(pkg.OpenDatabaseFromSqletonConnectionLayer,
-		glazed_cmds.WithLayers(
-			dbtParameterLayer,
-			sqlConnectionParameterLayer,
-		))
-	if err != nil {
-		panic(err)
-	}
-	cobraQueryCommand, err := cli.BuildCobraCommand(queryCommand)
-	if err != nil {
-		panic(err)
-	}
-	rootCmd.AddCommand(cobraQueryCommand)
-
-	rootCmd.AddCommand(cmds.MysqlCmd)
-
 	err = clay.InitViper("sqleton", rootCmd)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing config: %s\n", err)
@@ -121,6 +117,66 @@ func init() {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing logger: %s\n", err)
 		os.Exit(1)
 	}
+
+	rootCmd.AddCommand(runCommandCmd)
+	return helpSystem, nil
+}
+
+func initAllCommands(helpSystem *help.HelpSystem) error {
+	rootCmd.AddCommand(cmds.DbCmd)
+
+	dbtParameterLayer, err := pkg.NewDbtParameterLayer()
+	if err != nil {
+		return err
+	}
+	sqlConnectionParameterLayer, err := pkg.NewSqlConnectionParameterLayer()
+	if err != nil {
+		return err
+	}
+
+	runCommand, err := cmds.NewRunCommand(pkg.OpenDatabaseFromSqletonConnectionLayer,
+		glazed_cmds.WithLayers(
+			dbtParameterLayer,
+			sqlConnectionParameterLayer,
+		))
+	if err != nil {
+		return err
+	}
+	cobraRunCommand, err := cli.BuildCobraCommand(runCommand)
+	if err != nil {
+		return err
+	}
+	rootCmd.AddCommand(cobraRunCommand)
+
+	selectCommand, err := cmds.NewSelectCommand(pkg.OpenDatabaseFromSqletonConnectionLayer,
+		glazed_cmds.WithLayers(
+			dbtParameterLayer,
+			sqlConnectionParameterLayer,
+		))
+	if err != nil {
+		return err
+	}
+	cobraSelectCommand, err := cli.BuildCobraCommand(selectCommand)
+	if err != nil {
+		return err
+	}
+	rootCmd.AddCommand(cobraSelectCommand)
+
+	queryCommand, err := cmds.NewQueryCommand(pkg.OpenDatabaseFromSqletonConnectionLayer,
+		glazed_cmds.WithLayers(
+			dbtParameterLayer,
+			sqlConnectionParameterLayer,
+		))
+	if err != nil {
+		return err
+	}
+	cobraQueryCommand, err := cli.BuildCobraCommand(queryCommand)
+	if err != nil {
+		return err
+	}
+	rootCmd.AddCommand(cobraQueryCommand)
+
+	rootCmd.AddCommand(cmds.MysqlCmd)
 
 	repositories := viper.GetStringSlice("repositories")
 
@@ -156,12 +212,14 @@ func init() {
 	}
 	queriesCommand, err := cmds.NewQueriesCommand(sqlCommands, aliases)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	cobraQueriesCommand, err := cli.BuildCobraCommand(queriesCommand)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	rootCmd.AddCommand(cobraQueriesCommand)
+
+	return nil
 }

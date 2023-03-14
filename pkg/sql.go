@@ -134,6 +134,10 @@ func (s *SqlCommand) IsValid() bool {
 	return s.description.Name != "" && s.Query != "" && s.description.Short != ""
 }
 
+func sqlEscape(value string) string {
+	return strings.Replace(value, "'", "''", -1)
+}
+
 func sqlString(value string) string {
 	return fmt.Sprintf("'%s'", value)
 }
@@ -194,6 +198,7 @@ func (s *SqlCommand) RenderQuery(ps map[string]interface{}) (string, error) {
 			"sqlDateTime":  sqlDateTime,
 			"sqlLike":      sqlLike,
 			"sqlString":    sqlString,
+			"sqlEscape":    sqlEscape,
 			"stripNewline": stripNewline,
 			"padLeft":      padLeft,
 			"padRight":     padRight,
@@ -213,7 +218,13 @@ func RunQueryIntoGlaze(
 	parameters []interface{},
 	gp cmds.Processor) error {
 
-	rows, err := db.QueryxContext(dbContext, query, parameters...)
+	// use a prepared statement so that when using mysql, we get native types back
+	stmt, err := db.PreparexContext(dbContext, query)
+	if err != nil {
+		return errors.Wrapf(err, "Could not prepare query: %s", query)
+	}
+
+	rows, err := stmt.QueryxContext(dbContext, parameters...)
 	if err != nil {
 		return errors.Wrapf(err, "Could not execute query: %s", query)
 	}
@@ -228,7 +239,13 @@ func RunNamedQueryIntoGlaze(
 	parameters map[string]interface{},
 	gp cmds.Processor) error {
 
-	rows, err := db.NamedQueryContext(dbContext, query, parameters)
+	// use a statement so that when using mysql, we get native types back
+	stmt, err := db.PrepareNamedContext(dbContext, query)
+	if err != nil {
+		return errors.Wrapf(err, "Could not prepare query: %s", query)
+	}
+
+	rows, err := stmt.QueryxContext(dbContext, parameters)
 	if err != nil {
 		return errors.Wrapf(err, "Could not execute query: %s", query)
 	}

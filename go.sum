@@ -89,8 +89,8 @@ github.com/go-gl/glfw/v3.3/glfw v0.0.0-20191125211704-12ad95a8df72/go.mod h1:tQ2
 github.com/go-gl/glfw/v3.3/glfw v0.0.0-20200222043503-6f7a984d4dc4/go.mod h1:tQ2UAYgL5IevRw8kRxooKSPJfGvJ9fJQFa0TUsXzTg8=
 github.com/go-go-golems/clay v0.0.8 h1:mWsMQJ7ZXc4QzJpV2vKCluTilSq4lLYlQk7gFTYxoUk=
 github.com/go-go-golems/clay v0.0.8/go.mod h1:h0WvQeF2MYiAJExx/KbAEPCL9KOo23XafSMq2Hk7A5c=
-github.com/go-go-golems/glazed v0.2.43 h1:owlGJyAtCgtGe8MPIFzoR2ZxG/T+08zHK57A/qM5pKU=
-github.com/go-go-golems/glazed v0.2.43/go.mod h1:84rsOvCCTBOOFXw0PtEiL/Zd02qny+qrpe19LtTErzw=
+github.com/go-go-golems/glazed v0.2.44 h1:pQ4KWdGxGQ45YJ0XnS5nZ+ir41qBRu5M6/z0dR9hvW4=
+github.com/go-go-golems/glazed v0.2.44/go.mod h1:84rsOvCCTBOOFXw0PtEiL/Zd02qny+qrpe19LtTErzw=
 github.com/go-sql-driver/mysql v1.6.0/go.mod h1:DCzpHaOWr8IXmIStZouvnhqoel9Qv2LBy8hT2VhHyBg=
 github.com/go-sql-driver/mysql v1.7.0 h1:ueSltNNllEqE3qcWBTD0iQd3IpL/6U+mJxLkazJ7YPc=
 github.com/go-sql-driver/mysql v1.7.0/go.mod h1:OXbVy3sEdcQ2Doequ6Z5BW6fXNQTmx+9S1MCJN5yJMI=

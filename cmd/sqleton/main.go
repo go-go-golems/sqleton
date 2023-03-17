@@ -48,7 +48,13 @@ func main() {
 			fmt.Printf("Expected exactly one command, got %d", len(cmds))
 		}
 
-		cobraCommand, err := cli.BuildCobraCommand(cmds[0])
+		glazeCommand, ok := cmds[0].(glazed_cmds.GlazeCommand)
+		if !ok {
+			fmt.Printf("Expected GlazeCommand, got %T", cmds[0])
+			os.Exit(1)
+		}
+
+		cobraCommand, err := cli.BuildCobraCommand(glazeCommand)
 		if err != nil {
 			fmt.Printf("Could not build cobra command: %v\n", err)
 			os.Exit(1)
@@ -199,7 +205,8 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		&pkg.SqlCommandLoader{
 			DBConnectionFactory: pkg.OpenDatabaseFromSqletonConnectionLayer,
 		}, "", "")
-	commands, aliases, err := locations.LoadCommands(yamlLoader, helpSystem, rootCmd)
+	commandLoader := clay.NewCommandLoader[*pkg.SqlCommand](&locations)
+	commands, aliases, err := commandLoader.LoadCommands(yamlLoader, helpSystem, rootCmd)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
 		os.Exit(1)
@@ -210,6 +217,18 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
 		os.Exit(1)
 	}
+	glazeCommands, ok := clay.CastList[glazed_cmds.GlazeCommand](commands)
+	if !ok {
+		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
+		os.Exit(1)
+	}
+
+	err = cli.AddCommandsToRootCommand(rootCmd, glazeCommands, aliases)
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
+		os.Exit(1)
+	}
+
 	queriesCommand, err := cmds.NewQueriesCommand(sqlCommands, aliases)
 	if err != nil {
 		return err

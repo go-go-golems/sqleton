@@ -18,7 +18,7 @@ import (
 )
 
 type SqletonCommand interface {
-	cmds.Command
+	cmds.GlazeCommand
 	RunQueryIntoGlaze(
 		ctx context.Context,
 		db *sqlx.DB,
@@ -142,6 +142,10 @@ func sqlString(value string) string {
 	return fmt.Sprintf("'%s'", value)
 }
 
+func sqlStringLike(value string) string {
+	return fmt.Sprintf("'%%%s%%'", sqlEscape(value))
+}
+
 func sqlStringIn(values []string) string {
 	return fmt.Sprintf("'%s'", strings.Join(values, "','"))
 }
@@ -190,18 +194,19 @@ func (s *SqlCommand) RenderQuery(ps map[string]interface{}) (string, error) {
 
 	t2 := helpers.CreateTemplate("query").
 		Funcs(template.FuncMap{
-			"join":         strings.Join,
-			"sqlStringIn":  sqlStringIn,
-			"sqlIntIn":     sqlIntIn,
-			"sqlIn":        sqlIn,
-			"sqlDate":      sqlDate,
-			"sqlDateTime":  sqlDateTime,
-			"sqlLike":      sqlLike,
-			"sqlString":    sqlString,
-			"sqlEscape":    sqlEscape,
-			"stripNewline": stripNewline,
-			"padLeft":      padLeft,
-			"padRight":     padRight,
+			"join":          strings.Join,
+			"sqlStringIn":   sqlStringIn,
+			"sqlStringLike": sqlStringLike,
+			"sqlIntIn":      sqlIntIn,
+			"sqlIn":         sqlIn,
+			"sqlDate":       sqlDate,
+			"sqlDateTime":   sqlDateTime,
+			"sqlLike":       sqlLike,
+			"sqlString":     sqlString,
+			"sqlEscape":     sqlEscape,
+			"stripNewline":  stripNewline,
+			"padLeft":       padLeft,
+			"padRight":      padRight,
 		})
 	t, err := t2.Parse(s.Query)
 	if err != nil {

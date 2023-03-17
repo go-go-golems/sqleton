@@ -54,7 +54,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		cobraCommand, err := cli.BuildCobraCommand(glazeCommand)
+		cobraCommand, err := cli.BuildCobraCommandFromGlazeCommand(glazeCommand)
 		if err != nil {
 			fmt.Printf("Could not build cobra command: %v\n", err)
 			os.Exit(1)
@@ -95,34 +95,14 @@ var queriesFS embed.FS
 func initRootCmd() (*help.HelpSystem, error) {
 	helpSystem := help.NewHelpSystem()
 	err := helpSystem.LoadSectionsFromFS(docFS, ".")
-	if err != nil {
-		return nil, err
-	}
+	cobra.CheckErr(err)
 
-	helpFunc, usageFunc := help.GetCobraHelpUsageFuncs(helpSystem)
-	helpTemplate, usageTemplate := help.GetCobraHelpUsageTemplates(helpSystem)
-
-	_ = usageFunc
-	_ = usageTemplate
-
-	rootCmd.SetHelpFunc(helpFunc)
-	rootCmd.SetUsageFunc(usageFunc)
-	rootCmd.SetHelpTemplate(helpTemplate)
-	rootCmd.SetUsageTemplate(usageTemplate)
-
-	helpCmd := help.NewCobraHelpCommand(helpSystem)
-	rootCmd.SetHelpCommand(helpCmd)
+	helpSystem.SetupCobraRootCommand(rootCmd)
 
 	err = clay.InitViper("sqleton", rootCmd)
-	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Error initializing config: %s\n", err)
-		os.Exit(1)
-	}
+	cobra.CheckErr(err)
 	err = clay.InitLogger()
-	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Error initializing logger: %s\n", err)
-		os.Exit(1)
-	}
+	cobra.CheckErr(err)
 
 	rootCmd.AddCommand(runCommandCmd)
 	return helpSystem, nil
@@ -148,7 +128,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	if err != nil {
 		return err
 	}
-	cobraRunCommand, err := cli.BuildCobraCommand(runCommand)
+	cobraRunCommand, err := cli.BuildCobraCommandFromGlazeCommand(runCommand)
 	if err != nil {
 		return err
 	}
@@ -162,7 +142,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	if err != nil {
 		return err
 	}
-	cobraSelectCommand, err := cli.BuildCobraCommand(selectCommand)
+	cobraSelectCommand, err := cli.BuildCobraCommandFromGlazeCommand(selectCommand)
 	if err != nil {
 		return err
 	}
@@ -176,7 +156,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	if err != nil {
 		return err
 	}
-	cobraQueryCommand, err := cli.BuildCobraCommand(queryCommand)
+	cobraQueryCommand, err := cli.BuildCobraCommandFromGlazeCommand(queryCommand)
 	if err != nil {
 		return err
 	}
@@ -233,7 +213,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	if err != nil {
 		return err
 	}
-	cobraQueriesCommand, err := cli.BuildCobraCommand(queriesCommand)
+	cobraQueriesCommand, err := cli.BuildCobraCommandFromGlazeCommand(queriesCommand)
 	if err != nil {
 		return err
 	}

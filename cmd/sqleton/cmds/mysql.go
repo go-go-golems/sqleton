@@ -23,7 +23,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	cobraPsCommand, err := cli.BuildCobraCommand(psCommand)
+	cobraPsCommand, err := cli.BuildCobraCommandFromGlazeCommand(psCommand)
 	if err != nil {
 		panic(err)
 	}

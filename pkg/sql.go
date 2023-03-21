@@ -365,7 +365,7 @@ func (scl *SqlCommandLoader) LoadCommandFromYAML(
 func LoadSqletonCommandFromYAML(
 	s io.Reader,
 	factory DBConnectionFactory,
-	options ...cmds.CommandDescriptionOption) (cmds.Command, error) {
+	options ...cmds.CommandDescriptionOption) (SqletonCommand, error) {
 	loader := &SqlCommandLoader{
 		DBConnectionFactory: factory,
 	}
@@ -379,6 +379,8 @@ func LoadSqletonCommandFromYAML(
 		return nil, errors.New("expected only one command")
 	}
 
-	return cmds_[0], nil
+	sqletonCommand := cmds_[0].(SqletonCommand)
+
+	return sqletonCommand, nil
 
 }

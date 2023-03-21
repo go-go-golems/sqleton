@@ -7,6 +7,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cli"
 	glazed_cmds "github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/help"
+	"github.com/go-go-golems/glazed/pkg/helpers/cast"
 	"github.com/go-go-golems/sqleton/cmd/sqleton/cmds"
 	"github.com/go-go-golems/sqleton/pkg"
 	"github.com/spf13/cobra"
@@ -74,7 +75,8 @@ func main() {
 		cobra.CheckErr(err)
 	}
 
-	_ = rootCmd.Execute()
+	err := rootCmd.Execute()
+	cobra.CheckErr(err)
 }
 
 var runCommandCmd = &cobra.Command{
@@ -192,12 +194,12 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		os.Exit(1)
 	}
 
-	sqlCommands, ok := clay.CastList[*pkg.SqlCommand](commands)
+	sqlCommands, ok := cast.CastList[*pkg.SqlCommand](commands)
 	if !ok {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
 		os.Exit(1)
 	}
-	glazeCommands, ok := clay.CastList[glazed_cmds.GlazeCommand](commands)
+	glazeCommands, ok := cast.CastList[glazed_cmds.GlazeCommand](commands)
 	if !ok {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
 		os.Exit(1)

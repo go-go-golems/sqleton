@@ -7,7 +7,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
-	"github.com/go-go-golems/glazed/pkg/helpers"
+	"github.com/go-go-golems/glazed/pkg/helpers/templating"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -192,7 +192,7 @@ func padRight(value string, length int) string {
 
 func (s *SqlCommand) RenderQuery(ps map[string]interface{}) (string, error) {
 
-	t2 := helpers.CreateTemplate("query").
+	t2 := templating.CreateTemplate("query").
 		Funcs(template.FuncMap{
 			"join":          strings.Join,
 			"sqlStringIn":   sqlStringIn,
@@ -213,7 +213,7 @@ func (s *SqlCommand) RenderQuery(ps map[string]interface{}) (string, error) {
 		return "", errors.Wrap(err, "Could not parse query template")
 	}
 
-	return helpers.RenderTemplate(t, ps)
+	return templating.RenderTemplate(t, ps)
 }
 
 func RunQueryIntoGlaze(

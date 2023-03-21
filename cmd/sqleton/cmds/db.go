@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
-	"github.com/go-go-golems/glazed/pkg/helpers"
-	"github.com/go-go-golems/glazed/pkg/middlewares"
+	"github.com/go-go-golems/glazed/pkg/helpers/maps"
+	"github.com/go-go-golems/glazed/pkg/middlewares/table"
 	"github.com/go-go-golems/sqleton/pkg"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -120,11 +120,11 @@ var dbLsCmd = &cobra.Command{
 		}
 
 		// don't output the password
-		of.AddTableMiddleware(middlewares.NewFieldsFilterMiddleware([]string{}, []string{"password"}))
-		of.AddTableMiddleware(middlewares.NewReorderColumnOrderMiddleware([]string{"name", "type", "hostname", "port", "database", "schema"}))
+		of.AddTableMiddleware(table.NewFieldsFilterMiddleware([]string{}, []string{"password"}))
+		of.AddTableMiddleware(table.NewReorderColumnOrderMiddleware([]string{"name", "type", "hostname", "port", "database", "schema"}))
 
 		for _, source := range sources {
-			sourceObj := helpers.StructToMap(source, true)
+			sourceObj := maps.StructToMap(source, true)
 			err := gp.ProcessInputObject(sourceObj)
 			cobra.CheckErr(err)
 		}

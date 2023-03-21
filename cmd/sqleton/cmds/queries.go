@@ -5,7 +5,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cli"
 	glazed_cmds "github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
-	"github.com/go-go-golems/glazed/pkg/middlewares"
+	"github.com/go-go-golems/glazed/pkg/middlewares/table"
 	sqleton "github.com/go-go-golems/sqleton/pkg"
 )
 
@@ -26,7 +26,7 @@ func (q *QueriesCommand) Run(
 	gp glazed_cmds.Processor,
 ) error {
 	gp.OutputFormatter().AddTableMiddleware(
-		middlewares.NewReorderColumnOrderMiddleware(
+		table.NewReorderColumnOrderMiddleware(
 			[]string{"name", "short", "long", "source", "query"}),
 	)
 

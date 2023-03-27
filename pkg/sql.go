@@ -36,7 +36,8 @@ type SqlCommandDescription struct {
 	Arguments []*parameters.ParameterDefinition `yaml:"arguments,omitempty"`
 	Layers    []layers.ParameterLayer           `yaml:"layers,omitempty"`
 
-	Query string `yaml:"query"`
+	SubQueries map[string]string `yaml:"subqueries,omitempty"`
+	Query      string            `yaml:"query"`
 }
 
 type DBConnectionFactory func(parsedLayers map[string]*layers.ParsedParameterLayer) (*sqlx.DB, error)

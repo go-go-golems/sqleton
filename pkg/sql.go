@@ -222,23 +222,25 @@ func createTemplate(ctx context.Context, name string, ps map[string]interface{},
 			"sqlLike":       sqlLike,
 			"sqlString":     sqlString,
 			"sqlEscape":     sqlEscape,
-			"sqlSlice": func(query string, args ...interface{}) (interface{}, error) {
+			"sqlSlice": func(query string, args ...interface{}) ([]interface{}, error) {
 				_, rows, err := runQuery(ctx, query, args, ps, db)
 				if err != nil {
 					return nil, errors.Errorf("Could not run query: %s", query)
 				}
 				defer rows.Close()
 
-				if rows.Next() {
-					ret, err := rows.SliceScan()
+				ret := []interface{}{}
+
+				for rows.Next() {
+					ret_, err := rows.SliceScan()
 					if err != nil {
 						return nil, errors.Errorf("Could not scan query: %s", query)
 					}
 
-					return ret, nil
+					ret = append(ret, ret_)
 				}
 
-				return nil, nil
+				return ret, nil
 			},
 			"sqlColumn": func(query string, args ...interface{}) ([]interface{}, error) {
 				renderedQuery, rows, err := runQuery(ctx, query, args, ps, db)

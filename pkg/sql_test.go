@@ -255,4 +255,81 @@ func TestSimpleSubQueryWithArguments(t *testing.T) {
 	row := rows[0].GetValues()
 	assert.Equal(t, int64(1), row["id"])
 	assert.Equal(t, "test1", row["name"])
+
+	s, err = NewSqlCommand(
+		cmds.NewCommandDescription("test"),
+		WithDbConnectionFactory(createDB),
+		WithQuery(`
+	SELECT * FROM test
+	WHERE id IN (
+	    {{ sqlColumn "SELECT test_id, id FROM test2 WHERE name = {{.name | sqlString }} AND id = {{.test2_id}}" "test2_id" 2 | sqlIntIn }}
+	)
+`,
+		),
+	)
+	require.NoError(t, err)
+
+	_, err = s.RenderQuery(context.Background(), ps, db)
+	require.Error(t, err)
+}
+
+func TestSliceSubQueryWithArguments(t *testing.T) {
+	s, err := NewSqlCommand(
+		cmds.NewCommandDescription("test"),
+		WithDbConnectionFactory(createDB),
+		WithQuery(`
+	SELECT * FROM test
+	WHERE id IN (
+	    {{ range sqlSlice "SELECT id, test_id FROM test2 ORDER BY id" }}{{- index . 1 -}} +{{ end }}0
+	)
+`,
+		),
+	)
+	require.NoError(t, err)
+	db, err := createDB(nil)
+	require.NoError(t, err)
+
+	ps := map[string]interface{}{
+		"name": "test1_2",
+	}
+
+	s_, err := s.RenderQuery(context.Background(), ps, db)
+	require.NoError(t, err)
+	assert.Equal(t, `
+	SELECT * FROM test
+	WHERE id IN (
+	    1+1+2+0
+	)
+`, s_)
+
+}
+func TestMapSubQueryWithArguments(t *testing.T) {
+	s, err := NewSqlCommand(
+		cmds.NewCommandDescription("test"),
+		WithDbConnectionFactory(createDB),
+		WithQuery(`
+	SELECT * FROM test
+	WHERE id IN (
+	    {{ range sqlMap "SELECT id, test_id FROM test2 ORDER BY id" }}{{- index . "id" -}} +{{ end }}0
+	)
+`,
+		),
+	)
+	require.NoError(t, err)
+	db, err := createDB(nil)
+	require.NoError(t, err)
+
+	ps := map[string]interface{}{
+		"name": "test1_2",
+	}
+
+	s_, err := s.RenderQuery(context.Background(), ps, db)
+	require.NoError(t, err)
+	assert.Equal(t, `
+	SELECT * FROM test
+	WHERE id IN (
+	    1+2+3+0
+	)
+`, s_)
+
 }

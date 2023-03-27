@@ -36,7 +36,8 @@ type SqlCommandDescription struct {
 	Arguments []*parameters.ParameterDefinition `yaml:"arguments,omitempty"`
 	Layers    []layers.ParameterLayer           `yaml:"layers,omitempty"`
 
-	Query string `yaml:"query"`
+	SubQueries map[string]string `yaml:"subqueries,omitempty"`
+	Query      string            `yaml:"query"`
 }
 
 type DBConnectionFactory func(parsedLayers map[string]*layers.ParsedParameterLayer) (*sqlx.DB, error)
@@ -52,10 +53,23 @@ func (s *SqlCommand) String() string {
 	return fmt.Sprintf("SqlCommand{Name: %s, Parents: %s}", s.description.Name, strings.Join(s.description.Parents, " "))
 }
 
+type SqlCommandOption func(*SqlCommand)
+
+func WithDbConnectionFactory(factory DBConnectionFactory) SqlCommandOption {
+	return func(s *SqlCommand) {
+		s.dbConnectionFactory = factory
+	}
+}
+
+func WithQuery(query string) SqlCommandOption {
+	return func(s *SqlCommand) {
+		s.Query = query
+	}
+}
+
 func NewSqlCommand(
 	description *cmds.CommandDescription,
-	factory DBConnectionFactory,
-	query string,
+	options ...SqlCommandOption,
 ) (*SqlCommand, error) {
 	glazedParameterLayer, err := cli.NewGlazedParameterLayers()
 	if err != nil {
@@ -80,11 +94,15 @@ func NewSqlCommand(
 		dbtParameterLayer,
 	)
 
-	return &SqlCommand{
-		description:         description,
-		dbConnectionFactory: factory,
-		Query:               query,
-	}, nil
+	ret := &SqlCommand{
+		description: description,
+	}
+
+	for _, option := range options {
+		option(ret)
+	}
+
+	return ret, nil
 }
 
 func (s *SqlCommand) Run(
@@ -344,8 +362,8 @@ func (scl *SqlCommandLoader) LoadCommandFromYAML(
 		cmds.NewCommandDescription(
 			scd.Name,
 		),
-		scl.DBConnectionFactory,
-		scd.Query,
+		WithDbConnectionFactory(scl.DBConnectionFactory),
+		WithQuery(scd.Query),
 	)
 	if err != nil {
 		return nil, err

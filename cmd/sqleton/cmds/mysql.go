@@ -18,8 +18,9 @@ func init() {
 			glazed_cmds.WithShort("List MySQL processes"),
 			glazed_cmds.WithLong("SHOW PROCESSLIST"),
 		),
-		sqleton.OpenDatabaseFromSqletonConnectionLayer,
-		"SHOW PROCESSLIST")
+		sqleton.WithDbConnectionFactory(sqleton.OpenDatabaseFromSqletonConnectionLayer),
+		sqleton.WithQuery("SHOW PROCESSLIST"),
+	)
 	if err != nil {
 		panic(err)
 	}

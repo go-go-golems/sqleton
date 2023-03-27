@@ -168,8 +168,9 @@ func (sc *SelectCommand) Run(
 			Short: short,
 			Flags: flags,
 		},
-			pkg.OpenDatabaseFromSqletonConnectionLayer,
-			query)
+			pkg.WithDbConnectionFactory(pkg.OpenDatabaseFromSqletonConnectionLayer),
+			pkg.WithQuery(query),
+		)
 		if err != nil {
 			return err
 		}

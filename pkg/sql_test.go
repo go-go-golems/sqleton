@@ -69,8 +69,8 @@ func createDB(_ map[string]*layers.ParsedParameterLayer) (*sqlx.DB, error) {
 func TestSimpleRender(t *testing.T) {
 	s, err := NewSqlCommand(
 		cmds.NewCommandDescription("test"),
-		createDB,
-		"SELECT * FROM test",
+		WithDbConnectionFactory(createDB),
+		WithQuery("SELECT * FROM test"),
 	)
 	require.NoError(t, err)
 
@@ -82,8 +82,8 @@ func TestSimpleRender(t *testing.T) {
 func TestSimpleTemplateRender(t *testing.T) {
 	s, err := NewSqlCommand(
 		cmds.NewCommandDescription("test"),
-		createDB,
-		"SELECT * FROM {{.table}}",
+		WithDbConnectionFactory(createDB),
+		WithQuery("SELECT * FROM {{.table}}"),
 	)
 	require.NoError(t, err)
 
@@ -97,8 +97,8 @@ func TestSimpleTemplateRender(t *testing.T) {
 func TestSimpleRun(t *testing.T) {
 	s, err := NewSqlCommand(
 		cmds.NewCommandDescription("test"),
-		createDB,
-		"SELECT * FROM test",
+		WithDbConnectionFactory(createDB),
+		WithQuery("SELECT * FROM test"),
 	)
 	require.NoError(t, err)
 

@@ -5,6 +5,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
 
@@ -74,9 +75,9 @@ func TestSimpleRender(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	query, err := s.RenderQuery(nil)
+	query, err := s.RenderQuery(context.Background(), nil, nil)
 	require.NoError(t, err)
-	require.Equal(t, "SELECT * FROM test", query)
+	assert.Equal(t, "SELECT * FROM test", query)
 }
 
 func TestSimpleTemplateRender(t *testing.T) {
@@ -87,11 +88,12 @@ func TestSimpleTemplateRender(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	query, err := s.RenderQuery(map[string]interface{}{
-		"table": "test",
-	})
+	query, err := s.RenderQuery(context.Background(),
+		map[string]interface{}{
+			"table": "test",
+		}, nil)
 	require.NoError(t, err)
-	require.Equal(t, "SELECT * FROM test", query)
+	assert.Equal(t, "SELECT * FROM test", query)
 }
 
 func TestSimpleRun(t *testing.T) {
@@ -107,14 +109,150 @@ func TestSimpleRun(t *testing.T) {
 	require.NoError(t, err)
 
 	rows := gp.GetTable().Rows
-	require.Equal(t, 3, len(rows))
+	assert.Equal(t, 3, len(rows))
 	row := rows[0].GetValues()
-	require.Equal(t, int64(1), row["id"])
-	require.Equal(t, "test1", row["name"])
+	assert.Equal(t, int64(1), row["id"])
+	assert.Equal(t, "test1", row["name"])
 	row = rows[1].GetValues()
-	require.Equal(t, int64(2), row["id"])
-	require.Equal(t, "test2", row["name"])
+	assert.Equal(t, int64(2), row["id"])
+	assert.Equal(t, "test2", row["name"])
 	row = rows[2].GetValues()
-	require.Equal(t, int64(3), row["id"])
-	require.Equal(t, "test3", row["name"])
+	assert.Equal(t, int64(3), row["id"])
+	assert.Equal(t, "test3", row["name"])
+}
+
+func TestSimpleSubQuery(t *testing.T) {
+	s, err := NewSqlCommand(
+		cmds.NewCommandDescription("test"),
+		WithDbConnectionFactory(createDB),
+		WithQuery(`
+	SELECT * FROM test
+	WHERE id IN (
+	    {{ sqlColumn "SELECT test_id FROM test2 WHERE name = {{.name | sqlString }}" | sqlIntIn }}
+	)
+`,
+		),
+	)
+	require.NoError(t, err)
+	db, err := createDB(nil)
+	require.NoError(t, err)
+
+	ps := map[string]interface{}{
+		"name": "test2_3",
+	}
+
+	s_, err := s.RenderQuery(context.Background(), ps, db)
+	require.NoError(t, err)
+	assert.Equal(t, `
+	SELECT * FROM test
+	WHERE id IN (
+	    2
+	)
+`, s_)
+
+	gp := cmds.NewSimpleGlazeProcessor()
+	err = s.Run(context.Background(), map[string]*layers.ParsedParameterLayer{}, ps, gp)
+	require.NoError(t, err)
+
+	rows := gp.GetTable().Rows
+	assert.Equal(t, 1, len(rows))
+	row := rows[0].GetValues()
+	assert.Equal(t, int64(2), row["id"])
+	assert.Equal(t, "test2", row["name"])
+}
+
+func TestSimpleSubQuerySingle(t *testing.T) {
+	s, err := NewSqlCommand(
+		cmds.NewCommandDescription("test"),
+		WithDbConnectionFactory(createDB),
+		WithQuery(`
+	SELECT * FROM test
+	WHERE id = {{ sqlSingle "SELECT test_id FROM test2 WHERE name = {{.name | sqlString }} LIMIT 1" }}
+`,
+		),
+	)
+	require.NoError(t, err)
+	db, err := createDB(nil)
+	require.NoError(t, err)
+
+	ps := map[string]interface{}{
+		"name": "test1_1",
+	}
+
+	s_, err := s.RenderQuery(context.Background(), ps, db)
+	require.NoError(t, err)
+	assert.Equal(t, `
+	SELECT * FROM test
+	WHERE id = 1
+`, s_)
+
+	// fail if we return more than 1
+	s, err = NewSqlCommand(
+		cmds.NewCommandDescription("test"),
+		WithDbConnectionFactory(createDB),
+		WithQuery(`
+	SELECT * FROM test
+	WHERE id = {{ sqlSingle "SELECT test_id FROM test2" | sqlIntIn }}
+`,
+		),
+	)
+	require.NoError(t, err)
+
+	_, err = s.RenderQuery(context.Background(), ps, db)
+	assert.Error(t, err)
+
+	// fail if there are more than 2 fields
+	s, err = NewSqlCommand(
+		cmds.NewCommandDescription("test"),
+		WithDbConnectionFactory(createDB),
+		WithQuery(`
+	SELECT * FROM test
+	WHERE id = {{ sqlSingle "SELECT test_id, name FROM test2 WHERE name = {{.name | sqlString }} LIMIT 1" }}
+`,
+		),
+	)
+	require.NoError(t, err)
+
+	_, err = s.RenderQuery(context.Background(), ps, db)
+	assert.Error(t, err)
+}
+
+func TestSimpleSubQueryWithArguments(t *testing.T) {
+	s, err := NewSqlCommand(
+		cmds.NewCommandDescription("test"),
+		WithDbConnectionFactory(createDB),
+		WithQuery(`
+	SELECT * FROM test
+	WHERE id IN (
+	    {{ sqlColumn "SELECT test_id FROM test2 WHERE name = {{.name | sqlString }} AND id = {{.test2_id}}" "test2_id" 2 | sqlIntIn }}
+	)
+`,
+		),
+	)
+	require.NoError(t, err)
+	db, err := createDB(nil)
+	require.NoError(t, err)
+
+	ps := map[string]interface{}{
+		"name": "test1_2",
+	}
+
+	s_, err := s.RenderQuery(context.Background(), ps, db)
+	require.NoError(t, err)
+	assert.Equal(t, `
+	SELECT * FROM test
+	WHERE id IN (
+	    1
+	)
+`, s_)
+
+	gp := cmds.NewSimpleGlazeProcessor()
+	err = s.Run(context.Background(), map[string]*layers.ParsedParameterLayer{}, ps, gp)
+	require.NoError(t, err)
+
+	rows := gp.GetTable().Rows
+	assert.Equal(t, 1, len(rows))
+	row := rows[0].GetValues()
+	assert.Equal(t, int64(1), row["id"])
+	assert.Equal(t, "test1", row["name"])
 }

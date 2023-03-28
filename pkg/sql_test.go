@@ -333,3 +333,47 @@ func TestMapSubQueryWithArguments(t *testing.T) {
 `, s_)
 
 }
+
+func TestMapSubQuery(t *testing.T) {
+	s, err := NewSqlCommand(
+		cmds.NewCommandDescription("test"),
+		WithDbConnectionFactory(createDB),
+		WithQuery(`
+	SELECT * FROM test
+	WHERE id IN (
+	    {{ sqlColumn (subQuery "test2_id") "test2_id" 2 | sqlIntIn }}
+	)
+`,
+		),
+		WithSubQueries(map[string]string{
+			"test2_id": "SELECT test_id FROM test2 WHERE name = {{.name | sqlString }} AND id = {{.test2_id}}",
+		}),
+	)
+	require.NoError(t, err)
+	db, err := createDB(nil)
+	require.NoError(t, err)
+
+	ps := map[string]interface{}{
+		"name": "test1_2",
+	}
+
+	s_, err := s.RenderQuery(context.Background(), ps, db)
+	require.NoError(t, err)
+	assert.Equal(t, `
+	SELECT * FROM test
+	WHERE id IN (
+	    1
+	)
+`, s_)
+
+	gp := cmds.NewSimpleGlazeProcessor()
+	err = s.Run(context.Background(), map[string]*layers.ParsedParameterLayer{}, ps, gp)
+	require.NoError(t, err)
+
+	rows := gp.GetTable().Rows
+	assert.Equal(t, 1, len(rows))
+	row := rows[0].GetValues()
+	assert.Equal(t, int64(1), row["id"])
+	assert.Equal(t, "test1", row["name"])
+
+}

@@ -209,7 +209,12 @@ func sqlLike(value string) string {
 	return "'%" + value + "%'"
 }
 
-func createTemplate(ctx context.Context, name string, ps map[string]interface{}, db *sqlx.DB) *template.Template {
+func createTemplate(
+	ctx context.Context,
+	subQueries map[string]string,
+	ps map[string]interface{},
+	db *sqlx.DB,
+) *template.Template {
 	t2 := templating.CreateTemplate("query").
 		Funcs(templating.TemplateFuncs).
 		Funcs(template.FuncMap{
@@ -222,8 +227,15 @@ func createTemplate(ctx context.Context, name string, ps map[string]interface{},
 			"sqlLike":       sqlLike,
 			"sqlString":     sqlString,
 			"sqlEscape":     sqlEscape,
+			"subQuery": func(name string) (string, error) {
+				s, ok := subQueries[name]
+				if !ok {
+					return "", errors.Errorf("Subquery %s not found", name)
+				}
+				return s, nil
+			},
 			"sqlSlice": func(query string, args ...interface{}) ([]interface{}, error) {
-				_, rows, err := runQuery(ctx, query, args, ps, db)
+				_, rows, err := runQuery(ctx, subQueries, query, args, ps, db)
 				if err != nil {
 					return nil, errors.Errorf("Could not run query: %s", query)
 				}
@@ -243,7 +255,7 @@ func createTemplate(ctx context.Context, name string, ps map[string]interface{},
 				return ret, nil
 			},
 			"sqlColumn": func(query string, args ...interface{}) ([]interface{}, error) {
-				renderedQuery, rows, err := runQuery(ctx, query, args, ps, db)
+				renderedQuery, rows, err := runQuery(ctx, subQueries, query, args, ps, db)
 				if err != nil {
 					return nil, errors.Errorf("Could not run query: %s", renderedQuery)
 				}
@@ -266,7 +278,7 @@ func createTemplate(ctx context.Context, name string, ps map[string]interface{},
 				return ret, nil
 			},
 			"sqlSingle": func(query string, args ...interface{}) (interface{}, error) {
-				renderedQuery, rows, err := runQuery(ctx, query, args, ps, db)
+				renderedQuery, rows, err := runQuery(ctx, subQueries, query, args, ps, db)
 				if err != nil {
 					return nil, errors.Errorf("Could not run query: %s", renderedQuery)
 				}
@@ -301,7 +313,7 @@ func createTemplate(ctx context.Context, name string, ps map[string]interface{},
 				return ret[0], nil
 			},
 			"sqlMap": func(query string, args ...interface{}) (interface{}, error) {
-				renderedQuery, rows, err := runQuery(ctx, query, args, ps, db)
+				renderedQuery, rows, err := runQuery(ctx, subQueries, query, args, ps, db)
 				if err != nil {
 					return nil, errors.Errorf("Could not run query: %s", renderedQuery)
 				}
@@ -326,7 +338,14 @@ func createTemplate(ctx context.Context, name string, ps map[string]interface{},
 	return t2
 }
 
-func runQuery(ctx context.Context, query string, args []interface{}, ps map[string]interface{}, db *sqlx.DB) (string, *sqlx.Rows, error) {
+func runQuery(
+	ctx context.Context,
+	subQueries map[string]string,
+	query string,
+	args []interface{},
+	ps map[string]interface{},
+	db *sqlx.DB,
+) (string, *sqlx.Rows, error) {
 	if db == nil {
 		return "", nil, errors.New("No database connection")
 	}
@@ -347,7 +366,7 @@ func runQuery(ctx context.Context, query string, args []interface{}, ps map[stri
 		ps2[k] = args[i+1]
 	}
 
-	t2 := createTemplate(ctx, "sql", ps2, db)
+	t2 := createTemplate(ctx, subQueries, ps2, db)
 	t, err := t2.Parse(query)
 	if err != nil {
 		return "", nil, err
@@ -376,7 +395,7 @@ func (s *SqlCommand) RenderQuery(
 	ps map[string]interface{},
 	db *sqlx.DB,
 ) (string, error) {
-	t2 := createTemplate(ctx, "query", ps, db)
+	t2 := createTemplate(ctx, s.SubQueries, ps, db)
 
 	t, err := t2.Parse(s.Query)
 	if err != nil {

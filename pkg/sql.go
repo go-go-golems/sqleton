@@ -7,6 +7,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
+	"github.com/go-go-golems/glazed/pkg/helpers/cast"
 	"github.com/go-go-golems/glazed/pkg/helpers/templating"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
@@ -46,6 +47,7 @@ type DBConnectionFactory func(parsedLayers map[string]*layers.ParsedParameterLay
 type SqlCommand struct {
 	description         *cmds.CommandDescription
 	Query               string
+	SubQueries          map[string]string
 	dbConnectionFactory DBConnectionFactory
 }
 
@@ -64,6 +66,12 @@ func WithDbConnectionFactory(factory DBConnectionFactory) SqlCommandOption {
 func WithQuery(query string) SqlCommandOption {
 	return func(s *SqlCommand) {
 		s.Query = query
+	}
+}
+
+func WithSubQueries(subQueries map[string]string) SqlCommandOption {
+	return func(s *SqlCommand) {
+		s.SubQueries = subQueries
 	}
 }
 
@@ -96,6 +104,7 @@ func NewSqlCommand(
 
 	ret := &SqlCommand{
 		description: description,
+		SubQueries:  make(map[string]string),
 	}
 
 	for _, option := range options {
@@ -128,7 +137,7 @@ func (s *SqlCommand) Run(
 
 	printQuery, _ := ps["print-query"].(bool)
 	if printQuery {
-		query, err := s.RenderQuery(ps)
+		query, err := s.RenderQuery(ctx, ps, db)
 		if err != nil {
 			return errors.Wrapf(err, "Could not generate query")
 		}
@@ -176,9 +185,13 @@ func sqlIn(values []interface{}) string {
 	return strings.Join(strValues, ",")
 }
 
-func sqlIntIn(values []int) string {
-	strValues := make([]string, len(values))
-	for i, v := range values {
+func sqlIntIn(values interface{}) string {
+	v_, ok := cast.CastInterfaceToIntList[int64](values)
+	if !ok {
+		return ""
+	}
+	strValues := make([]string, len(v_))
+	for i, v := range v_ {
 		strValues[i] = fmt.Sprintf("%d", v)
 	}
 	return strings.Join(strValues, ",")
@@ -196,23 +209,15 @@ func sqlLike(value string) string {
 	return "'%" + value + "%'"
 }
 
-func stripNewline(value string) string {
-	return strings.Replace(value, "\n", " ", -1)
-}
-
-func padLeft(value string, length int) string {
-	return fmt.Sprintf("%*s", -length, value)
-}
-
-func padRight(value string, length int) string {
-	return fmt.Sprintf("%-*s", length, value)
-}
-
-func (s *SqlCommand) RenderQuery(ps map[string]interface{}) (string, error) {
-
+func createTemplate(
+	ctx context.Context,
+	subQueries map[string]string,
+	ps map[string]interface{},
+	db *sqlx.DB,
+) *template.Template {
 	t2 := templating.CreateTemplate("query").
+		Funcs(templating.TemplateFuncs).
 		Funcs(template.FuncMap{
-			"join":          strings.Join,
 			"sqlStringIn":   sqlStringIn,
 			"sqlStringLike": sqlStringLike,
 			"sqlIntIn":      sqlIntIn,
@@ -222,10 +227,209 @@ func (s *SqlCommand) RenderQuery(ps map[string]interface{}) (string, error) {
 			"sqlLike":       sqlLike,
 			"sqlString":     sqlString,
 			"sqlEscape":     sqlEscape,
-			"stripNewline":  stripNewline,
-			"padLeft":       padLeft,
-			"padRight":      padRight,
+			"subQuery": func(name string) (string, error) {
+				s, ok := subQueries[name]
+				if !ok {
+					return "", errors.Errorf("Subquery %s not found", name)
+				}
+				return s, nil
+			},
+			"sqlSlice": func(query string, args ...interface{}) ([]interface{}, error) {
+				_, rows, err := runQuery(ctx, subQueries, query, args, ps, db)
+				if err != nil {
+					// TODO(manuel, 2023-03-27) This nesting of errors in nested templates becomes quite unpalatable
+					// This is what can be output for just one level deep:
+					//
+					// Error: Could not generate query: template: query:1:13: executing "query" at <sqlColumn (subQuery "post_types")>: error calling sqlColumn: Could not run query: SELECT post_type
+					// FROM wp_posts
+					// GROUP BY post_type
+					// ORDER BY post_type
+					// : Error 1146 (42S02): Table 'ttc_analytics.wp_posts' doesn't exist
+					// exit status 1
+					//
+					// Make better error messages:
+					return nil, errors.Wrapf(err, "Could not run query: %s", query)
+				}
+				defer rows.Close()
+
+				ret := []interface{}{}
+
+				for rows.Next() {
+					ret_, err := rows.SliceScan()
+					if err != nil {
+						return nil, errors.Wrapf(err, "Could not scan query: %s", query)
+					}
+
+					row := make([]interface{}, len(ret_))
+					for i, v := range ret_ {
+						row[i] = sqlEltToTemplateValue(v)
+					}
+
+					ret = append(ret, row)
+				}
+
+				return ret, nil
+			},
+			"sqlColumn": func(query string, args ...interface{}) ([]interface{}, error) {
+				renderedQuery, rows, err := runQuery(ctx, subQueries, query, args, ps, db)
+				if err != nil {
+					return nil, errors.Wrapf(err, "Could not run query: %s", renderedQuery)
+				}
+				defer rows.Close()
+
+				ret := make([]interface{}, 0)
+				for rows.Next() {
+					rows_, err := rows.SliceScan()
+					if err != nil {
+						return nil, errors.Wrapf(err, "Could not scan query: %s", renderedQuery)
+					}
+
+					if len(rows_) != 1 {
+						return nil, errors.Errorf("Expected 1 column, got %d", len(rows_))
+					}
+					elt := rows_[0]
+
+					v := sqlEltToTemplateValue(elt)
+
+					ret = append(ret, v)
+				}
+
+				return ret, nil
+			},
+			"sqlSingle": func(query string, args ...interface{}) (interface{}, error) {
+				renderedQuery, rows, err := runQuery(ctx, subQueries, query, args, ps, db)
+				if err != nil {
+					return nil, errors.Wrapf(err, "Could not run query: %s", renderedQuery)
+				}
+				defer rows.Close()
+
+				ret := make([]interface{}, 0)
+				if rows.Next() {
+					rows_, err := rows.SliceScan()
+					if err != nil {
+						return nil, errors.Wrapf(err, "Could not scan query: %s", renderedQuery)
+					}
+
+					if len(rows_) != 1 {
+						return nil, errors.Errorf("Expected 1 column, got %d", len(rows_))
+					}
+
+					ret = append(ret, rows_[0])
+				}
+
+				if rows.Next() {
+					return nil, errors.Errorf("Expected 1 row, got more")
+				}
+
+				if len(ret) == 0 {
+					return nil, nil
+				}
+
+				if len(ret) > 1 {
+					return nil, errors.Errorf("Expected 1 row, got %d", len(ret))
+				}
+
+				return sqlEltToTemplateValue(ret[0]), nil
+			},
+			"sqlMap": func(query string, args ...interface{}) (interface{}, error) {
+				renderedQuery, rows, err := runQuery(ctx, subQueries, query, args, ps, db)
+				if err != nil {
+					return nil, errors.Wrapf(err, "Could not run query: %s", renderedQuery)
+				}
+				defer rows.Close()
+
+				ret := []map[string]interface{}{}
+
+				for rows.Next() {
+					ret_ := make(map[string]interface{})
+					err = rows.MapScan(ret_)
+					if err != nil {
+						return nil, errors.Wrapf(err, "Could not scan query: %s", renderedQuery)
+					}
+
+					row := make(map[string]interface{})
+					for k, v := range ret_ {
+						row[k] = sqlEltToTemplateValue(v)
+					}
+
+					ret = append(ret, row)
+				}
+
+				return ret, nil
+			},
 		})
+
+	return t2
+}
+
+func sqlEltToTemplateValue(elt interface{}) interface{} {
+	switch v := elt.(type) {
+	case []byte:
+		return string(v)
+	default:
+		return v
+	}
+}
+
+func runQuery(
+	ctx context.Context,
+	subQueries map[string]string,
+	query string,
+	args []interface{},
+	ps map[string]interface{},
+	db *sqlx.DB,
+) (string, *sqlx.Rows, error) {
+	if db == nil {
+		return "", nil, errors.New("No database connection")
+	}
+
+	ps2 := map[string]interface{}{}
+	for k, v := range ps {
+		ps2[k] = v
+	}
+	// args is k, v, k, v, k, v
+	if len(args)%2 != 0 {
+		return "", nil, errors.Errorf("Could not run query: %s", query)
+	}
+	for i := 0; i < len(args); i += 2 {
+		k, ok := args[i].(string)
+		if !ok {
+			return "", nil, errors.Errorf("Could not run query: %s", query)
+		}
+		ps2[k] = args[i+1]
+	}
+
+	t2 := createTemplate(ctx, subQueries, ps2, db)
+	t, err := t2.Parse(query)
+	if err != nil {
+		return "", nil, err
+	}
+
+	query_, err := templating.RenderTemplate(t, ps2)
+	if err != nil {
+		return query_, nil, err
+	}
+
+	stmt, err := db.PreparexContext(ctx, query_)
+	if err != nil {
+		return query_, nil, err
+	}
+
+	rows, err := stmt.QueryxContext(ctx)
+	if err != nil {
+		return query_, nil, err
+	}
+
+	return query_, rows, err
+}
+
+func (s *SqlCommand) RenderQuery(
+	ctx context.Context,
+	ps map[string]interface{},
+	db *sqlx.DB,
+) (string, error) {
+	t2 := createTemplate(ctx, s.SubQueries, ps, db)
+
 	t, err := t2.Parse(s.Query)
 	if err != nil {
 		return "", errors.Wrap(err, "Could not parse query template")
@@ -314,7 +518,7 @@ func (s *SqlCommand) RunQueryIntoGlaze(
 	ps map[string]interface{},
 	gp cmds.Processor) error {
 
-	query, err := s.RenderQuery(ps)
+	query, err := s.RenderQuery(ctx, ps, db)
 	if err != nil {
 		return err
 	}
@@ -364,6 +568,7 @@ func (scl *SqlCommandLoader) LoadCommandFromYAML(
 		),
 		WithDbConnectionFactory(scl.DBConnectionFactory),
 		WithQuery(scd.Query),
+		WithSubQueries(scd.SubQueries),
 	)
 	if err != nil {
 		return nil, err

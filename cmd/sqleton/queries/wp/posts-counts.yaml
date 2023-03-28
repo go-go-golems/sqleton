@@ -1,0 +1,25 @@
+name: posts-counts
+short: Count posts by type
+flags:
+  - name: post_type
+    description: Post type
+    type: stringList
+    required: false
+subqueries:
+  post_types: |
+    SELECT post_type
+    FROM wp_posts
+    GROUP BY post_type
+    LIMIT 4
+query: |
+  {{ $types := sqlColumn (subQuery "post_types") }}
+  SELECT
+  {{ range $i, $v := $types }}
+    {{ $v2 := printf "count%d" $i }}
+     (
+      SELECT count(*) AS count
+      FROM wp_posts
+      WHERE post_status = 'publish'
+      AND post_type = '{{ $v }}'
+    ) AS `{{ $v }}` {{ if not (eq $i (sub (len $types) 1)) }}, {{ end }}
+  {{ end }}

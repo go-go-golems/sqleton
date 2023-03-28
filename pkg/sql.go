@@ -237,7 +237,18 @@ func createTemplate(
 			"sqlSlice": func(query string, args ...interface{}) ([]interface{}, error) {
 				_, rows, err := runQuery(ctx, subQueries, query, args, ps, db)
 				if err != nil {
-					return nil, errors.Errorf("Could not run query: %s", query)
+					// TODO(manuel, 2023-03-27) This nesting of errors in nested templates becomes quite unpalatable
+					// This is what can be output for just one level deep:
+					//
+					// Error: Could not generate query: template: query:1:13: executing "query" at <sqlColumn (subQuery "post_types")>: error calling sqlColumn: Could not run query: SELECT post_type
+					// FROM wp_posts
+					// GROUP BY post_type
+					// ORDER BY post_type
+					// : Error 1146 (42S02): Table 'ttc_analytics.wp_posts' doesn't exist
+					// exit status 1
+					//
+					// Make better error messages:
+					return nil, errors.Wrapf(err, "Could not run query: %s", query)
 				}
 				defer rows.Close()
 
@@ -246,10 +257,15 @@ func createTemplate(
 				for rows.Next() {
 					ret_, err := rows.SliceScan()
 					if err != nil {
-						return nil, errors.Errorf("Could not scan query: %s", query)
+						return nil, errors.Wrapf(err, "Could not scan query: %s", query)
 					}
 
-					ret = append(ret, ret_)
+					row := make([]interface{}, len(ret_))
+					for i, v := range ret_ {
+						row[i] = sqlEltToTemplateValue(v)
+					}
+
+					ret = append(ret, row)
 				}
 
 				return ret, nil
@@ -257,7 +273,7 @@ func createTemplate(
 			"sqlColumn": func(query string, args ...interface{}) ([]interface{}, error) {
 				renderedQuery, rows, err := runQuery(ctx, subQueries, query, args, ps, db)
 				if err != nil {
-					return nil, errors.Errorf("Could not run query: %s", renderedQuery)
+					return nil, errors.Wrapf(err, "Could not run query: %s", renderedQuery)
 				}
 				defer rows.Close()
 
@@ -265,14 +281,17 @@ func createTemplate(
 				for rows.Next() {
 					rows_, err := rows.SliceScan()
 					if err != nil {
-						return nil, errors.Errorf("Could not scan query: %s", renderedQuery)
+						return nil, errors.Wrapf(err, "Could not scan query: %s", renderedQuery)
 					}
 
 					if len(rows_) != 1 {
 						return nil, errors.Errorf("Expected 1 column, got %d", len(rows_))
 					}
-					ret = append(ret, rows_[0])
+					elt := rows_[0]
 
+					v := sqlEltToTemplateValue(elt)
+
+					ret = append(ret, v)
 				}
 
 				return ret, nil
@@ -280,7 +299,7 @@ func createTemplate(
 			"sqlSingle": func(query string, args ...interface{}) (interface{}, error) {
 				renderedQuery, rows, err := runQuery(ctx, subQueries, query, args, ps, db)
 				if err != nil {
-					return nil, errors.Errorf("Could not run query: %s", renderedQuery)
+					return nil, errors.Wrapf(err, "Could not run query: %s", renderedQuery)
 				}
 				defer rows.Close()
 
@@ -288,7 +307,7 @@ func createTemplate(
 				if rows.Next() {
 					rows_, err := rows.SliceScan()
 					if err != nil {
-						return nil, errors.Errorf("Could not scan query: %s", renderedQuery)
+						return nil, errors.Wrapf(err, "Could not scan query: %s", renderedQuery)
 					}
 
 					if len(rows_) != 1 {
@@ -310,12 +329,12 @@ func createTemplate(
 					return nil, errors.Errorf("Expected 1 row, got %d", len(ret))
 				}
 
-				return ret[0], nil
+				return sqlEltToTemplateValue(ret[0]), nil
 			},
 			"sqlMap": func(query string, args ...interface{}) (interface{}, error) {
 				renderedQuery, rows, err := runQuery(ctx, subQueries, query, args, ps, db)
 				if err != nil {
-					return nil, errors.Errorf("Could not run query: %s", renderedQuery)
+					return nil, errors.Wrapf(err, "Could not run query: %s", renderedQuery)
 				}
 				defer rows.Close()
 
@@ -325,10 +344,15 @@ func createTemplate(
 					ret_ := make(map[string]interface{})
 					err = rows.MapScan(ret_)
 					if err != nil {
-						return nil, errors.Errorf("Could not scan query: %s", renderedQuery)
+						return nil, errors.Wrapf(err, "Could not scan query: %s", renderedQuery)
 					}
 
-					ret = append(ret, ret_)
+					row := make(map[string]interface{})
+					for k, v := range ret_ {
+						row[k] = sqlEltToTemplateValue(v)
+					}
+
+					ret = append(ret, row)
 				}
 
 				return ret, nil
@@ -336,6 +360,15 @@ func createTemplate(
 		})
 
 	return t2
+}
+
+func sqlEltToTemplateValue(elt interface{}) interface{} {
+	switch v := elt.(type) {
+	case []byte:
+		return string(v)
+	default:
+		return v
+	}
 }
 
 func runQuery(
@@ -535,6 +568,7 @@ func (scl *SqlCommandLoader) LoadCommandFromYAML(
 		),
 		WithDbConnectionFactory(scl.DBConnectionFactory),
 		WithQuery(scd.Query),
+		WithSubQueries(scd.SubQueries),
 	)
 	if err != nil {
 		return nil, err

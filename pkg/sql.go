@@ -173,8 +173,12 @@ func sqlStringLike(value string) string {
 	return fmt.Sprintf("'%%%s%%'", sqlEscape(value))
 }
 
-func sqlStringIn(values []string) string {
-	return fmt.Sprintf("'%s'", strings.Join(values, "','"))
+func sqlStringIn(values interface{}) (string, error) {
+	strList, ok := cast.CastList2[string, interface{}](values)
+	if !ok {
+		return "", fmt.Errorf("could not cast %v to []string", values)
+	}
+	return fmt.Sprintf("'%s'", strings.Join(strList, "','")), nil
 }
 
 func sqlIn(values []interface{}) string {

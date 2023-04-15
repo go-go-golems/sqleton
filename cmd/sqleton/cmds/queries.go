@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/go-go-golems/glazed/pkg/cli"
 	glazed_cmds "github.com/go-go-golems/glazed/pkg/cmds"
+	"github.com/go-go-golems/glazed/pkg/cmds/alias"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/middlewares/table"
 	sqleton "github.com/go-go-golems/sqleton/pkg"
@@ -12,7 +13,7 @@ import (
 type QueriesCommand struct {
 	description *glazed_cmds.CommandDescription
 	queries     []*sqleton.SqlCommand
-	aliases     []*glazed_cmds.CommandAlias
+	aliases     []*alias.CommandAlias
 }
 
 func (q *QueriesCommand) Description() *glazed_cmds.CommandDescription {
@@ -62,7 +63,7 @@ func (q *QueriesCommand) Run(
 
 func NewQueriesCommand(
 	allQueries []*sqleton.SqlCommand,
-	aliases []*glazed_cmds.CommandAlias,
+	aliases []*alias.CommandAlias,
 	options ...glazed_cmds.CommandDescriptionOption,
 ) (*QueriesCommand, error) {
 	glazeParameterLayer, err := cli.NewGlazedParameterLayers(

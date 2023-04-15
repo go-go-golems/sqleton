@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds"
+	"github.com/go-go-golems/glazed/pkg/cmds/alias"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
+	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/helpers/cast"
 	"github.com/go-go-golems/glazed/pkg/helpers/templating"
@@ -533,18 +535,8 @@ type SqlCommandLoader struct {
 	DBConnectionFactory DBConnectionFactory
 }
 
-func (scl *SqlCommandLoader) LoadCommandAliasFromYAML(s io.Reader) ([]*cmds.CommandAlias, error) {
-	var alias cmds.CommandAlias
-	err := yaml.NewDecoder(s).Decode(&alias)
-	if err != nil {
-		return nil, err
-	}
-
-	if !alias.IsValid() {
-		return nil, errors.New("Invalid command alias")
-	}
-
-	return []*cmds.CommandAlias{&alias}, nil
+func (scl *SqlCommandLoader) LoadCommandAliasFromYAML(s io.Reader, options ...alias.Option) ([]*alias.CommandAlias, error) {
+	return loaders.LoadCommandAliasFromYAML(s, options...)
 }
 
 func (scl *SqlCommandLoader) LoadCommandFromYAML(

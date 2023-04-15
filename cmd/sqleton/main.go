@@ -4,8 +4,10 @@ import (
 	"embed"
 	"fmt"
 	clay "github.com/go-go-golems/clay/pkg"
+	clay_cmds "github.com/go-go-golems/clay/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cli"
 	glazed_cmds "github.com/go-go-golems/glazed/pkg/cmds"
+	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
 	"github.com/go-go-golems/glazed/pkg/help"
 	"github.com/go-go-golems/glazed/pkg/helpers/cast"
 	"github.com/go-go-golems/sqleton/cmd/sqleton/cmds"
@@ -150,7 +152,8 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	}
 	rootCmd.AddCommand(cobraSelectCommand)
 
-	queryCommand, err := cmds.NewQueryCommand(pkg.OpenDatabaseFromSqletonConnectionLayer,
+	queryCommand, err := cmds.NewQueryCommand(
+		pkg.OpenDatabaseFromSqletonConnectionLayer,
 		glazed_cmds.WithLayers(
 			dbtParameterLayer,
 			sqlConnectionParameterLayer,
@@ -171,11 +174,11 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	defaultDirectory := "$HOME/.sqleton/queries"
 	repositories = append(repositories, defaultDirectory)
 
-	locations := clay.CommandLocations{
-		Embedded: []clay.EmbeddedCommandLocation{
+	locations := clay_cmds.CommandLocations{
+		Embedded: []clay_cmds.EmbeddedCommandLocation{
 			{
 				FS:      queriesFS,
-				Name:    "embed",
+				Name:    "sqleton",
 				Root:    "queries",
 				DocRoot: "queries/doc",
 			},
@@ -183,12 +186,11 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		Repositories: repositories,
 	}
 
-	yamlLoader := glazed_cmds.NewYAMLFSCommandLoader(
-		&pkg.SqlCommandLoader{
-			DBConnectionFactory: pkg.OpenDatabaseFromSqletonConnectionLayer,
-		}, "", "")
-	commandLoader := clay.NewCommandLoader[*pkg.SqlCommand](&locations)
-	commands, aliases, err := commandLoader.LoadCommands(yamlLoader, helpSystem, rootCmd)
+	yamlLoader := loaders.NewYAMLFSCommandLoader(&pkg.SqlCommandLoader{
+		DBConnectionFactory: pkg.OpenDatabaseFromSqletonConnectionLayer,
+	})
+	commandLoader := clay_cmds.NewCommandLoader[*pkg.SqlCommand](&locations)
+	commands, aliases, err := commandLoader.LoadCommands(yamlLoader, helpSystem)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
 		os.Exit(1)

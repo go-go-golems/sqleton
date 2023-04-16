@@ -213,7 +213,13 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		os.Exit(1)
 	}
 
-	serveCommand := cmds.NewServeCommand(pkg.OpenDatabaseFromSqletonConnectionLayer, repositories, commands, aliases)
+	serveCommand := cmds.NewServeCommand(
+		pkg.OpenDatabaseFromSqletonConnectionLayer,
+		repositories, commands, aliases,
+		glazed_cmds.WithLayers(
+			dbtParameterLayer,
+			sqlConnectionParameterLayer,
+		))
 	cobraServeCommand, err := cli.BuildCobraCommandFromBareCommand(serveCommand)
 	if err != nil {
 		return err

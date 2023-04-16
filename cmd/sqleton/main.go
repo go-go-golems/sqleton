@@ -172,7 +172,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	repositories := viper.GetStringSlice("repositories")
 
 	defaultDirectory := "$HOME/.sqleton/queries"
-	repositories = append(repositories, defaultDirectory)
+	repositories = append(repositories, os.ExpandEnv(defaultDirectory))
 
 	locations := clay_cmds.CommandLocations{
 		Embedded: []clay_cmds.EmbeddedCommandLocation{
@@ -189,7 +189,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	yamlLoader := loaders.NewYAMLFSCommandLoader(&pkg.SqlCommandLoader{
 		DBConnectionFactory: pkg.OpenDatabaseFromSqletonConnectionLayer,
 	})
-	commandLoader := clay_cmds.NewCommandLoader[*pkg.SqlCommand](&locations)
+	commandLoader := clay_cmds.NewCommandLoader[glazed_cmds.Command](&locations)
 	commands, aliases, err := commandLoader.LoadCommands(yamlLoader, helpSystem)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
@@ -212,6 +212,13 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
 		os.Exit(1)
 	}
+
+	serveCommand := cmds.NewServeCommand(pkg.OpenDatabaseFromSqletonConnectionLayer, repositories, commands, aliases)
+	cobraServeCommand, err := cli.BuildCobraCommandFromBareCommand(serveCommand)
+	if err != nil {
+		return err
+	}
+	rootCmd.AddCommand(cobraServeCommand)
 
 	queriesCommand, err := cmds.NewQueriesCommand(sqlCommands, aliases)
 	if err != nil {

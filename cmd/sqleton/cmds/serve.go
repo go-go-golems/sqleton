@@ -2,6 +2,7 @@ package cmds
 
 import (
 	"context"
+	"github.com/gin-gonic/gin"
 	"github.com/go-go-golems/clay/pkg/repositories"
 	"github.com/go-go-golems/clay/pkg/watcher"
 	"github.com/go-go-golems/glazed/pkg/cli"
@@ -11,6 +12,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	parka "github.com/go-go-golems/parka/pkg"
+	"github.com/go-go-golems/parka/pkg/glazed"
 	"github.com/go-go-golems/sqleton/pkg"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
@@ -87,32 +89,67 @@ func (s *ServeCommand) Run(
 	sqletonConnectionLayer := parsedLayers["sqleton-connection"]
 	dbtConnectionLayer := parsedLayers["dbt"]
 
-	// XXX this won't allow reload, is gin even the best choice here? Guess we can just wildcard /api
-	for _, command := range s.commands {
-		d := command.Description()
-		sqlCommand := command.(*pkg.SqlCommand)
-		path := "api/" + strings.Join(d.Parents, "/") + "/" + d.Name
-		server.Router.GET(path, server.HandleSimpleQueryCommand(sqlCommand,
-			[]parka.ParserHandlerOption{
-				parka.WithReplaceParameterLayerParser("sqleton-connection",
-					parka.NewStaticParameterDefinitionParser(sqletonConnectionLayer.Parameters)),
-				parka.WithReplaceParameterLayerParser("dbt",
-					parka.NewStaticParameterDefinitionParser(dbtConnectionLayer.Parameters)),
-				parka.WithGlazeOutputParserOption(glazedParameterLayers, "table", "html"),
-			},
-		))
-		server.Router.POST(path, server.HandleSimpleFormCommand(sqlCommand))
-	}
-	for _, alias := range s.aliases {
-		d := alias.Description()
-		path := "api/" + strings.Join(d.Parents, "/") + "/" + d.Name
-		server.Router.GET(path, server.HandleSimpleQueryCommand(alias,
-			[]parka.ParserHandlerOption{
-				parka.WithGlazeOutputParserOption(glazedParameterLayers, "table", "html"),
-			},
-		))
-		server.Router.POST(path, server.HandleSimpleFormCommand(alias))
-	}
+	server.Router.GET("/sqleton/*CommandPath", func(c *gin.Context) {
+		commandPath := c.Param("CommandPath")
+		commandPath = strings.TrimPrefix(commandPath, "/")
+		path := strings.Split(commandPath, "/")
+		commands := r.Root.CollectCommands(path, false)
+		if len(commands) == 0 {
+			c.JSON(404, gin.H{"error": "command not found"})
+			return
+		}
+
+		if len(commands) > 1 {
+			c.JSON(404, gin.H{"error": "ambiguous command"})
+			return
+		}
+
+		sqlCommand, ok := commands[0].(*pkg.SqlCommand)
+		if !ok || sqlCommand == nil {
+			c.JSON(500, gin.H{"error": "command is not a sql command"})
+		}
+		handleSimpleQueryCommand := server.HandleSimpleQueryCommand(
+			sqlCommand,
+			glazed.WithParserOptions(
+				glazed.WithStaticLayer("sqleton-connection", sqletonConnectionLayer.Parameters),
+				glazed.WithStaticLayer("dbt", dbtConnectionLayer.Parameters),
+				glazed.WithGlazeOutputParserOption(glazedParameterLayers, "table", "html"),
+			),
+		)
+
+		handleSimpleQueryCommand(c)
+	})
+
+	server.Router.POST("/sqleton/*CommandPath", func(c *gin.Context) {
+		commandPath := c.Param("CommandPath")
+		commandPath = strings.TrimPrefix(commandPath, "/")
+		path := strings.Split(commandPath, "/")
+		commands := r.Root.CollectCommands(path, false)
+		if len(commands) == 0 {
+			c.JSON(404, gin.H{"error": "command not found"})
+			return
+		}
+
+		if len(commands) > 1 {
+			c.JSON(404, gin.H{"error": "ambiguous command"})
+			return
+		}
+
+		sqlCommand, ok := commands[0].(*pkg.SqlCommand)
+		if !ok || sqlCommand == nil {
+			c.JSON(500, gin.H{"error": "command is not a sql command"})
+		}
+		handleSimpleFormCommand := server.HandleSimpleFormCommand(
+			sqlCommand,
+			glazed.WithParserOptions(
+				glazed.WithStaticLayer("sqleton-connection", sqletonConnectionLayer.Parameters),
+				glazed.WithStaticLayer("dbt", dbtConnectionLayer.Parameters),
+				glazed.WithGlazeOutputParserOption(glazedParameterLayers, "table", "html"),
+			),
+		)
+
+		handleSimpleFormCommand(c)
+	})
 
 	errGroup, ctx := errgroup.WithContext(ctx)
 	errGroup.Go(func() error {

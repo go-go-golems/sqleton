@@ -13,6 +13,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	parka "github.com/go-go-golems/parka/pkg"
 	"github.com/go-go-golems/parka/pkg/glazed"
+	"github.com/go-go-golems/parka/pkg/render"
 	"github.com/go-go-golems/sqleton/pkg"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
@@ -110,6 +111,9 @@ func (s *ServeCommand) Run(
 		}
 		handleSimpleQueryCommand := server.HandleSimpleQueryCommand(
 			sqlCommand,
+			glazed.WithCreateProcessor(
+				render.RenderDataTables,
+			),
 			glazed.WithParserOptions(
 				glazed.WithStaticLayer("sqleton-connection", sqletonConnectionLayer.Parameters),
 				glazed.WithStaticLayer("dbt", dbtConnectionLayer.Parameters),

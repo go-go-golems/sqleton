@@ -113,15 +113,15 @@ var dbLsCmd = &cobra.Command{
 		sources, err := pkg.ParseDbtProfiles(dbtProfilesPath)
 		cobra.CheckErr(err)
 
-		gp, of, err := cli.CreateGlazedProcessorFromCobra(cmd)
+		gp, err := cli.CreateGlazedProcessorFromCobra(cmd)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Could not create glaze  procersors: %v\n", err)
 			os.Exit(1)
 		}
 
 		// don't output the password
-		of.AddTableMiddleware(table.NewFieldsFilterMiddleware([]string{}, []string{"password"}))
-		of.AddTableMiddleware(table.NewReorderColumnOrderMiddleware([]string{"name", "type", "hostname", "port", "database", "schema"}))
+		gp.OutputFormatter().AddTableMiddleware(table.NewFieldsFilterMiddleware([]string{}, []string{"password"}))
+		gp.OutputFormatter().AddTableMiddleware(table.NewReorderColumnOrderMiddleware([]string{"name", "type", "hostname", "port", "database", "schema"}))
 
 		for _, source := range sources {
 			sourceObj := maps.StructToMap(source, true)
@@ -129,7 +129,7 @@ var dbLsCmd = &cobra.Command{
 			cobra.CheckErr(err)
 		}
 
-		s, err := of.Output()
+		s, err := gp.OutputFormatter().Output()
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Error rendering output: %s\n", err)
 			os.Exit(1)

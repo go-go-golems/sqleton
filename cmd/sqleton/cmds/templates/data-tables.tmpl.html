@@ -29,7 +29,10 @@
 <label for="{{.Name}}">{{.Help}}</label>
 <input type="number" name="{{.Name}}" value="{{.Default}}">
 {{ else if eq .Type "bool" }}
-<input type="checkbox" name="{{.Name}}" value="true" {{if .Default}}checked{{end}}>{{.Help}}
+<div class="float-right">
+<label class="label-inline" for="{{.Name}}">{{.Help}}</label>
+<input type="checkbox" name="{{.Name}}" value="true" {{if .Default}}checked{{end}}>
+</div>
 {{ else if eq .Type "date" }}
 <label for="{{.Name}}">{{.Help}}</label>
 <input type="date" name="{{.Name}}" value="{{.Default}}">
@@ -48,32 +51,30 @@
 
 
 <div class="container">
-<h1>{{.Command.Name}}</h1>
-<p>{{.Command.Short}}</p>
+    <h1>{{.Command.Name}}</h1>
+    <p>{{.Command.Short}}</p>
 
-    <details>
-        <summary>Form Example</summary>
-
-        <form id="form" action="{{.Command.Name}}" method="get">
-            <fieldset>
-                {{range $flag := .Command.Flags}}
-                <div class="row">
-                    <div class="small-12 columns">
-                        {{ template "form-widget" $flag }}
-                    </div>
+    <form id="form" action="{{.Command.Name}}" method="get">
+        <fieldset>
+            {{range $row := .FormFields}}
+            <div class="row">
+                {{range $field := $row}}
+                <div class="column">
+                    {{ template "form-widget" $field }}
                 </div>
                 {{end}}
-            </fieldset>
-            <div class="row">
-                <div class="small-12 columns">
-                    <input type="submit" value="Submit">
-                </div>
             </div>
-        </form>
-    </details>
+            {{end}}
+        </fieldset>
+        <div class="row">
+            <div class="columns">
+                <input type="submit" value="Submit">
+            </div>
+        </div>
+    </form>
 
-<hr>
-{{.Table}}
+    <hr>
+    {{.Table}}
 </div>
 
 <script>

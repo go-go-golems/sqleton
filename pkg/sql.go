@@ -35,6 +35,7 @@ type SqlCommandDescription struct {
 	Name      string                            `yaml:"name"`
 	Short     string                            `yaml:"short"`
 	Long      string                            `yaml:"long,omitempty"`
+	Layout    [][]string                        `yaml:"layout,omitempty"`
 	Flags     []*parameters.ParameterDefinition `yaml:"flags,omitempty"`
 	Arguments []*parameters.ParameterDefinition `yaml:"arguments,omitempty"`
 	Layers    []layers.ParameterLayer           `yaml:"layers,omitempty"`
@@ -555,6 +556,7 @@ func (scl *SqlCommandLoader) LoadCommandFromYAML(
 		cmds.WithFlags(scd.Flags...),
 		cmds.WithArguments(scd.Arguments...),
 		cmds.WithLayers(scd.Layers...),
+		cmds.WithLayout(scd.Layout),
 	}
 	options_ = append(options_, options...)
 

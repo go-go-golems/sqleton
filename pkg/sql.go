@@ -7,6 +7,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
+	"github.com/go-go-golems/glazed/pkg/cmds/layout"
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/helpers/cast"
@@ -35,6 +36,7 @@ type SqlCommandDescription struct {
 	Name      string                            `yaml:"name"`
 	Short     string                            `yaml:"short"`
 	Long      string                            `yaml:"long,omitempty"`
+	Layout    []*layout.Section                 `yaml:"layout,omitempty"`
 	Flags     []*parameters.ParameterDefinition `yaml:"flags,omitempty"`
 	Arguments []*parameters.ParameterDefinition `yaml:"arguments,omitempty"`
 	Layers    []layers.ParameterLayer           `yaml:"layers,omitempty"`
@@ -555,6 +557,9 @@ func (scl *SqlCommandLoader) LoadCommandFromYAML(
 		cmds.WithFlags(scd.Flags...),
 		cmds.WithArguments(scd.Arguments...),
 		cmds.WithLayers(scd.Layers...),
+		cmds.WithLayout(&layout.Layout{
+			Sections: scd.Layout,
+		}),
 	}
 	options_ = append(options_, options...)
 

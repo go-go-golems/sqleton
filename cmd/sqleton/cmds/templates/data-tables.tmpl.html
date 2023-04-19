@@ -1,0 +1,161 @@
+<!-- Define a go template fragment that renders a form widget -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Command.Name}} - {{.Command.Short}}</title>
+
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="//cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.foundation.min.css">
+
+    <!-- jQuery and jQuery Validation Plugin -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.3/jquery.validate.min.js"></script>
+    <script src="//cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+</head>
+<body>
+{{ define "form-widget" }}
+<div {{ if .Id }}id="{{.Id}}"{{end}} {{ if .Classes }}class="{{.Classes }}"{{end}} {{ if .CSS }} style="{{.CSS}}"{{end}}>
+<!-- types can be string, int, float, bool, date, choice -->
+{{ if eq .Type "string" }}
+<label for="{{.Name}}">{{.Help}}</label>
+<input type="text" name="{{.Name}}" value="{{.Value}}">
+{{ else if eq .Type "stringList" }}
+<label for="{{.Name}}">{{.Help}}</label>
+<input type="text" name="{{.Name}}" value='{{.Value | join "," }}'>
+{{ else if eq .Type "int" }}
+<label for="{{.Name}}">{{.Help}}</label>
+<input type="number" name="{{.Name}}" value="{{.Value}}">
+{{ else if eq .Type "float" }}
+<label for="{{.Name}}">{{.Help}}</label>
+<input type="number" name="{{.Name}}" value="{{.Value}}">
+{{ else if eq .Type "bool" }}
+<div class="float-right">
+<label class="label-inline" for="{{.Name}}">{{.Help}}</label>
+<input type="checkbox" name="{{.Name}}" {{if .Value}}checked{{end}}>
+</div>
+{{ else if eq .Type "date" }}
+<label for="{{.Name}}">{{.Help}}</label>
+<input type="date" name="{{.Name}}" {{if .Value}}value="{{.Value | toDate}}"{{end}}>
+{{ else if eq .Type "choice" }}
+<label for="{{.Name}}">{{.Help}}</label>
+<select name="{{.Name}}">
+    {{ $parent := . }}
+    {{range $choice := .Options}}
+    <option value="{{$choice.Value}}" label="{{$choice.Label}}" {{if eq $choice.Value $parent.Value}}selected{{end}}>{{$choice.Label}} - {{$parent.Value}}</option>
+    {{end}}
+</select>
+{{ else }}
+<label for="{{.Name}}">{{.Help}}</label>
+<input type="text" name="{{.Name}}" value="{{.Value}}">
+{{ end }}
+</div>
+{{ end }}
+
+
+<div class="container">
+    <h1>{{.Command.Name}}</h1>
+    <p>{{.Command.Short}}</p>
+
+    <form id="form" action="{{.Command.Name}}" method="get">
+        <fieldset>
+            {{range $section := .Layout.Sections}}
+            <div class="row" {{if $section.Classes}}class="{{$section.Classes}}"{{end}} {{if $section.Style}}style="{{$section.Style}}"{{end}}>
+                <div class="columns">
+                    {{if $section.Title}}<h3>{{$section.Title}}</h3>{{end}}
+                    {{if $section.ShortDescription}}
+                    <p>{{$section.ShortDescription}}</p>
+                    {{end}}
+                    {{ if $section.LongDescription }}
+                    <p>{{$section.LongDescription }}</p>
+                    {{end}}
+                </div>
+            </div>
+            {{range $row := $section.Rows}}
+            <div class="row" {{if $row.Classes}}class="{{$row.Classes}}"{{end}} {{if $row.Style}}style="{{$row.Style}}"{{end}}>
+                {{range $field := $row.Inputs}}
+                <div class="column">
+                    {{ template "form-widget" $field }}
+                </div>
+                {{end}}
+            </div>
+            {{end}}
+            {{end}}
+        </fieldset>
+        <div class="row">
+            <div class="columns">
+                <input type="submit" value="Submit">
+            </div>
+        </div>
+    </form>
+
+    <hr>
+    {{.Table}}
+</div>
+
+<script>
+    function getQueryString() {
+        const form = document.getElementById('form');
+        const formData = new FormData(form);
+
+        const queryString = new URLSearchParams();
+
+        formData.forEach((value, key) => {
+            if (value) {
+                queryString.append(key, value);
+            }
+        });
+
+        return `${queryString.toString()}`;
+    }
+
+    $(document).ready(function () {
+        $('table').DataTable({
+            "paging": true,
+            "searching": true,
+            "ordering": true,
+            "info": true,
+            "autoWidth": false,
+            "responsive": true
+        });
+
+        // Get the form element
+        var form = $('#form');
+
+        // Attach a change event listener to all form inputs
+        form.find('input, select').on('change', function() {
+            // Submit the form
+            form.submit();
+        });
+
+        // Initialize jQuery Validation Plugin
+        $("#form").validate({
+            rules: {
+                // Add your form validation rules here
+            },
+            messages: {
+                // Add your custom error messages here
+            },
+            errorElement: "div",
+            errorPlacement: function (error, element) {
+                error.addClass("validation-error");
+                error.insertAfter(element);
+            },
+            highlight: function (element, errorClass) {
+                $(element).addClass("error");
+            },
+            unhighlight: function (element, errorClass) {
+                $(element).removeClass("error");
+            },
+            submitHandler: function (form) {
+                const query = getQueryString()
+                window.location.href = window.location.href.split('?')[0] + '?' + query;
+            }
+        });
+    });
+</script>
+</body>
+</html>

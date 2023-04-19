@@ -1,22 +1,74 @@
+<!-- Define a go template fragment that renders a form widget -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{.Title}}</title>
-    <!-- DataTables CSS -->
+    <title>{{.Command.Name}} - {{.Command.Short}}</title>
 
+    <!-- DataTables CSS -->
     <link rel="stylesheet" href="//cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/foundation/6.4.3/css/foundation.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.foundation.min.css">
+
+    <!-- jQuery and jQuery Validation Plugin -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.3/jquery.validate.min.js"></script>
     <script src="//cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
 </head>
 <body>
-<h1>YOYOYO {{.Title}}</h1>
+{{ define "form-widget" }}
+<!-- types can be string, int, float, bool, date, choice -->
+{{ if eq .Type "string" }}
+<label for="{{.Name}}">{{.Help}}</label>
+<input type="text" name="{{.Name}}" value="{{.Default}}">
+{{ else if eq .Type "int" }}
+<label for="{{.Name}}">{{.Help}}</label>
+<input type="number" name="{{.Name}}" value="{{.Default}}">
+{{ else if eq .Type "float" }}
+<label for="{{.Name}}">{{.Help}}</label>
+<input type="number" name="{{.Name}}" value="{{.Default}}">
+{{ else if eq .Type "bool" }}
+<input type="checkbox" name="{{.Name}}" value="true" {{if .Default}}checked{{end}}>{{.Help}}
+{{ else if eq .Type "date" }}
+<label for="{{.Name}}">{{.Help}}</label>
+<input type="date" name="{{.Name}}" value="{{.Default}}">
+{{ else if eq .Type "choice" }}
+<label for="{{.Name}}">{{.Help}}</label>
+<select name="{{.Name}}">
+    {{range $choice := .Choices}}
+    <option value="{{$choice}}" {{if eq $choice $.Default}}selected{{end}}>{{$choice}}</option>
+    {{end}}
+</select>
+{{ else }}
+<label for="{{.Name}}">{{.Help}}</label>
+<input type="text" name="{{.Name}}" value="{{.Default}}">
+{{ end }}
+{{ end }}
+
+
+<h1>{{.Command.Name}}</h1>
+<p>{{.Command.Short}}</p>
+
+<form action="{{.Command.Name}}" method="get">
+    {{range $flag := .Command.Flags}}
+    <div class="row">
+        <div class="small-12 columns">
+            {{ template "form-widget" $flag }}
+        </div>
+    </div>
+    {{end}}
+    <div class="row">
+        <div class="small-12 columns">
+            <input type="submit" value="Submit">
+        </div>
+    </div>
+</form>
+
+<hr>
 {{.Table}}
 <script>
-    $(document).ready(function() {
+    $(document).ready(function () {
         $('table').DataTable({
             "paging": true,
             "searching": true,
@@ -24,6 +76,30 @@
             "info": true,
             "autoWidth": false,
             "responsive": true
+        });
+
+        // Initialize jQuery Validation Plugin
+        $("#form").validate({
+            rules: {
+                // Add your form validation rules here
+            },
+            messages: {
+                // Add your custom error messages here
+            },
+            errorElement: "div",
+            errorPlacement: function (error, element) {
+                error.addClass("validation-error");
+                error.insertAfter(element);
+            },
+            highlight: function (element, errorClass) {
+                $(element).addClass("error");
+            },
+            unhighlight: function (element, errorClass) {
+                $(element).removeClass("error");
+            },
+            submitHandler: function (form) {
+                form.submit();
+            }
         });
     });
 </script>

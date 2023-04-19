@@ -17,6 +17,7 @@ import (
 	"github.com/go-go-golems/sqleton/pkg"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
+	"os"
 	"strings"
 )
 
@@ -45,6 +46,7 @@ func (s *ServeCommand) Run(
 			log.Info().Str("name", description.Name).
 				Str("source", description.Source).
 				Msg("Updating cmd")
+			// TODO(manuel, 2023-04-19) This is where we would recompute the HandlerFunc used below in GET and POST
 			return nil
 		}),
 		repositories.WithRemoveCallback(func(cmd cmds.Command) error {
@@ -52,6 +54,7 @@ func (s *ServeCommand) Run(
 			log.Info().Str("name", description.Name).
 				Str("source", description.Source).
 				Msg("Removing cmd")
+			// TODO(manuel, 2023-04-19) This is where we would recompute the HandlerFunc used below in GET and POST
 			return nil
 		}),
 	)
@@ -90,6 +93,7 @@ func (s *ServeCommand) Run(
 	sqletonConnectionLayer := parsedLayers["sqleton-connection"]
 	dbtConnectionLayer := parsedLayers["dbt"]
 
+	// Here we serve the HTML view of the command
 	server.Router.GET("/sqleton/*CommandPath", func(c *gin.Context) {
 		commandPath := c.Param("CommandPath")
 		commandPath = strings.TrimPrefix(commandPath, "/")
@@ -109,15 +113,27 @@ func (s *ServeCommand) Run(
 		if !ok || sqlCommand == nil {
 			c.JSON(500, gin.H{"error": "command is not a sql command"})
 		}
+
+		// NOTE(2023-04-19, manuel): This would lookup a precomputed handlerFunc that is computed by the repository watcher
+		// See note in WithUpdateCallback above.
+		// let's make our own template lookup from a local directory, with blackjack and footers
+		// TODO(manuel, 2023-04-19) This local loading from a directory reloadable is a dev mode kind of thing
+		localTemplateLookup, err := render.LookupTemplateFromFSReloadable(os.DirFS("."), "cmd/sqleton/cmds/templates", "cmd/sqleton/cmds/templates/**.tmpl.html")
+		if err != nil {
+			c.JSON(500, gin.H{"error": "could not create template lookup"})
+			return
+		}
+
+		dataTablesProcessorFunc := render.NewTemplateLookupCreateProcessorFunc(localTemplateLookup, "data-tables.tmpl.html")
+
 		handleSimpleQueryCommand := server.HandleSimpleQueryCommand(
 			sqlCommand,
 			glazed.WithCreateProcessor(
-				render.RenderDataTables,
+				dataTablesProcessorFunc,
 			),
 			glazed.WithParserOptions(
 				glazed.WithStaticLayer("sqleton-connection", sqletonConnectionLayer.Parameters),
 				glazed.WithStaticLayer("dbt", dbtConnectionLayer.Parameters),
-				glazed.WithGlazeOutputParserOption(glazedParameterLayers, "table", "html"),
 			),
 		)
 

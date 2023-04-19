@@ -122,6 +122,15 @@
             "responsive": true
         });
 
+        // Get the form element
+        var form = $('#form');
+
+        // Attach a change event listener to all form inputs
+        form.find('input, select').on('change', function() {
+            // Submit the form
+            form.submit();
+        });
+
         // Initialize jQuery Validation Plugin
         $("#form").validate({
             rules: {
@@ -143,8 +152,6 @@
             },
             submitHandler: function (form) {
                 const query = getQueryString()
-                console.log("query", query)
-                console.log("prev part", window.location.href.split('?')[0])
                 window.location.href = window.location.href.split('?')[0] + '?' + query;
             }
         });

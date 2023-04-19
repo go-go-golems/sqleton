@@ -47,26 +47,35 @@
 {{ end }}
 
 
+<div class="container">
 <h1>{{.Command.Name}}</h1>
 <p>{{.Command.Short}}</p>
 
-<form action="{{.Command.Name}}" method="get">
-    {{range $flag := .Command.Flags}}
-    <div class="row">
-        <div class="small-12 columns">
-            {{ template "form-widget" $flag }}
-        </div>
-    </div>
-    {{end}}
-    <div class="row">
-        <div class="small-12 columns">
-            <input type="submit" value="Submit">
-        </div>
-    </div>
-</form>
+    <details>
+        <summary>Form Example</summary>
+
+        <form id="form" action="{{.Command.Name}}" method="get">
+            <fieldset>
+                {{range $flag := .Command.Flags}}
+                <div class="row">
+                    <div class="small-12 columns">
+                        {{ template "form-widget" $flag }}
+                    </div>
+                </div>
+                {{end}}
+            </fieldset>
+            <div class="row">
+                <div class="small-12 columns">
+                    <input type="submit" value="Submit">
+                </div>
+            </div>
+        </form>
+    </details>
 
 <hr>
 {{.Table}}
+</div>
+
 <script>
     $(document).ready(function () {
         $('table').DataTable({
@@ -98,7 +107,15 @@
                 $(element).removeClass("error");
             },
             submitHandler: function (form) {
-                form.submit();
+                var formData = {};
+                $('#form input').each(function () {
+                    if ($(this).val()) {
+                        formData[$(this).attr('name')] = $(this).val();
+                    }
+                });
+
+                var query = $.param(formData);
+                window.location.href = window.location.href.split('?')[0] + '?' + query;
             }
         });
     });

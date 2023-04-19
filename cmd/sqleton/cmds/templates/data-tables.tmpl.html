@@ -18,35 +18,41 @@
 </head>
 <body>
 {{ define "form-widget" }}
+<div {{ if .Id }}id="{{.Id}}"{{end}} {{ if .Classes }}class="{{.Classes }}"{{end}} {{ if .CSS }} style="{{.CSS}}"{{end}}>
 <!-- types can be string, int, float, bool, date, choice -->
 {{ if eq .Type "string" }}
 <label for="{{.Name}}">{{.Help}}</label>
-<input type="text" name="{{.Name}}" value="{{.Default}}">
+<input type="text" name="{{.Name}}" value="{{.Value}}">
+{{ else if eq .Type "stringList" }}
+<label for="{{.Name}}">{{.Help}}</label>
+<input type="text" name="{{.Name}}" value='{{.Value | join "," }}'>
 {{ else if eq .Type "int" }}
 <label for="{{.Name}}">{{.Help}}</label>
-<input type="number" name="{{.Name}}" value="{{.Default}}">
+<input type="number" name="{{.Name}}" value="{{.Value}}">
 {{ else if eq .Type "float" }}
 <label for="{{.Name}}">{{.Help}}</label>
-<input type="number" name="{{.Name}}" value="{{.Default}}">
+<input type="number" name="{{.Name}}" value="{{.Value}}">
 {{ else if eq .Type "bool" }}
 <div class="float-right">
 <label class="label-inline" for="{{.Name}}">{{.Help}}</label>
-<input type="checkbox" name="{{.Name}}" value="true" {{if .Default}}checked{{end}}>
+<input type="checkbox" name="{{.Name}}" {{if .Value}}checked{{end}}>
 </div>
 {{ else if eq .Type "date" }}
 <label for="{{.Name}}">{{.Help}}</label>
-<input type="date" name="{{.Name}}" value="{{.Default}}">
+<input type="date" name="{{.Name}}" {{if .Value}}value="{{.Value | toDate}}"{{end}}>
 {{ else if eq .Type "choice" }}
 <label for="{{.Name}}">{{.Help}}</label>
 <select name="{{.Name}}">
-    {{range $choice := .Choices}}
-    <option value="{{$choice}}" {{if eq $choice $.Default}}selected{{end}}>{{$choice}}</option>
+    {{ $parent := . }}
+    {{range $choice := .Options}}
+    <option value="{{$choice.Value}}" label="{{$choice.Label}}" {{if eq $choice.Value $parent.Value}}selected{{end}}>{{$choice.Label}} - {{$parent.Value}}</option>
     {{end}}
 </select>
 {{ else }}
 <label for="{{.Name}}">{{.Help}}</label>
-<input type="text" name="{{.Name}}" value="{{.Default}}">
+<input type="text" name="{{.Name}}" value="{{.Value}}">
 {{ end }}
+</div>
 {{ end }}
 
 
@@ -56,14 +62,27 @@
 
     <form id="form" action="{{.Command.Name}}" method="get">
         <fieldset>
-            {{range $row := .FormFields}}
-            <div class="row">
-                {{range $field := $row}}
+            {{range $section := .Layout.Sections}}
+            <div class="row" {{if $section.Classes}}class="{{$section.Classes}}"{{end}} {{if $section.Style}}style="{{$section.Style}}"{{end}}>
+                <div class="columns">
+                    {{if $section.Title}}<h3>{{$section.Title}}</h3>{{end}}
+                    {{if $section.ShortDescription}}
+                    <p>{{$section.ShortDescription}}</p>
+                    {{end}}
+                    {{ if $section.LongDescription }}
+                    <p>{{$section.LongDescription }}</p>
+                    {{end}}
+                </div>
+            </div>
+            {{range $row := $section.Rows}}
+            <div class="row" {{if $row.Classes}}class="{{$row.Classes}}"{{end}} {{if $row.Style}}style="{{$row.Style}}"{{end}}>
+                {{range $field := $row.Inputs}}
                 <div class="column">
                     {{ template "form-widget" $field }}
                 </div>
                 {{end}}
             </div>
+            {{end}}
             {{end}}
         </fieldset>
         <div class="row">
@@ -78,6 +97,21 @@
 </div>
 
 <script>
+    function getQueryString() {
+        const form = document.getElementById('form');
+        const formData = new FormData(form);
+
+        const queryString = new URLSearchParams();
+
+        formData.forEach((value, key) => {
+            if (value) {
+                queryString.append(key, value);
+            }
+        });
+
+        return `${queryString.toString()}`;
+    }
+
     $(document).ready(function () {
         $('table').DataTable({
             "paging": true,
@@ -108,14 +142,9 @@
                 $(element).removeClass("error");
             },
             submitHandler: function (form) {
-                var formData = {};
-                $('#form input').each(function () {
-                    if ($(this).val()) {
-                        formData[$(this).attr('name')] = $(this).val();
-                    }
-                });
-
-                var query = $.param(formData);
+                const query = getQueryString()
+                console.log("query", query)
+                console.log("prev part", window.location.href.split('?')[0])
                 window.location.href = window.location.href.split('?')[0] + '?' + query;
             }
         });

@@ -2,10 +2,10 @@ package cmds
 
 import (
 	"context"
+	"embed"
 	"github.com/gin-gonic/gin"
 	"github.com/go-go-golems/clay/pkg/repositories"
 	"github.com/go-go-golems/clay/pkg/watcher"
-	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
@@ -17,6 +17,7 @@ import (
 	"github.com/go-go-golems/sqleton/pkg"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
+	"net/http"
 	"os"
 	"strings"
 )
@@ -32,6 +33,9 @@ type ServeCommand struct {
 func (s *ServeCommand) Description() *cmds.CommandDescription {
 	return s.description
 }
+
+//go:embed templates
+var embeddedFiles embed.FS
 
 func (s *ServeCommand) Run(
 	ctx context.Context,
@@ -85,10 +89,16 @@ func (s *ServeCommand) Run(
 		return err
 	}
 
-	glazedParameterLayers, err := cli.NewGlazedParameterLayers()
+	//glazedParameterLayers, err := cli.NewGlazedParameterLayers()
 	if err != nil {
 		return err
 	}
+
+	server.Router.StaticFileFS(
+		"favicon.ico",
+		"templates/favicon.ico",
+		http.FS(embeddedFiles),
+	)
 
 	sqletonConnectionLayer := parsedLayers["sqleton-connection"]
 	dbtConnectionLayer := parsedLayers["dbt"]
@@ -164,7 +174,7 @@ func (s *ServeCommand) Run(
 			glazed.WithParserOptions(
 				glazed.WithStaticLayer("sqleton-connection", sqletonConnectionLayer.Parameters),
 				glazed.WithStaticLayer("dbt", dbtConnectionLayer.Parameters),
-				glazed.WithGlazeOutputParserOption(glazedParameterLayers, "table", "html"),
+				//glazed.WithGlazeOutputParserOption(glazedParameterLayers, "table", "html"),
 			),
 		)
 

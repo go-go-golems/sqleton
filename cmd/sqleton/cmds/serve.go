@@ -188,7 +188,7 @@ func (s *ServeCommand) Run(
 		)
 	})
 	errGroup.Go(func() error {
-		return server.Run()
+		return server.Run(ctx)
 	})
 
 	err = errGroup.Wait()

@@ -3,9 +3,11 @@ package cmds
 import (
 	"context"
 	"embed"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/go-go-golems/clay/pkg/repositories"
 	"github.com/go-go-golems/clay/pkg/watcher"
+	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
@@ -20,6 +22,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
 type ServeCommand struct {
@@ -107,21 +110,9 @@ func (s *ServeCommand) Run(
 	server.Router.GET("/sqleton/*CommandPath", func(c *gin.Context) {
 		commandPath := c.Param("CommandPath")
 		commandPath = strings.TrimPrefix(commandPath, "/")
-		path := strings.Split(commandPath, "/")
-		commands := r.Root.CollectCommands(path, false)
-		if len(commands) == 0 {
-			c.JSON(404, gin.H{"error": "command not found"})
+		sqlCommand, ok := getRepositoryCommand(c, r, commandPath)
+		if !ok {
 			return
-		}
-
-		if len(commands) > 1 {
-			c.JSON(404, gin.H{"error": "ambiguous command"})
-			return
-		}
-
-		sqlCommand, ok := commands[0].(cmds.GlazeCommand)
-		if !ok || sqlCommand == nil {
-			c.JSON(500, gin.H{"error": "command is not a sql command"})
 		}
 
 		// NOTE(2023-04-19, manuel): This would lookup a precomputed handlerFunc that is computed by the repository watcher
@@ -134,9 +125,58 @@ func (s *ServeCommand) Run(
 			return
 		}
 
-		dataTablesProcessorFunc := render.NewTemplateLookupCreateProcessorFunc(localTemplateLookup, "data-tables.tmpl.html")
+		type Link struct {
+			Href  string
+			Text  string
+			Class string
+		}
 
-		handleSimpleQueryCommand := server.HandleSimpleQueryCommand(
+		name := sqlCommand.Description().Name
+		dateTime := time.Now().Format("2006-01-02--15-04-05")
+		links := []Link{
+			{
+				Href:  fmt.Sprintf("/download/%s/%s-%s.csv", commandPath, dateTime, name),
+				Text:  "Download CSV",
+				Class: "download",
+			},
+			{
+				Href:  fmt.Sprintf("/download/%s/%s-%s.json", commandPath, dateTime, name),
+				Text:  "Download JSON",
+				Class: "download",
+			},
+			{
+				Href:  fmt.Sprintf("/download/%s/%s-%s.xlsx", commandPath, dateTime, name),
+				Text:  "Download Excel",
+				Class: "download",
+			},
+			{
+				Href:  fmt.Sprintf("/download/%s/%s-%s.md", commandPath, dateTime, name),
+				Text:  "Download Markdown",
+				Class: "download",
+			},
+			{
+				Href:  fmt.Sprintf("/download/%s/%s-%s.html", commandPath, dateTime, name),
+				Text:  "Download HTML",
+				Class: "download",
+			},
+			{
+				Href:  fmt.Sprintf("/download/%s/%s-%s.txt", commandPath, dateTime, name),
+				Text:  "Download Text",
+				Class: "download",
+			},
+		}
+
+		dataTablesProcessorFunc := render.NewHTMLTemplateLookupCreateProcessorFunc(
+			localTemplateLookup,
+			"data-tables.tmpl.html",
+			render.WithHTMLTemplateOutputFormatterData(
+				map[string]interface{}{
+					"Links": links,
+				},
+			),
+		)
+
+		handle := server.HandleSimpleQueryCommand(
 			sqlCommand,
 			glazed.WithCreateProcessor(
 				dataTablesProcessorFunc,
@@ -147,38 +187,85 @@ func (s *ServeCommand) Run(
 			),
 		)
 
-		handleSimpleQueryCommand(c)
+		handle(c)
 	})
 
-	server.Router.POST("/sqleton/*CommandPath", func(c *gin.Context) {
-		commandPath := c.Param("CommandPath")
-		commandPath = strings.TrimPrefix(commandPath, "/")
-		path := strings.Split(commandPath, "/")
-		commands := r.Root.CollectCommands(path, false)
-		if len(commands) == 0 {
-			c.JSON(404, gin.H{"error": "command not found"})
+	server.Router.GET("/download/*CommandPath", func(c *gin.Context) {
+		path := c.Param("CommandPath")
+		// get file name at end of path
+		index := strings.LastIndex(path, "/")
+		if index == -1 {
+			c.JSON(500, gin.H{"error": "could not find file name"})
+			return
+		}
+		if index >= len(path)-1 {
+			c.JSON(500, gin.H{"error": "could not find file name"})
+			return
+		}
+		fileName := path[index+1:]
+
+		commandPath := strings.TrimPrefix(path[:index], "/")
+		sqlCommand, ok := getRepositoryCommand(c, r, commandPath)
+		if !ok {
 			return
 		}
 
-		if len(commands) > 1 {
-			c.JSON(404, gin.H{"error": "ambiguous command"})
+		// create a temporary file for glazed output
+		tmpFile, err := os.CreateTemp("/tmp", fmt.Sprintf("glazed-output-*.%s", fileName))
+		if err != nil {
+			c.JSON(500, gin.H{"error": "could not create temporary file"})
+			return
+		}
+		defer os.Remove(tmpFile.Name())
+
+		// now check file suffix for content-type
+		glazedParameters := map[string]interface{}{
+			"output-file": tmpFile.Name(),
+		}
+		if strings.HasSuffix(fileName, ".csv") {
+			glazedParameters["output"] = "table"
+			glazedParameters["table-format"] = "csv"
+		} else if strings.HasSuffix(fileName, ".tsv") {
+			glazedParameters["output"] = "table"
+			glazedParameters["table-format"] = "tsv"
+		} else if strings.HasSuffix(fileName, ".md") {
+			glazedParameters["output"] = "table"
+			glazedParameters["table-format"] = "markdown"
+		} else if strings.HasSuffix(fileName, ".html") {
+			glazedParameters["output"] = "table"
+			glazedParameters["table-format"] = "html"
+		} else if strings.HasSuffix(fileName, ".json") {
+			glazedParameters["output"] = "json"
+		} else if strings.HasSuffix(fileName, ".yaml") {
+			glazedParameters["yaml"] = "yaml"
+		} else if strings.HasSuffix(fileName, ".xlsx") {
+			glazedParameters["output"] = "excel"
+		} else if strings.HasSuffix(fileName, ".txt") {
+			glazedParameters["output"] = "table"
+			glazedParameters["table-format"] = "ascii"
+		} else {
+			c.JSON(500, gin.H{"error": "could not determine output format"})
 			return
 		}
 
-		sqlCommand, ok := commands[0].(*pkg.SqlCommand)
-		if !ok || sqlCommand == nil {
-			c.JSON(500, gin.H{"error": "command is not a sql command"})
+		glazedParameterLayers, err := cli.NewGlazedParameterLayers()
+		if err != nil {
+			c.JSON(500, gin.H{"error": "could not create glazed parameter layers"})
+			return
 		}
-		handleSimpleFormCommand := server.HandleSimpleFormCommand(
+
+		handle := server.HandleSimpleQueryOutputFileCommand(
 			sqlCommand,
+			tmpFile.Name(),
+			fileName,
 			glazed.WithParserOptions(
+				glazed.WithCustomizedParameterLayerParser(glazedParameterLayers, glazedParameters),
 				glazed.WithStaticLayer("sqleton-connection", sqletonConnectionLayer.Parameters),
 				glazed.WithStaticLayer("dbt", dbtConnectionLayer.Parameters),
-				//glazed.WithGlazeOutputParserOption(glazedParameterLayers, "table", "html"),
 			),
 		)
 
-		handleSimpleFormCommand(c)
+		handle(c)
 	})
 
 	errGroup, ctx := errgroup.WithContext(ctx)
@@ -197,6 +284,26 @@ func (s *ServeCommand) Run(
 	}
 
 	return nil
+}
+
+func getRepositoryCommand(c *gin.Context, r *repositories.Repository, commandPath string) (cmds.GlazeCommand, bool) {
+	path := strings.Split(commandPath, "/")
+	commands := r.Root.CollectCommands(path, false)
+	if len(commands) == 0 {
+		c.JSON(404, gin.H{"error": "command not found"})
+		return nil, false
+	}
+
+	if len(commands) > 1 {
+		c.JSON(404, gin.H{"error": "ambiguous command"})
+		return nil, false
+	}
+
+	sqlCommand, ok := commands[0].(cmds.GlazeCommand)
+	if !ok || sqlCommand == nil {
+		c.JSON(500, gin.H{"error": "command is not a sql command"})
+	}
+	return sqlCommand, true
 }
 
 func NewServeCommand(

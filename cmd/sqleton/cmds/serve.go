@@ -119,7 +119,7 @@ func (s *ServeCommand) Run(
 			return
 		}
 
-		sqlCommand, ok := commands[0].(*pkg.SqlCommand)
+		sqlCommand, ok := commands[0].(cmds.GlazeCommand)
 		if !ok || sqlCommand == nil {
 			c.JSON(500, gin.H{"error": "command is not a sql command"})
 		}

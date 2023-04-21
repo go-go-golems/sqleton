@@ -11,6 +11,9 @@ gifs: $(TAPES)
 docker-lint:
 	docker run --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:v1.50.1 golangci-lint run -v
 
+ghcr-login:
+	op read "$(CR_PAT)" | docker login ghcr.io -u wesen --password-stdin
+
 lint:
 	golangci-lint run -v
 

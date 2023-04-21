@@ -109,8 +109,8 @@ github.com/go-go-golems/clay v0.0.14 h1:7+WcSpobbtmNd19H0WhSkhkuarcI3s2syvfEoF+z
 github.com/go-go-golems/clay v0.0.14/go.mod h1:Pxk9nEIhlxmpwmVzClLptRVwrs4LGnbbdSyJrtNuiVU=
 github.com/go-go-golems/glazed v0.2.70 h1:P9V61re/kfwegQdaIfMGRE68iycg04ry2D6v05ssN2I=
 github.com/go-go-golems/glazed v0.2.70/go.mod h1:L07GcXoQFTLktDLTuqbfodBjjyS10KYAuDee3p4lxe4=
-github.com/go-go-golems/parka v0.2.11 h1:lJphqXBK8MtXCr4f5+JN0G/sN31jSBC8PAMP0/VrhKY=
-github.com/go-go-golems/parka v0.2.11/go.mod h1:8mpjy3rPnxJY1nZ0BBk1IO0kWc4U5EwYJ22Z6rUrWME=
+github.com/go-go-golems/parka v0.2.12 h1:YmnDxm/arCFbe1SzgIUINLWfmH2UDfj9yJXyg7txUjA=
+github.com/go-go-golems/parka v0.2.12/go.mod h1:EFlJyiGcAdMAliAUN1t2BpeFA9BC6sWSj/ceafS62Nc=
 github.com/go-openapi/errors v0.20.3 h1:rz6kiC84sqNQoqrtulzaL/VERgkoCyB6WdEkc2ujzUc=
 github.com/go-openapi/errors v0.20.3/go.mod h1:Z3FlZ4I8jEGxjUK+bugx3on2mIAk4txuAOhlsB1FSgk=
 github.com/go-openapi/strfmt v0.21.7 h1:rspiXgNWgeUzhjo1YU01do6qsahtJNByjLVbPLNHb8k=

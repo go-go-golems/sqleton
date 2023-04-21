@@ -21,6 +21,15 @@ build:
 	go generate ./...
 	go build ./...
 
+sqleton:
+	go build -o sqleton ./cmd/sqleton 
+
+build-docker:
+	GOOS=linux GOARCH=amd64 go build -o sqleton ./cmd/sqleton
+	docker buildx build -t go-go-golems/sqleton:amd64 . --platform=linux/amd64
+	GOOS=linux GOARCH=arm64 go build -o sqleton ./cmd/sqleton
+	docker buildx build -t go-go-golems/sqleton:arm64v8 . --platform=linux/arm64/v8
+
 goreleaser:
 	goreleaser release --skip-sign --snapshot --rm-dist
 

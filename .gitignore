@@ -1,3 +1,4 @@
 /.env
 go.work
 dist/
+sqleton

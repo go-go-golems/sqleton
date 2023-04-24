@@ -51,9 +51,10 @@ func (cp *ConnectionParameterLayer) ParseFlagsFromCobraCommand(cmd *cobra.Comman
 //go:embed "flags/helpers.yaml"
 var helpersFlagsYaml []byte
 
-func NewSqlHelpersParameterLayer() (*layers.ParameterLayerImpl, error) {
-	ret := &layers.ParameterLayerImpl{}
-	err := ret.LoadFromYAML(helpersFlagsYaml)
+func NewSqlHelpersParameterLayer(
+	options ...layers.ParameterLayerOptions,
+) (*layers.ParameterLayerImpl, error) {
+	ret, err := layers.NewParameterLayerFromYAML(helpersFlagsYaml, options...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to initialize helpers parameter layer")
 	}
@@ -67,13 +68,16 @@ type DbtParameterLayer struct {
 	layers.ParameterLayerImpl
 }
 
-func NewDbtParameterLayer() (*DbtParameterLayer, error) {
-	ret := &DbtParameterLayer{}
-	err := ret.LoadFromYAML(dbtFlagsYaml)
+func NewDbtParameterLayer(
+	options ...layers.ParameterLayerOptions,
+) (*DbtParameterLayer, error) {
+	ret, err := layers.NewParameterLayerFromYAML(dbtFlagsYaml, options...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to initialize dbt parameter layer")
 	}
-	return ret, nil
+	return &DbtParameterLayer{
+		ParameterLayerImpl: *ret,
+	}, nil
 }
 
 func (d *DbtParameterLayer) ParseFlagsFromCobraCommand(cmd *cobra.Command) (map[string]interface{}, error) {

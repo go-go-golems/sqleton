@@ -13,6 +13,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
+	"github.com/go-go-golems/glazed/pkg/helpers"
 	parka "github.com/go-go-golems/parka/pkg"
 	"github.com/go-go-golems/parka/pkg/glazed"
 	"github.com/go-go-golems/parka/pkg/render"
@@ -166,15 +167,26 @@ func (s *ServeCommand) Run(
 			},
 		}
 
-		dataTablesProcessorFunc := render.NewHTMLTemplateLookupCreateProcessorFunc(
-			localTemplateLookup,
-			"data-tables.tmpl.html",
-			render.WithHTMLTemplateOutputFormatterData(
-				map[string]interface{}{
-					"Links": links,
-				},
-			),
-		)
+		dev, _ := ps["dev"].(bool)
+
+		var dataTablesProcessorFunc glazed.CreateProcessorFunc
+		if dev {
+			dataTablesProcessorFunc = render.NewHTMLTemplateLookupCreateProcessorFunc(
+				localTemplateLookup,
+				"data-tables.tmpl.html",
+				render.WithHTMLTemplateOutputFormatterData(
+					map[string]interface{}{
+						"Links": links,
+					},
+				),
+			)
+		} else {
+			dataTablesProcessorFunc, err = render.NewDefaultCreateProcessorFunc()
+			if err != nil {
+				c.JSON(500, gin.H{"error": "could not create default processor func"})
+				return
+			}
+		}
 
 		handle := server.HandleSimpleQueryCommand(
 			sqlCommand,
@@ -268,6 +280,9 @@ func (s *ServeCommand) Run(
 		handle(c)
 	})
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	errGroup, ctx := errgroup.WithContext(ctx)
 	errGroup.Go(func() error {
 		return r.Watch(ctx, yamlLoader, nil,
@@ -276,6 +291,9 @@ func (s *ServeCommand) Run(
 	})
 	errGroup.Go(func() error {
 		return server.Run(ctx)
+	})
+	errGroup.Go(func() error {
+		return helpers.CancelOnSignal(ctx, os.Interrupt, cancel)
 	})
 
 	err = errGroup.Wait()

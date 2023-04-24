@@ -172,7 +172,10 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	repositories := viper.GetStringSlice("repositories")
 
 	defaultDirectory := "$HOME/.sqleton/queries"
-	repositories = append(repositories, os.ExpandEnv(defaultDirectory))
+	_, err = os.Stat(os.ExpandEnv(defaultDirectory))
+	if err == nil {
+		repositories = append(repositories, os.ExpandEnv(defaultDirectory))
+	}
 
 	locations := clay_cmds.CommandLocations{
 		Embedded: []clay_cmds.EmbeddedCommandLocation{

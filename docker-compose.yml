@@ -1,0 +1,12 @@
+version: '3'
+services:
+  sqleton:
+    build:
+      context: .
+      args:
+        GOOS: linux
+        GOARCH: arm64
+    image: go-go-golems/sqleton:arm64v8
+    ports:
+      - "8080:8080"
+    command: ["serve", "--serve-host", "0.0.0.0", "--serve-port", "8080"]

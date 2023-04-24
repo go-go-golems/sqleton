@@ -165,6 +165,7 @@ func (s *SqlCommand) IsValid() bool {
 	return s.description.Name != "" && s.Query != "" && s.description.Short != ""
 }
 
+// TODO(manuel, 2023-04-23) These should be moved to the templating helpers in  glazed
 func sqlEscape(value string) string {
 	return strings.Replace(value, "'", "''", -1)
 }
@@ -606,5 +607,4 @@ func LoadSqletonCommandFromYAML(
 	sqletonCommand := cmds_[0].(SqletonCommand)
 
 	return sqletonCommand, nil
-
 }

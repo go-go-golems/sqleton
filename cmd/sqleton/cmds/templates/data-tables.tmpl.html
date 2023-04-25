@@ -7,14 +7,16 @@
     <title>{{.Command.Name}} - {{.Command.Short}}</title>
 
     <!-- DataTables CSS -->
-    <link rel="stylesheet" href="//cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.foundation.min.css">
 
     <!-- jQuery and jQuery Validation Plugin -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.3/jquery.validate.min.js"></script>
-    <script src="//cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+
+    <link href="https://cdn.datatables.net/v/dt/dt-1.13.4/sc-2.1.1/datatables.min.css" rel="stylesheet"/>
+
+    <script src="https://cdn.datatables.net/v/dt/dt-1.13.4/sc-2.1.1/datatables.min.js"></script>
 </head>
 <body>
 {{ define "form-widget" }}
@@ -57,7 +59,6 @@
     {{ end }}
 </div>
 {{ end }}
-
 
 <div class="container">
     <h1>{{.Command.Name}}</h1>
@@ -105,10 +106,16 @@
         {{ end }}
     </div>
     <hr>
-    {{.Table}}
+    {{ if .HTMLTable }} {{.HTMLTable}}
+    {{ else }} <table id="dataTable"></table> {{ end }}
 </div>
 
 <script>
+    {{ if .JSTable}}
+    const jsData = {{.JSTable}};
+    {{else }}const jsData = null;
+    {{ end }}
+    const foobar = {{ .Command.Name }};
     function getQueryString() {
         const form = document.getElementById('form');
         const formData = new FormData(form);
@@ -125,15 +132,64 @@
     }
 
     $(document).ready(function () {
-        $('table').DataTable({
-            "paging": true,
-            "searching": true,
-            "ordering": true,
-            "info": true,
-            "autoWidth": false,
-            "responsive": true
-        });
+        // ajax url is query url with query parameters, but starting with /data
+        let currentUrl = window.location.href;
+        // remove querystring
+        currentUrl = currentUrl.split('?')[0];
+        // strip front part of url
+        currentUrl = currentUrl.replace(/\/sqleton/, '/data');
+        const ajaxUrl = currentUrl + '?' + getQueryString();
 
+        function computeColumns(json) {
+            if (json.length === 0) {
+                return [];
+            }
+            // iterate over json[0] and return { "data": element } for each element
+            return Object.keys(json[0]).map(function (key) {
+                return {"data": key};
+            });
+        }
+
+        function setupDataTables(data, columns) {
+            $('table').DataTable({
+                "paging": true,
+                "searching": true,
+                "ordering": true,
+                "info": true,
+                "autoWidth": false,
+                "responsive": true,
+                data: data,
+                "columns": columns
+            })
+
+        }
+
+        if (jsData !== null) {
+            const columns = computeColumns(jsData);
+            // setup datatables
+            setupDataTables(jsData, columns);
+        }
+
+        // do the ajax call and then setup datatables
+        // fetch(ajaxUrl).then(
+        //     function (response) {
+        //         if (response.status !== 200) {
+        //             console.log('Looks like there was a problem. Status Code: ' +
+        //                 response.status);
+        //             return;
+        //         }
+        //
+        //         // Examine the text in the response
+        //         response.json().then(function (data) {
+        //             const columns = computeColumns(data);
+        //             setupDataTables(data, columns);
+        //         });
+        //     }
+        // ).catch(function (err) {
+        //     console.log('Fetch Error :-S', err);
+        // });
+
+        //
         // Get the form element
         var form = $('#form');
 

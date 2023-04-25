@@ -83,11 +83,57 @@ func (s *ServeCommand) Run(
 	// now set up parka server
 	port := ps["serve-port"].(int)
 	host := ps["serve-host"].(string)
+	dev, _ := ps["dev"].(bool)
+
+	// TODO(manuel, 2023-04-19) These are currently handled as template dirs only, not as static dirs
+	contentDirs := ps["content-dirs"].([]string)
 
 	serverOptions := []parka.ServerOption{
 		parka.WithPort(uint16(port)),
 		parka.WithAddress(host),
+		parka.WithGzip(),
 	}
+
+	if len(contentDirs) > 0 {
+		lookups := make([]render.TemplateLookup, len(contentDirs))
+		for i, contentDir := range contentDirs {
+			isAbsoluteDir := strings.HasPrefix(contentDir, "/")
+			fsDir := "."
+			if isAbsoluteDir {
+				fsDir = "/"
+			}
+			localTemplateLookup, err := render.LookupTemplateFromFSReloadable(os.DirFS(fsDir), contentDir, "**/*.tmpl.*")
+			if err != nil {
+				return fmt.Errorf("failed to load local template: %w", err)
+			}
+			lookups[i] = localTemplateLookup
+		}
+		serverOptions = append(serverOptions, parka.WithAppendTemplateLookups(lookups...))
+	}
+
+	if dev {
+		templateLookup, err := render.LookupTemplateFromFSReloadable(
+			os.DirFS("."),
+			"cmd/sqleton/cmds/templates/static",
+			"**/*.tmpl.*",
+		)
+		if err != nil {
+			return fmt.Errorf("failed to load local template: %w", err)
+		}
+		serverOptions = append(serverOptions, parka.WithAppendTemplateLookups(templateLookup))
+	} else {
+		embeddedTemplateLookup, err := render.LookupTemplateFromFS(embeddedFiles, "templates/static")
+		if err != nil {
+			return fmt.Errorf("failed to load embedded template: %w", err)
+		}
+		serverOptions = append(serverOptions, parka.WithAppendTemplateLookups(embeddedTemplateLookup))
+	}
+
+	serverOptions = append(serverOptions,
+		parka.WithDefaultParkaLookup(),
+		parka.WithDefaultParkaStaticPaths(),
+	)
+
 	server, err := parka.NewServer(serverOptions...)
 	if err != nil {
 		return err
@@ -107,12 +153,36 @@ func (s *ServeCommand) Run(
 	sqletonConnectionLayer := parsedLayers["sqleton-connection"]
 	dbtConnectionLayer := parsedLayers["dbt"]
 
+	// server as JSON for datatables
+	server.Router.GET("/data/*CommandPath", func(c *gin.Context) {
+		commandPath := c.Param("CommandPath")
+		commandPath = strings.TrimPrefix(commandPath, "/")
+		sqlCommand, ok := getRepositoryCommand(c, r, commandPath)
+		if !ok {
+			c.JSON(404, gin.H{"error": "command not found"})
+			return
+		}
+
+		jsonProcessorFunc := glazed.CreateJSONProcessor
+
+		handle := server.HandleSimpleQueryCommand(sqlCommand,
+			glazed.WithCreateProcessor(jsonProcessorFunc),
+			glazed.WithParserOptions(
+				glazed.WithStaticLayer("sqleton-connection", sqletonConnectionLayer.Parameters),
+				glazed.WithStaticLayer("dbt", dbtConnectionLayer.Parameters),
+			),
+		)
+
+		handle(c)
+	})
+
 	// Here we serve the HTML view of the command
 	server.Router.GET("/sqleton/*CommandPath", func(c *gin.Context) {
 		commandPath := c.Param("CommandPath")
 		commandPath = strings.TrimPrefix(commandPath, "/")
 		sqlCommand, ok := getRepositoryCommand(c, r, commandPath)
 		if !ok {
+			c.JSON(404, gin.H{"error": "command not found"})
 			return
 		}
 
@@ -179,9 +249,17 @@ func (s *ServeCommand) Run(
 						"Links": links,
 					},
 				),
+				render.WithJavascriptRendering(),
 			)
 		} else {
-			dataTablesProcessorFunc, err = render.NewDefaultCreateProcessorFunc()
+			dataTablesProcessorFunc, err = render.NewDataTablesHTMLTemplateCreateProcessorFunc(
+				render.WithHTMLTemplateOutputFormatterData(
+					map[string]interface{}{
+						"Links": links,
+					},
+				),
+				render.WithJavascriptRendering(),
+			)
 			if err != nil {
 				c.JSON(500, gin.H{"error": "could not create default processor func"})
 				return
@@ -219,6 +297,7 @@ func (s *ServeCommand) Run(
 		commandPath := strings.TrimPrefix(path[:index], "/")
 		sqlCommand, ok := getRepositoryCommand(c, r, commandPath)
 		if !ok {
+			c.JSON(404, gin.H{"error": "command not found"})
 			return
 		}
 
@@ -345,6 +424,18 @@ func NewServeCommand(
 				parameters.ParameterTypeString,
 				parameters.WithHelp("Host to serve the API on"),
 				parameters.WithDefault("localhost"),
+			),
+			parameters.NewParameterDefinition(
+				"dev",
+				parameters.ParameterTypeBool,
+				parameters.WithHelp("Run in development mode"),
+				parameters.WithDefault(false),
+			),
+			parameters.NewParameterDefinition(
+				"content-dirs",
+				parameters.ParameterTypeStringList,
+				parameters.WithHelp("Serve static and templated files from these directories"),
+				parameters.WithDefault([]string{}),
 			),
 		),
 	)

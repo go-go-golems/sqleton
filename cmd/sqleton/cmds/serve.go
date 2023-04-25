@@ -383,6 +383,12 @@ func NewServeCommand(
 				parameters.WithHelp("Run in development mode"),
 				parameters.WithDefault(false),
 			),
+			parameters.NewParameterDefinition(
+				"content-dir",
+				parameters.ParameterTypeStringList,
+				parameters.WithHelp("Serve static and templated files from these directories"),
+				parameters.WithDefault([]string{}),
+			),
 		),
 	)
 	return &ServeCommand{

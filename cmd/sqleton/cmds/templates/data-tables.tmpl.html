@@ -7,14 +7,16 @@
     <title>{{.Command.Name}} - {{.Command.Short}}</title>
 
     <!-- DataTables CSS -->
-    <link rel="stylesheet" href="//cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.foundation.min.css">
 
     <!-- jQuery and jQuery Validation Plugin -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.3/jquery.validate.min.js"></script>
-    <script src="//cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+
+    <link href="https://cdn.datatables.net/v/dt/dt-1.13.4/sc-2.1.1/datatables.min.css" rel="stylesheet"/>
+
+    <script src="https://cdn.datatables.net/v/dt/dt-1.13.4/sc-2.1.1/datatables.min.js"></script>
 </head>
 <body>
 {{ define "form-widget" }}
@@ -125,13 +127,25 @@
     }
 
     $(document).ready(function () {
+        // ajax url is query url with query parameters, but starting with /data
+        let currentUrl = window.location.href;
+        // remove querystring
+        currentUrl = currentUrl.split('?')[0];
+        // strip front part of url
+        currentUrl = currentUrl.replace(/\/sqleton/, '/data');
+        const ajaxUrl = currentUrl + '?' + getQueryString();
+
         $('table').DataTable({
             "paging": true,
             "searching": true,
             "ordering": true,
             "info": true,
             "autoWidth": false,
-            "responsive": true
+            "responsive": true,
+            ajax: {
+                url: ajaxUrl,
+                dataSrc: ''
+            }
         });
 
         // Get the form element

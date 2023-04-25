@@ -107,12 +107,36 @@ func (s *ServeCommand) Run(
 	sqletonConnectionLayer := parsedLayers["sqleton-connection"]
 	dbtConnectionLayer := parsedLayers["dbt"]
 
+	// server as JSON for datatables
+	server.Router.GET("/data/*CommandPath", func(c *gin.Context) {
+		commandPath := c.Param("CommandPath")
+		commandPath = strings.TrimPrefix(commandPath, "/")
+		sqlCommand, ok := getRepositoryCommand(c, r, commandPath)
+		if !ok {
+			c.JSON(404, gin.H{"error": "command not found"})
+			return
+		}
+
+		jsonProcessorFunc := glazed.CreateJSONProcessor
+
+		handle := server.HandleSimpleQueryCommand(sqlCommand,
+			glazed.WithCreateProcessor(jsonProcessorFunc),
+			glazed.WithParserOptions(
+				glazed.WithStaticLayer("sqleton-connection", sqletonConnectionLayer.Parameters),
+				glazed.WithStaticLayer("dbt", dbtConnectionLayer.Parameters),
+			),
+		)
+
+		handle(c)
+	})
+
 	// Here we serve the HTML view of the command
 	server.Router.GET("/sqleton/*CommandPath", func(c *gin.Context) {
 		commandPath := c.Param("CommandPath")
 		commandPath = strings.TrimPrefix(commandPath, "/")
 		sqlCommand, ok := getRepositoryCommand(c, r, commandPath)
 		if !ok {
+			c.JSON(404, gin.H{"error": "command not found"})
 			return
 		}
 
@@ -181,7 +205,13 @@ func (s *ServeCommand) Run(
 				),
 			)
 		} else {
-			dataTablesProcessorFunc, err = render.NewDefaultCreateProcessorFunc()
+			dataTablesProcessorFunc, err = render.NewDefaultCreateProcessorFunc(
+				render.WithHTMLTemplateOutputFormatterData(
+					map[string]interface{}{
+						"Links": links,
+					},
+				),
+			)
 			if err != nil {
 				c.JSON(500, gin.H{"error": "could not create default processor func"})
 				return
@@ -219,6 +249,7 @@ func (s *ServeCommand) Run(
 		commandPath := strings.TrimPrefix(path[:index], "/")
 		sqlCommand, ok := getRepositoryCommand(c, r, commandPath)
 		if !ok {
+			c.JSON(404, gin.H{"error": "command not found"})
 			return
 		}
 
@@ -345,6 +376,12 @@ func NewServeCommand(
 				parameters.ParameterTypeString,
 				parameters.WithHelp("Host to serve the API on"),
 				parameters.WithDefault("localhost"),
+			),
+			parameters.NewParameterDefinition(
+				"dev",
+				parameters.ParameterTypeBool,
+				parameters.WithHelp("Run in development mode"),
+				parameters.WithDefault(false),
 			),
 		),
 	)

@@ -91,6 +91,7 @@ func (s *ServeCommand) Run(
 	serverOptions := []parka.ServerOption{
 		parka.WithPort(uint16(port)),
 		parka.WithAddress(host),
+		parka.WithGzip(),
 	}
 
 	if len(contentDirs) > 0 {
@@ -248,14 +249,16 @@ func (s *ServeCommand) Run(
 						"Links": links,
 					},
 				),
+				render.WithJavascriptRendering(),
 			)
 		} else {
-			dataTablesProcessorFunc, err = render.NewDefaultCreateProcessorFunc(
+			dataTablesProcessorFunc, err = render.NewDataTablesHTMLTemplateCreateProcessorFunc(
 				render.WithHTMLTemplateOutputFormatterData(
 					map[string]interface{}{
 						"Links": links,
 					},
 				),
+				render.WithJavascriptRendering(),
 			)
 			if err != nil {
 				c.JSON(500, gin.H{"error": "could not create default processor func"})

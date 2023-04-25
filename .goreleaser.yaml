@@ -55,7 +55,7 @@ dockers:
     dockerfile: Dockerfile
     use: buildx
     build_flag_templates:
-      - --platform=linux/arm64
+      - --platform=linux/arm64/v8
       - --label=org.opencontainers.image.title={{ .ProjectName }}
       - --label=org.opencontainers.image.description={{ .ProjectName }}
       - --label=org.opencontainers.image.url=https://github.com/go-go-golems/{{ .ProjectName }}

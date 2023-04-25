@@ -135,8 +135,6 @@
         currentUrl = currentUrl.replace(/\/sqleton/, '/data');
         const ajaxUrl = currentUrl + '?' + getQueryString();
 
-        console.log("ajaxUrl", ajaxUrl)
-
         function computeColumns(json) {
             // iterate over json[0] and return { "data": element } for each element
             return Object.keys(json[0]).map(function (key) {

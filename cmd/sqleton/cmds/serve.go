@@ -83,11 +83,56 @@ func (s *ServeCommand) Run(
 	// now set up parka server
 	port := ps["serve-port"].(int)
 	host := ps["serve-host"].(string)
+	dev, _ := ps["dev"].(bool)
+
+	// TODO(manuel, 2023-04-19) These are currently handled as template dirs only, not as static dirs
+	contentDirs := ps["content-dirs"].([]string)
 
 	serverOptions := []parka.ServerOption{
 		parka.WithPort(uint16(port)),
 		parka.WithAddress(host),
 	}
+
+	if len(contentDirs) > 0 {
+		lookups := make([]render.TemplateLookup, len(contentDirs))
+		for i, contentDir := range contentDirs {
+			isAbsoluteDir := strings.HasPrefix(contentDir, "/")
+			fsDir := "."
+			if isAbsoluteDir {
+				fsDir = "/"
+			}
+			localTemplateLookup, err := render.LookupTemplateFromFSReloadable(os.DirFS(fsDir), contentDir, "**/*.tmpl.*")
+			if err != nil {
+				return fmt.Errorf("failed to load local template: %w", err)
+			}
+			lookups[i] = localTemplateLookup
+		}
+		serverOptions = append(serverOptions, parka.WithAppendTemplateLookups(lookups...))
+	}
+
+	if dev {
+		templateLookup, err := render.LookupTemplateFromFSReloadable(
+			os.DirFS("."),
+			"cmd/sqleton/cmds/templates/static",
+			"**/*.tmpl.*",
+		)
+		if err != nil {
+			return fmt.Errorf("failed to load local template: %w", err)
+		}
+		serverOptions = append(serverOptions, parka.WithAppendTemplateLookups(templateLookup))
+	} else {
+		embeddedTemplateLookup, err := render.LookupTemplateFromFS(embeddedFiles, "templates/static")
+		if err != nil {
+			return fmt.Errorf("failed to load embedded template: %w", err)
+		}
+		serverOptions = append(serverOptions, parka.WithAppendTemplateLookups(embeddedTemplateLookup))
+	}
+
+	serverOptions = append(serverOptions,
+		parka.WithDefaultParkaLookup(),
+		parka.WithDefaultParkaStaticPaths(),
+	)
+
 	server, err := parka.NewServer(serverOptions...)
 	if err != nil {
 		return err
@@ -384,7 +429,7 @@ func NewServeCommand(
 				parameters.WithDefault(false),
 			),
 			parameters.NewParameterDefinition(
-				"content-dir",
+				"content-dirs",
 				parameters.ParameterTypeStringList,
 				parameters.WithHelp("Serve static and templated files from these directories"),
 				parameters.WithDefault([]string{}),

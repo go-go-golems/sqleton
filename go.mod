@@ -6,7 +6,7 @@ require (
 	github.com/gin-gonic/gin v1.9.0
 	github.com/go-go-golems/clay v0.0.14
 	github.com/go-go-golems/glazed v0.2.71
-	github.com/go-go-golems/parka v0.2.17
+	github.com/go-go-golems/parka v0.2.18
 	github.com/go-sql-driver/mysql v1.7.0
 	github.com/huandu/go-sqlbuilder v1.18.0
 	github.com/jmoiron/sqlx v1.3.5

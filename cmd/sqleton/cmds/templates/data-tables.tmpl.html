@@ -20,8 +20,12 @@
 </head>
 <body>
 {{ define "form-widget" }}
-<div {{ if .Id }}id="{{.Id}}" {{end}} {{ if .Classes }}class="{{.Classes }}" {{end}} {{ if .CSS }} style="{{.CSS}}"
-     {{end}}>
+<div {{ if .Id }}id="{{.Id}}" {{end -}}
+     {{ if .Classes }}class="{{.Classes }}" {{end -}}
+     {{ if .CSS }} style="{{.CSS}}"{{end}}
+     style="height: 100%"
+>
+    <div style="display: flex; flex-direction: column; align-items: end; height: 100%">
     <!-- types can be string, int, float, bool, date, choice -->
     {{ if eq .Type "string" }}
     <label for="{{.Name}}">{{.Help}}</label>
@@ -36,6 +40,7 @@
     <label for="{{.Name}}">{{.Help}}</label>
     <input type="number" name="{{.Name}}" value="{{.Value}}">
     {{ else if eq .Type "bool" }}
+    <div style="height: 100%"></div>
     <div class="float-right">
         <label class="label-inline" for="{{.Name}}">{{.Help}}</label>
         <input type="checkbox" name="{{.Name}}" {{if .Value}}checked{{end}}>
@@ -57,12 +62,17 @@
     <label for="{{.Name}}">{{.Help}}</label>
     <input type="text" name="{{.Name}}" value="{{.Value}}">
     {{ end }}
+        </div>
 </div>
 {{ end }}
 
 <div class="container">
     <h1>{{.Command.Name}}</h1>
     <p>{{.Command.Short}}</p>
+
+    {{ if .LongDescription }}
+    <details><div>{{.LongDescription }}</div></details>
+    {{ end }}
 
     <form id="form" action="{{.Command.Name}}" method="get">
         <fieldset>
@@ -140,34 +150,26 @@
         currentUrl = currentUrl.replace(/\/sqleton/, '/data');
         const ajaxUrl = currentUrl + '?' + getQueryString();
 
-        function computeColumns(json) {
-            if (json.length === 0) {
-                return [];
-            }
-            // iterate over json[0] and return { "data": element } for each element
-            return Object.keys(json[0]).map(function (key) {
-                return {"data": key};
-            });
-        }
-
-        function setupDataTables(data, columns) {
+        function setupDataTables(data ) {
             $('table').DataTable({
                 "paging": true,
                 "searching": true,
                 "ordering": true,
+                "order": [],
                 "info": true,
                 "autoWidth": false,
                 "responsive": true,
                 data: data,
-                "columns": columns
+                "columns": [
+                    {{ range .Columns }} { "data": "{{ . }}", "title": "{{ . }}" },
+            {{ end }}
+                ]
             })
 
         }
 
         if (jsData !== null) {
-            const columns = computeColumns(jsData);
-            // setup datatables
-            setupDataTables(jsData, columns);
+            setupDataTables(jsData);
         }
 
         // do the ajax call and then setup datatables

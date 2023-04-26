@@ -204,13 +204,8 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
 		os.Exit(1)
 	}
-	glazeCommands, ok := cast.CastList[glazed_cmds.GlazeCommand](commands)
-	if !ok {
-		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
-		os.Exit(1)
-	}
 
-	err = cli.AddCommandsToRootCommand(rootCmd, glazeCommands, aliases)
+	err = cli.AddCommandsToRootCommand(rootCmd, commands, aliases)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
 		os.Exit(1)

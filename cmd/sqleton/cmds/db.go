@@ -131,12 +131,11 @@ var dbLsCmd = &cobra.Command{
 			cobra.CheckErr(err)
 		}
 
-		s, err := gp.OutputFormatter().Output(ctx)
+		err = gp.OutputFormatter().Output(ctx, os.Stdout)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Error rendering output: %s\n", err)
 			os.Exit(1)
 		}
-		fmt.Print(s)
 	},
 }
 

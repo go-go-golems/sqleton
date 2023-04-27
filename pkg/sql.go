@@ -12,6 +12,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/helpers/cast"
 	"github.com/go-go-golems/glazed/pkg/helpers/templating"
+	"github.com/go-go-golems/glazed/pkg/processor"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -27,7 +28,7 @@ type SqletonCommand interface {
 		ctx context.Context,
 		db *sqlx.DB,
 		parameters map[string]interface{},
-		gp cmds.Processor,
+		gp processor.Processor,
 	) error
 	RenderQuery(parameters map[string]interface{}) (string, error)
 }
@@ -122,7 +123,7 @@ func (s *SqlCommand) Run(
 	ctx context.Context,
 	parsedLayers map[string]*layers.ParsedParameterLayer,
 	ps map[string]interface{},
-	gp cmds.Processor,
+	gp processor.Processor,
 ) error {
 	if s.dbConnectionFactory == nil {
 		return fmt.Errorf("dbConnectionFactory is not set")
@@ -452,7 +453,7 @@ func RunQueryIntoGlaze(
 	db *sqlx.DB,
 	query string,
 	parameters []interface{},
-	gp cmds.Processor) error {
+	gp processor.Processor) error {
 
 	// use a prepared statement so that when using mysql, we get native types back
 	stmt, err := db.PreparexContext(dbContext, query)
@@ -465,7 +466,7 @@ func RunQueryIntoGlaze(
 		return errors.Wrapf(err, "Could not execute query: %s", query)
 	}
 
-	return processQueryResults(rows, gp)
+	return processQueryResults(dbContext, rows, gp)
 }
 
 func RunNamedQueryIntoGlaze(
@@ -473,7 +474,7 @@ func RunNamedQueryIntoGlaze(
 	db *sqlx.DB,
 	query string,
 	parameters map[string]interface{},
-	gp cmds.Processor) error {
+	gp processor.Processor) error {
 
 	// use a statement so that when using mysql, we get native types back
 	stmt, err := db.PrepareNamedContext(dbContext, query)
@@ -486,10 +487,10 @@ func RunNamedQueryIntoGlaze(
 		return errors.Wrapf(err, "Could not execute query: %s", query)
 	}
 
-	return processQueryResults(rows, gp)
+	return processQueryResults(dbContext, rows, gp)
 }
 
-func processQueryResults(rows *sqlx.Rows, gp cmds.Processor) error {
+func processQueryResults(ctx context.Context, rows *sqlx.Rows, gp processor.Processor) error {
 	// we need a way to order the columns
 	cols, err := rows.Columns()
 	if err != nil {
@@ -512,7 +513,7 @@ func processQueryResults(rows *sqlx.Rows, gp cmds.Processor) error {
 			}
 		}
 
-		err = gp.ProcessInputObject(row)
+		err = gp.ProcessInputObject(ctx, row)
 		if err != nil {
 			return errors.Wrapf(err, "Could not process input object")
 		}
@@ -525,7 +526,7 @@ func (s *SqlCommand) RunQueryIntoGlaze(
 	ctx context.Context,
 	db *sqlx.DB,
 	ps map[string]interface{},
-	gp cmds.Processor) error {
+	gp processor.Processor) error {
 
 	query, err := s.RenderQuery(ctx, ps, db)
 	if err != nil {

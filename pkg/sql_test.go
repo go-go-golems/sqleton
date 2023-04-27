@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
+	"github.com/go-go-golems/glazed/pkg/processor"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -104,7 +105,7 @@ func TestSimpleRun(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	gp := cmds.NewSimpleGlazeProcessor()
+	gp := processor.NewSimpleGlazeProcessor()
 	err = s.Run(context.Background(), map[string]*layers.ParsedParameterLayer{}, map[string]interface{}{}, gp)
 	require.NoError(t, err)
 
@@ -150,7 +151,7 @@ func TestSimpleSubQuery(t *testing.T) {
 	)
 `, s_)
 
-	gp := cmds.NewSimpleGlazeProcessor()
+	gp := processor.NewSimpleGlazeProcessor()
 	err = s.Run(context.Background(), map[string]*layers.ParsedParameterLayer{}, ps, gp)
 	require.NoError(t, err)
 
@@ -246,7 +247,7 @@ func TestSimpleSubQueryWithArguments(t *testing.T) {
 	)
 `, s_)
 
-	gp := cmds.NewSimpleGlazeProcessor()
+	gp := processor.NewSimpleGlazeProcessor()
 	err = s.Run(context.Background(), map[string]*layers.ParsedParameterLayer{}, ps, gp)
 	require.NoError(t, err)
 
@@ -366,7 +367,7 @@ func TestMapSubQuery(t *testing.T) {
 	)
 `, s_)
 
-	gp := cmds.NewSimpleGlazeProcessor()
+	gp := processor.NewSimpleGlazeProcessor()
 	err = s.Run(context.Background(), map[string]*layers.ParsedParameterLayer{}, ps, gp)
 	require.NoError(t, err)
 

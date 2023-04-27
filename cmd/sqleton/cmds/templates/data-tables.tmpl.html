@@ -19,6 +19,7 @@
     <script src="https://cdn.datatables.net/v/dt/dt-1.13.4/sc-2.1.1/datatables.min.js"></script>
 </head>
 <body>
+FOOBAR FOOBAR
 {{ define "form-widget" }}
 <div {{ if .Id }}id="{{.Id}}" {{end -}}
      {{ if .Classes }}class="{{.Classes }}" {{end -}}
@@ -116,13 +117,13 @@
         {{ end }}
     </div>
     <hr>
-    {{ if .HTMLTable }} {{.HTMLTable}}
+    {{ if .HTMLTableStream }}{{ range .HTMLTableStream}}{{.}}{{end}}
     {{ else }} <table id="dataTable"></table> {{ end }}
 </div>
 
 <script>
-    {{ if .JSTable}}
-    const jsData = {{.JSTable}};
+    {{ if .JSTableStream}}
+    const jsData = {{ range $b := .JSTableStream}}{{$b}}{{end}};
     {{else }}const jsData = null;
     {{ end }}
     const foobar = {{ .Command.Name }};

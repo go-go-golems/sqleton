@@ -101,6 +101,8 @@ var dbLsCmd = &cobra.Command{
 	Use:   "ls",
 	Short: "List databases from profiles",
 	Run: func(cmd *cobra.Command, args []string) {
+		ctx := cmd.Context()
+
 		useDbtProfiles := viper.GetBool("use-dbt-profiles")
 
 		if !useDbtProfiles {
@@ -125,11 +127,11 @@ var dbLsCmd = &cobra.Command{
 
 		for _, source := range sources {
 			sourceObj := maps.StructToMap(source, true)
-			err := gp.ProcessInputObject(sourceObj)
+			err := gp.ProcessInputObject(ctx, sourceObj)
 			cobra.CheckErr(err)
 		}
 
-		s, err := gp.OutputFormatter().Output()
+		s, err := gp.OutputFormatter().Output(ctx)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Error rendering output: %s\n", err)
 			os.Exit(1)

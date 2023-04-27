@@ -12,10 +12,18 @@ import (
 	"github.com/go-go-golems/glazed/pkg/helpers/cast"
 	"github.com/go-go-golems/sqleton/cmd/sqleton/cmds"
 	"github.com/go-go-golems/sqleton/pkg"
+	"github.com/pkg/profile"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"os"
+	"os/signal"
+	"syscall"
 )
+
+var profiler interface {
+	Stop()
+}
 
 var rootCmd = &cobra.Command{
 	Use:   "sqleton",
@@ -25,6 +33,29 @@ var rootCmd = &cobra.Command{
 		// from the command line flag
 		err := clay.InitLogger()
 		cobra.CheckErr(err)
+
+		memProfile, _ := cmd.Flags().GetBool("mem-profile")
+		if memProfile {
+			log.Info().Msg("Starting memory profiler")
+			profiler = profile.Start(profile.MemProfile)
+
+			// on SIGHUP, restart the profiler
+			sigCh := make(chan os.Signal, 1)
+			signal.Notify(sigCh, syscall.SIGHUP)
+			go func() {
+				for range sigCh {
+					log.Info().Msg("Restarting memory profiler")
+					profiler.Stop()
+					profiler = profile.Start(profile.MemProfile)
+				}
+			}()
+		}
+	},
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		if profiler != nil {
+			log.Info().Msg("Stopping memory profiler")
+			profiler.Stop()
+		}
 	},
 }
 
@@ -234,6 +265,8 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	}
 
 	rootCmd.AddCommand(cobraQueriesCommand)
+
+	rootCmd.PersistentFlags().Bool("mem-profile", false, "Enable memory profiling")
 
 	return nil
 }

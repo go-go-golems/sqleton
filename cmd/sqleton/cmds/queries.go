@@ -7,6 +7,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/middlewares/table"
+	"github.com/go-go-golems/glazed/pkg/processor"
 	sqleton "github.com/go-go-golems/sqleton/pkg"
 )
 
@@ -24,7 +25,7 @@ func (q *QueriesCommand) Run(
 	ctx context.Context,
 	parsedLayers map[string]*layers.ParsedParameterLayer,
 	ps map[string]interface{},
-	gp glazed_cmds.Processor,
+	gp processor.Processor,
 ) error {
 	gp.OutputFormatter().AddTableMiddleware(
 		table.NewReorderColumnOrderMiddleware(
@@ -40,7 +41,7 @@ func (q *QueriesCommand) Run(
 			"query":  query.Query,
 			"source": description.Source,
 		}
-		err := gp.ProcessInputObject(obj)
+		err := gp.ProcessInputObject(ctx, obj)
 		if err != nil {
 			return err
 		}
@@ -52,7 +53,7 @@ func (q *QueriesCommand) Run(
 			"aliasFor": alias.AliasFor,
 			"source":   alias.Source,
 		}
-		err := gp.ProcessInputObject(obj)
+		err := gp.ProcessInputObject(ctx, obj)
 		if err != nil {
 			return err
 		}

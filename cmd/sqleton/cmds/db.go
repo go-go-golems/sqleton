@@ -1,6 +1,7 @@
 package cmds
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
@@ -97,6 +98,54 @@ var dbTestConnectionCmdWithPrefix = &cobra.Command{
 	},
 }
 
+// dbTestConnectionCmdWithPrefix is a test command to use
+// configuration flags and settings with a prefix, which can be used to
+// mix sqleton commands with say, escuse-me commands
+var dbPrintEvidenceSettingsCmd = &cobra.Command{
+	Use:   "print-evidence-settings",
+	Short: "Output the settings to connect to a database for evidence.dev",
+	Run: func(cmd *cobra.Command, args []string) {
+		config := createConfigFromCobra(cmd)
+		source, err := config.GetSource()
+		cobra.CheckErr(err)
+
+		gitRepo, _ := cmd.Flags().GetString("git-repo")
+
+		type EvidenceCredentials struct {
+			Host     string `json:"host"`
+			Database string `json:"database"`
+			User     string `json:"user"`
+			Password string `json:"password"`
+			Port     string `json:"port"`
+		}
+
+		type EvidenceSettings struct {
+			GitRepo     string              `json:"gitRepo,omitempty"`
+			Database    string              `json:"database"`
+			Credentials EvidenceCredentials `json:"credentials"`
+		}
+
+		credentials := EvidenceCredentials{
+			Host:     source.Hostname,
+			Database: source.Database,
+			User:     source.Username,
+			Password: source.Password,
+			Port:     fmt.Sprintf("%d", source.Port),
+		}
+
+		settings := EvidenceSettings{
+			GitRepo:     gitRepo,
+			Database:    source.Type,
+			Credentials: credentials,
+		}
+
+		encoder := json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "  ")
+		err = encoder.Encode(settings)
+		cobra.CheckErr(err)
+	},
+}
+
 var dbLsCmd = &cobra.Command{
 	Use:   "ls",
 	Short: "List databases from profiles",
@@ -158,6 +207,11 @@ func init() {
 
 	err = dbtParameterLayer.AddFlagsToCobraCommand(dbTestConnectionCmd)
 	cobra.CheckErr(err)
+
+	err = connectionLayer.AddFlagsToCobraCommand(dbPrintEvidenceSettingsCmd)
+	cobra.CheckErr(err)
+	dbPrintEvidenceSettingsCmd.Flags().String("git-repo", "", "Git repo to use for evidence.dev")
+	DbCmd.AddCommand(dbPrintEvidenceSettingsCmd)
 
 	connectionLayer, err = pkg.NewSqlConnectionParameterLayer(
 		layers.WithPrefix("test-"),

@@ -207,12 +207,34 @@ func sqlIntIn(values interface{}) string {
 	return strings.Join(strValues, ",")
 }
 
-func sqlDate(date time.Time) string {
-	return "'" + date.Format("2006-01-02") + "'"
+func sqlDate(date interface{}) (string, error) {
+	switch v := date.(type) {
+	case string:
+		parsedDate, err := parameters.ParseDate(v)
+		if err != nil {
+			return "", err
+		}
+		return "'" + parsedDate.Format("2006-01-02") + "'", nil
+	case time.Time:
+		return "'" + v.Format("2006-01-02") + "'", nil
+	default:
+		return "", fmt.Errorf("could not parse date %v", date)
+	}
 }
 
-func sqlDateTime(date time.Time) string {
-	return "'" + date.Format("2006-01-02 15:04:05") + "'"
+func sqlDateTime(date interface{}) (string, error) {
+	switch v := date.(type) {
+	case string:
+		parsedDate, err := parameters.ParseDate(v)
+		if err != nil {
+			return "", err
+		}
+		return "'" + parsedDate.Format("2006-01-02 15:03:04") + "'", nil
+	case time.Time:
+		return "'" + v.Format("2006-01-02 15:02:03") + "'", nil
+	default:
+		return "", fmt.Errorf("could not parse date %v", date)
+	}
 }
 
 func sqlLike(value string) string {

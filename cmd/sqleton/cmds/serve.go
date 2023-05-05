@@ -129,14 +129,14 @@ func (s *ServeCommand) Run(
 				parka.NewStaticPath(http.FS(os.DirFS("cmd/sqleton/cmds/static")), "/static"),
 			))
 	} else {
-		embeddedTemplateLookup, err := render.LookupTemplateFromFS(embeddedFiles, "templates")
+		embeddedTemplateLookup, err := render.LookupTemplateFromFS(embeddedFiles, "templates", "**/*.tmpl.*")
 		if err != nil {
 			return fmt.Errorf("failed to load embedded template: %w", err)
 		}
 		serverOptions = append(serverOptions,
 			parka.WithAppendTemplateLookups(embeddedTemplateLookup),
 			parka.WithStaticPaths(
-				parka.NewStaticPath(http.FS(staticFiles), "/static"),
+				parka.NewStaticPath(http.FS(parka.NewAddPrefixPathFS(staticFiles, "static/")), "/static"),
 			),
 		)
 	}
@@ -198,16 +198,6 @@ func (s *ServeCommand) Run(
 			return
 		}
 
-		// NOTE(2023-04-19, manuel): This would lookup a precomputed handlerFunc that is computed by the repository watcher
-		// See note in WithUpdateCallback above.
-		// let's make our own template lookup from a local directory, with blackjack and footers
-		// TODO(manuel, 2023-04-19) This local loading from a directory reloadable is a dev mode kind of thing
-		localTemplateLookup, err := render.LookupTemplateFromFSReloadable(os.DirFS("."), "cmd/sqleton/cmds/templates", "cmd/sqleton/cmds/templates/**.tmpl.html")
-		if err != nil {
-			c.JSON(500, gin.H{"error": "could not create template lookup"})
-			return
-		}
-
 		type Link struct {
 			Href  string
 			Text  string
@@ -252,31 +242,39 @@ func (s *ServeCommand) Run(
 		dev, _ := ps["dev"].(bool)
 
 		var dataTablesProcessorFunc glazed.CreateProcessorFunc
+		var localTemplateLookup render.TemplateLookup
+
 		if dev {
-			dataTablesProcessorFunc = render.NewHTMLTemplateLookupCreateProcessorFunc(
-				localTemplateLookup,
-				"data-tables.tmpl.html",
-				render.WithHTMLTemplateOutputFormatterData(
-					map[string]interface{}{
-						"Links": links,
-					},
-				),
-				render.WithJavascriptRendering(),
-			)
-		} else {
-			dataTablesProcessorFunc, err = render.NewDataTablesHTMLTemplateCreateProcessorFunc(
-				render.WithHTMLTemplateOutputFormatterData(
-					map[string]interface{}{
-						"Links": links,
-					},
-				),
-				render.WithJavascriptRendering(),
+			// NOTE(2023-04-19, manuel): This would lookup a precomputed handlerFunc that is computed by the repository watcher
+			// See note in WithUpdateCallback above.
+			// let's make our own template lookup from a local directory, with blackjack and footers
+			localTemplateLookup, err = render.LookupTemplateFromFSReloadable(
+				os.DirFS("."),
+				"cmd/sqleton/cmds/templates",
+				"cmd/sqleton/cmds/templates/**.tmpl.html",
 			)
 			if err != nil {
-				c.JSON(500, gin.H{"error": "could not create default processor func"})
+				c.JSON(500, gin.H{"error": "could not create template lookup"})
+				return
+			}
+		} else {
+			localTemplateLookup, err = render.LookupTemplateFromFSReloadable(embeddedFiles, "templates/", "templates/**/*.tmpl.html")
+			if err != nil {
+				c.JSON(500, gin.H{"error": "could not create template lookup"})
 				return
 			}
 		}
+
+		dataTablesProcessorFunc = render.NewHTMLTemplateLookupCreateProcessorFunc(
+			localTemplateLookup,
+			"data-tables.tmpl.html",
+			render.WithHTMLTemplateOutputFormatterData(
+				map[string]interface{}{
+					"Links": links,
+				},
+			),
+			render.WithJavascriptRendering(),
+		)
 
 		handle := server.HandleSimpleQueryCommand(
 			sqlCommand,

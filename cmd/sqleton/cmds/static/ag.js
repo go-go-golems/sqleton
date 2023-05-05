@@ -58,7 +58,7 @@ function setupDataTables(columnDefs, data) {
         },
         sideBar: 'columns',
         onGridReady: (params) => {
-            params.columnApi.autoSizeAllColumns(true);
+            params.columnApi.autoSizeAllColumns(false);
         }
     };
 

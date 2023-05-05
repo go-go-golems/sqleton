@@ -6,17 +6,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.Command.Name}} - {{.Command.Short}}</title>
 
-    <!-- DataTables CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.foundation.min.css">
+
 
     <!-- jQuery and jQuery Validation Plugin -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.3/jquery.validate.min.js"></script>
 
-    <link href="https://cdn.datatables.net/v/dt/dt-1.13.4/sc-2.1.1/datatables.min.css" rel="stylesheet"/>
+    <!-- Ag-Grid CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"></script>
+    <script src="/static/ag.js"></script>
 
+    {{ if .useDatatables }}
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.foundation.min.css">
+    <link href="https://cdn.datatables.net/v/dt/dt-1.13.4/sc-2.1.1/datatables.min.css" rel="stylesheet"/>
     <script src="https://cdn.datatables.net/v/dt/dt-1.13.4/sc-2.1.1/datatables.min.js"></script>
+    {{ end }}
 </head>
 <body>
 {{ define "form-widget" }}
@@ -116,8 +122,12 @@
         {{ end }}
     </div>
     <hr>
+    <!-- additional div for the table plugin to add its own widgets -->
+    <div id="additionalWidgets"></div>
     {{ if .HTMLTableStream }}{{ range .HTMLTableStream}}{{.}}{{end}}
     {{ else }} <table id="dataTable"></table> {{ end }}
+    <div id="tableContainer"  style="height: 1000px; width:100%;" class="ag-theme-alpine">
+    </div>
 </div>
 
 <script>
@@ -125,7 +135,6 @@
     const jsData = {{ range $b := .JSTableStream}}{{$b}}{{end}};
     {{else }}const jsData = null;
     {{ end }}
-    const foobar = {{ .Command.Name }};
     function getQueryString() {
         const form = document.getElementById('form');
         const formData = new FormData(form);
@@ -142,15 +151,12 @@
     }
 
     $(document).ready(function () {
-        // ajax url is query url with query parameters, but starting with /data
-        let currentUrl = window.location.href;
-        // remove querystring
-        currentUrl = currentUrl.split('?')[0];
-        // strip front part of url
-        currentUrl = currentUrl.replace(/\/sqleton/, '/data');
-        const ajaxUrl = currentUrl + '?' + getQueryString();
+        const columnDefs = [
+            {{ range .Columns }} "{{.}}",
+        {{ end }}];
 
-        function setupDataTables(data ) {
+        {{ if .useDatatables }}
+        function setupDataTables(columnDefs, data ) {
             $('table').DataTable({
                 "paging": true,
                 "searching": true,
@@ -160,36 +166,20 @@
                 "autoWidth": false,
                 "responsive": true,
                 data: data,
-                "columns": [
-                    {{ range .Columns }} { "data": "{{ . }}", "title": "{{ . }}" },
-            {{ end }}
-                ]
+                "columns": columnDefs.map((col) => {
+                    return {
+                        title: col,
+                        data: col,
+                    };
+                }),
             })
 
         }
+        {{ end }}
 
         if (jsData !== null) {
-            setupDataTables(jsData);
+            setupDataTables(columnDefs, jsData);
         }
-
-        // do the ajax call and then setup datatables
-        // fetch(ajaxUrl).then(
-        //     function (response) {
-        //         if (response.status !== 200) {
-        //             console.log('Looks like there was a problem. Status Code: ' +
-        //                 response.status);
-        //             return;
-        //         }
-        //
-        //         // Examine the text in the response
-        //         response.json().then(function (data) {
-        //             const columns = computeColumns(data);
-        //             setupDataTables(data, columns);
-        //         });
-        //     }
-        // ).catch(function (err) {
-        //     console.log('Fetch Error :-S', err);
-        // });
 
         //
         // Get the form element

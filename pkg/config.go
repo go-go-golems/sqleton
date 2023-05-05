@@ -85,14 +85,20 @@ func (c *DatabaseConfig) GetSource() (*Source, error) {
 	var source *Source
 
 	if c.UseDbtProfiles {
+		if c.DbtProfile == "" {
+			return nil, errors.Errorf("No dbt profile specified")
+		}
+
 		sources, err := ParseDbtProfiles(c.DbtProfilesPath)
 		if err != nil {
 			return nil, err
 		}
 
-		//
-
 		for _, s := range sources {
+			log.Debug().
+				Str("Profile", c.DbtProfile).
+				Str("name", s.Name).
+				Msg("Checking source")
 			if s.Name == c.DbtProfile {
 				source = s
 				break

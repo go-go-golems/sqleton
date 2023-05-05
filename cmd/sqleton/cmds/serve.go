@@ -41,6 +41,9 @@ func (s *ServeCommand) Description() *cmds.CommandDescription {
 //go:embed templates
 var embeddedFiles embed.FS
 
+//go:embed static
+var staticFiles embed.FS
+
 func (s *ServeCommand) Run(
 	ctx context.Context,
 	parsedLayers map[string]*layers.ParsedParameterLayer,
@@ -120,13 +123,22 @@ func (s *ServeCommand) Run(
 		if err != nil {
 			return fmt.Errorf("failed to load local template: %w", err)
 		}
-		serverOptions = append(serverOptions, parka.WithAppendTemplateLookups(templateLookup))
+		serverOptions = append(serverOptions,
+			parka.WithAppendTemplateLookups(templateLookup),
+			parka.WithStaticPaths(
+				parka.NewStaticPath(http.FS(os.DirFS("cmd/sqleton/cmds/static")), "/static"),
+			))
 	} else {
-		embeddedTemplateLookup, err := render.LookupTemplateFromFS(embeddedFiles, "templates/static")
+		embeddedTemplateLookup, err := render.LookupTemplateFromFS(embeddedFiles, "templates")
 		if err != nil {
 			return fmt.Errorf("failed to load embedded template: %w", err)
 		}
-		serverOptions = append(serverOptions, parka.WithAppendTemplateLookups(embeddedTemplateLookup))
+		serverOptions = append(serverOptions,
+			parka.WithAppendTemplateLookups(embeddedTemplateLookup),
+			parka.WithStaticPaths(
+				parka.NewStaticPath(http.FS(staticFiles), "/static"),
+			),
+		)
 	}
 
 	serverOptions = append(serverOptions,

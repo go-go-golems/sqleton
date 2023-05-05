@@ -38,16 +38,16 @@ query: |
   SELECT wp.ID, wp.post_title, wp.post_type, wp.post_status, wp.post_date FROM wp_posts wp
   WHERE post_type IN ({{ .types | sqlStringIn }})
   {{ if .status -}}
-  AND post_status IN ({{ .status | sqlStringIn }})
+      AND post_status IN ({{ .status | sqlStringIn }})
   {{- end -}}
   {{ if .from -}}
-  AND post_date >= {{ .from | sqlDate }}
+      AND post_date >= {{ .from | sqlDate }}
   {{- end -}}
   {{ if .to -}}
-  AND post_date <= {{ .to | sqlDate }}
+      AND post_date <= {{ .to | sqlDate }}
   {{- end -}}
   {{ if .title_like -}}
-  AND post_title LIKE {{ .title_like | sqlLike }}
+      AND post_title LIKE {{ .title_like | sqlLike }}
   {{- end -}}
   ORDER BY {{ .order_by }}
   LIMIT {{ .limit }}

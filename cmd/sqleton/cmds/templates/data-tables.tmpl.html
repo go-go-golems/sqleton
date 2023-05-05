@@ -15,6 +15,7 @@
 
     <!-- Ag-Grid CSS -->
     <script src="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"></script>
+    <script src="/static/ag.js"></script>
 
     {{ if .useDatatables }}
     <!-- DataTables CSS -->
@@ -121,6 +122,8 @@
         {{ end }}
     </div>
     <hr>
+    <!-- additional div for the table plugin to add its own widgets -->
+    <div id="additionalWidgets"></div>
     {{ if .HTMLTableStream }}{{ range .HTMLTableStream}}{{.}}{{end}}
     {{ else }} <table id="dataTable"></table> {{ end }}
     <div id="tableContainer"  style="height: 1000px; width:100%;" class="ag-theme-alpine">
@@ -132,7 +135,6 @@
     const jsData = {{ range $b := .JSTableStream}}{{$b}}{{end}};
     {{else }}const jsData = null;
     {{ end }}
-    const foobar = {{ .Command.Name }};
     function getQueryString() {
         const form = document.getElementById('form');
         const formData = new FormData(form);
@@ -149,8 +151,12 @@
     }
 
     $(document).ready(function () {
+        const columnDefs = [
+            {{ range .Columns }} "{{.}}",
+        {{ end }}];
+
         {{ if .useDatatables }}
-        function setupDataTables(data ) {
+        function setupDataTables(columnDefs, data ) {
             $('table').DataTable({
                 "paging": true,
                 "searching": true,
@@ -160,40 +166,19 @@
                 "autoWidth": false,
                 "responsive": true,
                 data: data,
-                "columns": [
-                    {{ range .Columns }} { "data": "{{ . }}", "title": "{{ . }}" },
-            {{ end }}
-                ]
+                "columns": columnDefs.map((col) => {
+                    return {
+                        title: col,
+                        data: col,
+                    };
+                }),
             })
 
         }
         {{ end }}
 
-        function setupDataTables(data) {
-            const columnDefs = [
-                {{ range .Columns }}
-                { field: "{{.}}" },
-                {{ end }}
-            ];
-
-            const gridOptions = {
-                columnDefs: columnDefs,
-                rowData: data,
-                defaultColDef: {
-                    editable: true,
-                    sortable: true,
-                    filter: true,
-                    resizable: true,
-                },
-                sideBar: 'columns',
-            };
-
-            const gridDiv = document.querySelector('#tableContainer');
-            new agGrid.Grid(gridDiv, gridOptions);
-        }
-
         if (jsData !== null) {
-            setupDataTables(jsData);
+            setupDataTables(columnDefs, jsData);
         }
 
         //

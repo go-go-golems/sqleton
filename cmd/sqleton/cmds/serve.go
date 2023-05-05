@@ -120,7 +120,11 @@ func (s *ServeCommand) Run(
 		if err != nil {
 			return fmt.Errorf("failed to load local template: %w", err)
 		}
-		serverOptions = append(serverOptions, parka.WithAppendTemplateLookups(templateLookup))
+		serverOptions = append(serverOptions,
+			parka.WithAppendTemplateLookups(templateLookup),
+			parka.WithStaticPaths(
+				parka.NewStaticPath(http.FS(os.DirFS("cmd/sqleton/cmds/static")), "/static"),
+			))
 	} else {
 		embeddedTemplateLookup, err := render.LookupTemplateFromFS(embeddedFiles, "templates/static")
 		if err != nil {

@@ -101,11 +101,23 @@ func (s *ServeCommand) Run(
 		lookups := make([]render.TemplateLookup, len(contentDirs))
 		for i, contentDir := range contentDirs {
 			isAbsoluteDir := strings.HasPrefix(contentDir, "/")
-			fsDir := "."
-			if isAbsoluteDir {
-				fsDir = "/"
+
+			// resolve base dir
+			if !isAbsoluteDir {
+				baseDir, err := os.Getwd()
+				if err != nil {
+					return fmt.Errorf("failed to get working directory: %w", err)
+				}
+				contentDir = baseDir + "/" + contentDir
 			}
-			localTemplateLookup, err := render.LookupTemplateFromFSReloadable(os.DirFS(fsDir), contentDir, "**/*.tmpl.*")
+
+			localTemplateLookup, err := render.LookupTemplateFromFSReloadable(
+				os.DirFS(contentDir),
+				"",
+				"**/*.tmpl.md",
+				"**/*.md",
+				"**/*.tmpl.html",
+				"**/*.html")
 			if err != nil {
 				return fmt.Errorf("failed to load local template: %w", err)
 			}

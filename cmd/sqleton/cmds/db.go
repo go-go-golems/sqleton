@@ -174,7 +174,11 @@ var dbPrintEnvCmd = &cobra.Command{
 		fmt.Printf("%s%s=%s\n", prefix, "USER", source.Username)
 		fmt.Printf("%s%s=%s\n", prefix, "PASSWORD", source.Password)
 		fmt.Printf("%s%s=%s\n", prefix, "SCHEMA", source.Schema)
-		fmt.Printf("%s%s=%s\n", prefix, "USE_DBT_PROFILES", config.UseDbtProfiles)
+		if config.UseDbtProfiles {
+			fmt.Printf("%s%s=1\n", prefix, "USE_DBT_PROFILES")
+		} else {
+			fmt.Printf("%s%s=\n", prefix, "USE_DBT_PROFILES")
+		}
 		fmt.Printf("%s%s=%s\n", prefix, "DBT_PROFILES_PATH", config.DbtProfilesPath)
 		fmt.Printf("%s%s=%s\n", prefix, "DBT_PROFILE", config.DbtProfile)
 	},
@@ -223,16 +227,16 @@ var dbPrintSettingsCmd = &cobra.Command{
 			useDbtProfiles = "SQLETON_USE_DBT_PROFILES"
 			dbtProfilesPath = "SQLETON_DBT_PROFILES_PATH"
 		} else if withEnvPrefix != "" {
-			host = fmt.Sprintf("%s_HOST", withEnvPrefix)
-			port = fmt.Sprintf("%s_PORT", withEnvPrefix)
-			database = fmt.Sprintf("%s_DATABASE", withEnvPrefix)
-			user = fmt.Sprintf("%s_USER", withEnvPrefix)
-			password = fmt.Sprintf("%s_PASSWORD", withEnvPrefix)
-			type_ = fmt.Sprintf("%s_TYPE", withEnvPrefix)
-			schema = fmt.Sprintf("%s_SCHEMA", withEnvPrefix)
-			dbtProfile = fmt.Sprintf("%s_DBT_PROFILE", withEnvPrefix)
-			useDbtProfiles = fmt.Sprintf("%s_USE_DBT_PROFILES", withEnvPrefix)
-			dbtProfilesPath = fmt.Sprintf("%s_DBT_PROFILES_PATH", withEnvPrefix)
+			host = fmt.Sprintf("%sHOST", withEnvPrefix)
+			port = fmt.Sprintf("%sPORT", withEnvPrefix)
+			database = fmt.Sprintf("%sDATABASE", withEnvPrefix)
+			user = fmt.Sprintf("%sUSER", withEnvPrefix)
+			password = fmt.Sprintf("%sPASSWORD", withEnvPrefix)
+			type_ = fmt.Sprintf("%sTYPE", withEnvPrefix)
+			schema = fmt.Sprintf("%sSCHEMA", withEnvPrefix)
+			dbtProfile = fmt.Sprintf("%sDBT_PROFILE", withEnvPrefix)
+			useDbtProfiles = fmt.Sprintf("%sUSE_DBT_PROFILES", withEnvPrefix)
+			dbtProfilesPath = fmt.Sprintf("%sDBT_PROFILES_PATH", withEnvPrefix)
 		}
 
 		if individualRows {

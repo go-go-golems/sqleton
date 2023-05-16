@@ -8,6 +8,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/helpers/maps"
 	"github.com/go-go-golems/glazed/pkg/middlewares/table"
 	"github.com/go-go-golems/sqleton/pkg"
+	"github.com/jmoiron/sqlx"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"os"
@@ -67,7 +68,9 @@ var dbTestConnectionCmd = &cobra.Command{
 		cobra.CheckErr(err)
 
 		cobra.CheckErr(err)
-		defer db.Close()
+		defer func(db *sqlx.DB) {
+			_ = db.Close()
+		}(db)
 
 		err = db.Ping()
 		cobra.CheckErr(err)
@@ -89,7 +92,9 @@ var dbTestConnectionCmdWithPrefix = &cobra.Command{
 		cobra.CheckErr(err)
 
 		cobra.CheckErr(err)
-		defer db.Close()
+		defer func(db *sqlx.DB) {
+			_ = db.Close()
+		}(db)
 
 		err = db.Ping()
 		cobra.CheckErr(err)
@@ -146,6 +151,158 @@ var dbPrintEvidenceSettingsCmd = &cobra.Command{
 	},
 }
 
+var dbPrintEnvCmd = &cobra.Command{
+	Use:   "print-env",
+	Short: "Output the settings to connect to a database as environment variables",
+	Run: func(cmd *cobra.Command, args []string) {
+		config := createConfigFromCobra(cmd)
+		source, err := config.GetSource()
+		cobra.CheckErr(err)
+
+		isEnvRc, _ := cmd.Flags().GetBool("envrc")
+		envPrefix, _ := cmd.Flags().GetString("env-prefix")
+
+		prefix := ""
+		if isEnvRc {
+			prefix = "export "
+		}
+		prefix = prefix + envPrefix
+		fmt.Printf("%s%s=%s\n", prefix, "TYPE", source.Type)
+		fmt.Printf("%s%s=%s\n", prefix, "HOST", source.Hostname)
+		fmt.Printf("%s%s=%s\n", prefix, "PORT", fmt.Sprintf("%d", source.Port))
+		fmt.Printf("%s%s=%s\n", prefix, "DATABASE", source.Database)
+		fmt.Printf("%s%s=%s\n", prefix, "USER", source.Username)
+		fmt.Printf("%s%s=%s\n", prefix, "PASSWORD", source.Password)
+		fmt.Printf("%s%s=%s\n", prefix, "SCHEMA", source.Schema)
+		if config.UseDbtProfiles {
+			fmt.Printf("%s%s=1\n", prefix, "USE_DBT_PROFILES")
+		} else {
+			fmt.Printf("%s%s=\n", prefix, "USE_DBT_PROFILES")
+		}
+		fmt.Printf("%s%s=%s\n", prefix, "DBT_PROFILES_PATH", config.DbtProfilesPath)
+		fmt.Printf("%s%s=%s\n", prefix, "DBT_PROFILE", config.DbtProfile)
+	},
+}
+
+var dbPrintSettingsCmd = &cobra.Command{
+	Use:   "print-settings",
+	Short: "Output the settings to connect to a database using glazed",
+	Run: func(cmd *cobra.Command, args []string) {
+		config := createConfigFromCobra(cmd)
+		source, err := config.GetSource()
+		cobra.CheckErr(err)
+
+		gp, err := cli.CreateGlazedProcessorFromCobra(cmd)
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Could not create glaze  procersors: %v\n", err)
+			os.Exit(1)
+		}
+
+		individualRows, _ := cmd.Flags().GetBool("individual-rows")
+		useSqletonEnvNames, _ := cmd.Flags().GetBool("use-env-names")
+		withEnvPrefix, _ := cmd.Flags().GetString("with-env-prefix")
+
+		ctx := cmd.Context()
+
+		host := "host"
+		port := "port"
+		database := "database"
+		user := "user"
+		password := "password"
+		type_ := "type"
+		schema := "schema"
+		dbtProfile := "dbtProfile"
+		useDbtProfiles := "useDbtProfiles"
+		dbtProfilesPath := "dbtProfilesPath"
+
+		if useSqletonEnvNames {
+			host = "SQLETON_HOST"
+			port = "SQLETON_PORT"
+			database = "SQLETON_DATABASE"
+			user = "SQLETON_USER"
+			password = "SQLETON_PASSWORD"
+			type_ = "SQLETON_TYPE"
+			schema = "SQLETON_SCHEMA"
+			dbtProfile = "SQLETON_DBT_PROFILE"
+			useDbtProfiles = "SQLETON_USE_DBT_PROFILES"
+			dbtProfilesPath = "SQLETON_DBT_PROFILES_PATH"
+		} else if withEnvPrefix != "" {
+			host = fmt.Sprintf("%sHOST", withEnvPrefix)
+			port = fmt.Sprintf("%sPORT", withEnvPrefix)
+			database = fmt.Sprintf("%sDATABASE", withEnvPrefix)
+			user = fmt.Sprintf("%sUSER", withEnvPrefix)
+			password = fmt.Sprintf("%sPASSWORD", withEnvPrefix)
+			type_ = fmt.Sprintf("%sTYPE", withEnvPrefix)
+			schema = fmt.Sprintf("%sSCHEMA", withEnvPrefix)
+			dbtProfile = fmt.Sprintf("%sDBT_PROFILE", withEnvPrefix)
+			useDbtProfiles = fmt.Sprintf("%sUSE_DBT_PROFILES", withEnvPrefix)
+			dbtProfilesPath = fmt.Sprintf("%sDBT_PROFILES_PATH", withEnvPrefix)
+		}
+
+		if individualRows {
+			_ = gp.ProcessInputObject(ctx, map[string]interface{}{
+				"name":  host,
+				"value": source.Hostname,
+			})
+			_ = gp.ProcessInputObject(ctx, map[string]interface{}{
+				"name":  port,
+				"value": source.Port,
+			})
+			_ = gp.ProcessInputObject(ctx, map[string]interface{}{
+				"name":  database,
+				"value": source.Database,
+			})
+			_ = gp.ProcessInputObject(ctx, map[string]interface{}{
+				"name":  user,
+				"value": source.Username,
+			})
+			_ = gp.ProcessInputObject(ctx, map[string]interface{}{
+				"name":  password,
+				"value": source.Password,
+			})
+			_ = gp.ProcessInputObject(ctx, map[string]interface{}{
+				"name":  type_,
+				"value": source.Type,
+			})
+			_ = gp.ProcessInputObject(ctx, map[string]interface{}{
+				"name":  schema,
+				"value": source.Schema,
+			})
+			_ = gp.ProcessInputObject(ctx, map[string]interface{}{
+				"name":  dbtProfile,
+				"value": config.DbtProfile,
+			})
+			_ = gp.ProcessInputObject(ctx, map[string]interface{}{
+				"name":  useDbtProfiles,
+				"value": config.UseDbtProfiles,
+			})
+			_ = gp.ProcessInputObject(ctx, map[string]interface{}{
+				"name":  dbtProfilesPath,
+				"value": config.DbtProfilesPath,
+			})
+		} else {
+			_ = gp.ProcessInputObject(ctx, map[string]interface{}{
+				host:            source.Hostname,
+				port:            source.Port,
+				database:        source.Database,
+				user:            source.Username,
+				password:        source.Password,
+				type_:           source.Type,
+				schema:          source.Schema,
+				dbtProfile:      config.DbtProfile,
+				useDbtProfiles:  config.UseDbtProfiles,
+				dbtProfilesPath: config.DbtProfilesPath,
+			})
+		}
+
+		err = gp.OutputFormatter().Output(ctx, os.Stdout)
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Error rendering output: %s\n", err)
+			os.Exit(1)
+		}
+	},
+}
+
 var dbLsCmd = &cobra.Command{
 	Use:   "ls",
 	Short: "List databases from profiles",
@@ -189,12 +346,9 @@ var dbLsCmd = &cobra.Command{
 }
 
 func init() {
-	DbCmd.AddCommand(dbLsCmd)
-
 	err := cli.AddGlazedProcessorFlagsToCobraCommand(dbLsCmd)
-	if err != nil {
-		panic(err)
-	}
+	cobra.CheckErr(err)
+	DbCmd.AddCommand(dbLsCmd)
 
 	connectionLayer, err := pkg.NewSqlConnectionParameterLayer()
 	cobra.CheckErr(err)
@@ -212,6 +366,21 @@ func init() {
 	cobra.CheckErr(err)
 	dbPrintEvidenceSettingsCmd.Flags().String("git-repo", "", "Git repo to use for evidence.dev")
 	DbCmd.AddCommand(dbPrintEvidenceSettingsCmd)
+
+	err = connectionLayer.AddFlagsToCobraCommand(dbPrintEnvCmd)
+	cobra.CheckErr(err)
+	dbPrintEnvCmd.Flags().Bool("envrc", false, "Output as an .envrc file")
+	dbPrintEnvCmd.Flags().String("env-prefix", "SQLETON_", "Prefix for environment variables")
+	DbCmd.AddCommand(dbPrintEnvCmd)
+
+	err = connectionLayer.AddFlagsToCobraCommand(dbPrintSettingsCmd)
+	cobra.CheckErr(err)
+	dbPrintSettingsCmd.Flags().Bool("individual-rows", false, "Output as individual rows")
+	dbPrintSettingsCmd.Flags().String("with-env-prefix", "", "Output as environment variables with a prefix")
+	dbPrintSettingsCmd.Flags().Bool("use-env-names", false, "Output as SQLETON_ environment variables with a prefix")
+	err = cli.AddGlazedProcessorFlagsToCobraCommand(dbPrintSettingsCmd)
+	cobra.CheckErr(err)
+	DbCmd.AddCommand(dbPrintSettingsCmd)
 
 	connectionLayer, err = pkg.NewSqlConnectionParameterLayer(
 		layers.WithPrefix("test-"),

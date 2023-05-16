@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/gin-gonic/gin v1.9.0
-	github.com/go-go-golems/clay v0.0.15
+	github.com/go-go-golems/clay v0.0.16
 	github.com/go-go-golems/glazed v0.2.79
 	github.com/go-go-golems/parka v0.2.26
 	github.com/go-sql-driver/mysql v1.7.0

@@ -7,9 +7,9 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/processor"
+	cli "github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/pkg/errors"
 
-	cli "github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/sqleton/pkg"
 	"github.com/spf13/cobra"
 	"io"

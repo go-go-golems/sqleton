@@ -4,11 +4,11 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/processor"
+	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/sqleton/pkg"
 	"github.com/huandu/go-sqlbuilder"
 	"github.com/pkg/errors"
@@ -217,7 +217,7 @@ func NewSelectCommand(
 	dbConnectionFactory pkg.DBConnectionFactory,
 	options ...cmds.CommandDescriptionOption,
 ) (*SelectCommand, error) {
-	glazedParameterLayer, err := cli.NewGlazedParameterLayers()
+	glazedParameterLayer, err := settings.NewGlazedParameterLayers()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create Glazed parameter layer")
 	}

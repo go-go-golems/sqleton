@@ -2,3 +2,4 @@
 go.work
 dist/
 ./sqleton
+/.envrc

@@ -7,13 +7,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-go-golems/clay/pkg/repositories"
 	"github.com/go-go-golems/clay/pkg/watcher"
-	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/helpers"
+	"github.com/go-go-golems/glazed/pkg/settings"
 	parka "github.com/go-go-golems/parka/pkg"
 	"github.com/go-go-golems/parka/pkg/glazed"
 	"github.com/go-go-golems/parka/pkg/render"
@@ -361,7 +361,7 @@ func (s *ServeCommand) Run(
 			return
 		}
 
-		glazedParameterLayers, err := cli.NewGlazedParameterLayers()
+		glazedParameterLayers, err := settings.NewGlazedParameterLayers()
 		if err != nil {
 			c.JSON(500, gin.H{"error": "could not create glazed parameter layers"})
 			return
@@ -417,6 +417,9 @@ func getRepositoryCommand(c *gin.Context, r *repositories.Repository, commandPat
 		c.JSON(404, gin.H{"error": "ambiguous command"})
 		return nil, false
 	}
+
+	// NOTE(manuel, 2023-05-15) Check if this is actually an alias, and populate the defaults from the alias flags
+	// This could potentially be moved to the repository code itself
 
 	sqlCommand, ok := commands[0].(cmds.GlazeCommand)
 	if !ok || sqlCommand == nil {

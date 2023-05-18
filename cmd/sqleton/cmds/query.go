@@ -2,11 +2,11 @@ package cmds
 
 import (
 	"context"
-	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/processor"
+	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/sqleton/pkg"
 )
 
@@ -19,7 +19,7 @@ func NewQueryCommand(
 	dbConnectionFactory pkg.DBConnectionFactory,
 	options ...cmds.CommandDescriptionOption,
 ) (*QueryCommand, error) {
-	glazeParameterLayer, err := cli.NewGlazedParameterLayers()
+	glazeParameterLayer, err := settings.NewGlazedParameterLayers()
 	if err != nil {
 		return nil, err
 	}

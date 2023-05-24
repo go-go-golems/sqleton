@@ -35,6 +35,7 @@ func (c *RunCommand) Run(
 	if err != nil {
 		return errors.Wrap(err, "could not open database")
 	}
+	defer db.Close()
 
 	err = db.PingContext(ctx)
 	if err != nil {

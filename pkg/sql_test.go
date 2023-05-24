@@ -137,6 +137,7 @@ func TestSimpleSubQuery(t *testing.T) {
 	require.NoError(t, err)
 	db, err := createDB(nil)
 	require.NoError(t, err)
+	defer db.Close()
 
 	ps := map[string]interface{}{
 		"name": "test2_3",
@@ -175,6 +176,7 @@ func TestSimpleSubQuerySingle(t *testing.T) {
 	require.NoError(t, err)
 	db, err := createDB(nil)
 	require.NoError(t, err)
+	defer db.Close()
 
 	ps := map[string]interface{}{
 		"name": "test1_1",
@@ -233,6 +235,7 @@ func TestSimpleSubQueryWithArguments(t *testing.T) {
 	require.NoError(t, err)
 	db, err := createDB(nil)
 	require.NoError(t, err)
+	defer db.Close()
 
 	ps := map[string]interface{}{
 		"name": "test1_2",
@@ -289,6 +292,7 @@ func TestSliceSubQueryWithArguments(t *testing.T) {
 	require.NoError(t, err)
 	db, err := createDB(nil)
 	require.NoError(t, err)
+	defer db.Close()
 
 	ps := map[string]interface{}{
 		"name": "test1_2",
@@ -319,6 +323,7 @@ func TestMapSubQueryWithArguments(t *testing.T) {
 	require.NoError(t, err)
 	db, err := createDB(nil)
 	require.NoError(t, err)
+	defer db.Close()
 
 	ps := map[string]interface{}{
 		"name": "test1_2",
@@ -353,6 +358,7 @@ func TestMapSubQuery(t *testing.T) {
 	require.NoError(t, err)
 	db, err := createDB(nil)
 	require.NoError(t, err)
+	defer db.Close()
 
 	ps := map[string]interface{}{
 		"name": "test1_2",

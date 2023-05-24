@@ -77,7 +77,7 @@
     <p>{{.Command.Short}}</p>
 
     {{ if .LongDescription }}
-    <details><div>{{.LongDescription }}</div></details>
+    <div>{{.LongDescription }}</div>
     {{ end }}
 
     <form id="form" action="{{.Command.Name}}" method="get">

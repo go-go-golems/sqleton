@@ -4,7 +4,6 @@ import (
 	"context"
 	"embed"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"github.com/go-go-golems/clay/pkg/repositories"
 	"github.com/go-go-golems/clay/pkg/watcher"
 	"github.com/go-go-golems/glazed/pkg/cmds"
@@ -13,17 +12,16 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/helpers"
-	"github.com/go-go-golems/glazed/pkg/settings"
 	parka "github.com/go-go-golems/parka/pkg"
-	"github.com/go-go-golems/parka/pkg/glazed"
 	"github.com/go-go-golems/parka/pkg/render"
 	"github.com/go-go-golems/sqleton/pkg"
+	"github.com/go-go-golems/sqleton/pkg/serve"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
+	"io/fs"
 	"net/http"
 	"os"
 	"strings"
-	"time"
 )
 
 type ServeCommand struct {
@@ -177,209 +175,37 @@ func (s *ServeCommand) Run(
 	sqletonConnectionLayer := parsedLayers["sqleton-connection"]
 	dbtConnectionLayer := parsedLayers["dbt"]
 
-	// server as JSON for datatables
-	server.Router.GET("/data/*CommandPath", func(c *gin.Context) {
-		commandPath := c.Param("CommandPath")
-		commandPath = strings.TrimPrefix(commandPath, "/")
-		sqlCommand, ok := getRepositoryCommand(c, r, commandPath)
-		if !ok {
-			c.JSON(404, gin.H{"error": "command not found"})
-			return
-		}
+	// "cmd/sqleton/cmds/templates",
 
-		jsonProcessorFunc := glazed.CreateJSONProcessor
+	cd := &serve.CommandDir{
+		Repositories:      s.repositories,
+		TemplateDirectory: "",
+		TemplateName:      "",
+		IndexTemplateName: "",
+		AdditionalData:    nil,
+		Defaults:          nil,
+		Overrides:         nil,
+	}
 
-		handle := server.HandleSimpleQueryCommand(sqlCommand,
-			glazed.WithCreateProcessor(jsonProcessorFunc),
-			glazed.WithParserOptions(
-				glazed.WithStaticLayer("sqleton-connection", sqletonConnectionLayer.Parameters),
-				glazed.WithStaticLayer("dbt", dbtConnectionLayer.Parameters),
-			),
-		)
+	var defaultTemplateFS fs.FS = embeddedFiles
+	defaultTemplateDirectory := "templates"
 
-		handle(c)
-	})
+	if dev {
+		defaultTemplateFS = os.DirFS(".")
+		defaultTemplateDirectory = "cmd/sqleton/cmds/templates"
+	}
 
-	// Here we serve the HTML view of the command
-	server.Router.GET("/sqleton/*CommandPath", func(c *gin.Context) {
-		commandPath := c.Param("CommandPath")
-		commandPath = strings.TrimPrefix(commandPath, "/")
-		sqlCommand, ok := getRepositoryCommand(c, r, commandPath)
-		if !ok {
-			c.JSON(404, gin.H{"error": "command not found"})
-			return
-		}
+	cdOptions := &serve.ServeOptions{
+		DevMode:                  dev,
+		DefaultTemplateName:      "data-tables.tmpl.html",
+		DefaultIndexTemplateName: "",
+		DefaultTemplateFS:        defaultTemplateFS,
+		DefaultTemplateDirectory: defaultTemplateDirectory,
+		DbtConnectionLayer:       dbtConnectionLayer,
+		SqletonConnectionLayer:   sqletonConnectionLayer,
+	}
 
-		type Link struct {
-			Href  string
-			Text  string
-			Class string
-		}
-
-		name := sqlCommand.Description().Name
-		dateTime := time.Now().Format("2006-01-02--15-04-05")
-		links := []Link{
-			{
-				Href:  fmt.Sprintf("/download/%s/%s-%s.csv", commandPath, dateTime, name),
-				Text:  "Download CSV",
-				Class: "download",
-			},
-			{
-				Href:  fmt.Sprintf("/download/%s/%s-%s.json", commandPath, dateTime, name),
-				Text:  "Download JSON",
-				Class: "download",
-			},
-			{
-				Href:  fmt.Sprintf("/download/%s/%s-%s.xlsx", commandPath, dateTime, name),
-				Text:  "Download Excel",
-				Class: "download",
-			},
-			{
-				Href:  fmt.Sprintf("/download/%s/%s-%s.md", commandPath, dateTime, name),
-				Text:  "Download Markdown",
-				Class: "download",
-			},
-			{
-				Href:  fmt.Sprintf("/download/%s/%s-%s.html", commandPath, dateTime, name),
-				Text:  "Download HTML",
-				Class: "download",
-			},
-			{
-				Href:  fmt.Sprintf("/download/%s/%s-%s.txt", commandPath, dateTime, name),
-				Text:  "Download Text",
-				Class: "download",
-			},
-		}
-
-		dev, _ := ps["dev"].(bool)
-
-		var dataTablesProcessorFunc glazed.CreateProcessorFunc
-		var localTemplateLookup render.TemplateLookup
-
-		if dev {
-			// NOTE(2023-04-19, manuel): This would lookup a precomputed handlerFunc that is computed by the repository watcher
-			// See note in WithUpdateCallback above.
-			// let's make our own template lookup from a local directory, with blackjack and footers
-			localTemplateLookup, err = render.LookupTemplateFromFSReloadable(
-				os.DirFS("."),
-				"cmd/sqleton/cmds/templates",
-				"cmd/sqleton/cmds/templates/**.tmpl.html",
-			)
-			if err != nil {
-				c.JSON(500, gin.H{"error": "could not create template lookup"})
-				return
-			}
-		} else {
-			localTemplateLookup, err = render.LookupTemplateFromFSReloadable(embeddedFiles, "templates/", "templates/**/*.tmpl.html")
-			if err != nil {
-				c.JSON(500, gin.H{"error": "could not create template lookup"})
-				return
-			}
-		}
-
-		dataTablesProcessorFunc = render.NewHTMLTemplateLookupCreateProcessorFunc(
-			localTemplateLookup,
-			"data-tables.tmpl.html",
-			render.WithHTMLTemplateOutputFormatterData(
-				map[string]interface{}{
-					"Links": links,
-				},
-			),
-			render.WithJavascriptRendering(),
-		)
-
-		handle := server.HandleSimpleQueryCommand(
-			sqlCommand,
-			glazed.WithCreateProcessor(
-				dataTablesProcessorFunc,
-			),
-			glazed.WithParserOptions(
-				glazed.WithStaticLayer("sqleton-connection", sqletonConnectionLayer.Parameters),
-				glazed.WithStaticLayer("dbt", dbtConnectionLayer.Parameters),
-			),
-		)
-
-		handle(c)
-	})
-
-	server.Router.GET("/download/*CommandPath", func(c *gin.Context) {
-		path := c.Param("CommandPath")
-		// get file name at end of path
-		index := strings.LastIndex(path, "/")
-		if index == -1 {
-			c.JSON(500, gin.H{"error": "could not find file name"})
-			return
-		}
-		if index >= len(path)-1 {
-			c.JSON(500, gin.H{"error": "could not find file name"})
-			return
-		}
-		fileName := path[index+1:]
-
-		commandPath := strings.TrimPrefix(path[:index], "/")
-		sqlCommand, ok := getRepositoryCommand(c, r, commandPath)
-		if !ok {
-			c.JSON(404, gin.H{"error": "command not found"})
-			return
-		}
-
-		// create a temporary file for glazed output
-		tmpFile, err := os.CreateTemp("/tmp", fmt.Sprintf("glazed-output-*.%s", fileName))
-		if err != nil {
-			c.JSON(500, gin.H{"error": "could not create temporary file"})
-			return
-		}
-		defer os.Remove(tmpFile.Name())
-
-		// now check file suffix for content-type
-		glazedParameters := map[string]interface{}{
-			"output-file": tmpFile.Name(),
-		}
-		if strings.HasSuffix(fileName, ".csv") {
-			glazedParameters["output"] = "table"
-			glazedParameters["table-format"] = "csv"
-		} else if strings.HasSuffix(fileName, ".tsv") {
-			glazedParameters["output"] = "table"
-			glazedParameters["table-format"] = "tsv"
-		} else if strings.HasSuffix(fileName, ".md") {
-			glazedParameters["output"] = "table"
-			glazedParameters["table-format"] = "markdown"
-		} else if strings.HasSuffix(fileName, ".html") {
-			glazedParameters["output"] = "table"
-			glazedParameters["table-format"] = "html"
-		} else if strings.HasSuffix(fileName, ".json") {
-			glazedParameters["output"] = "json"
-		} else if strings.HasSuffix(fileName, ".yaml") {
-			glazedParameters["yaml"] = "yaml"
-		} else if strings.HasSuffix(fileName, ".xlsx") {
-			glazedParameters["output"] = "excel"
-		} else if strings.HasSuffix(fileName, ".txt") {
-			glazedParameters["output"] = "table"
-			glazedParameters["table-format"] = "ascii"
-		} else {
-			c.JSON(500, gin.H{"error": "could not determine output format"})
-			return
-		}
-
-		glazedParameterLayers, err := settings.NewGlazedParameterLayers()
-		if err != nil {
-			c.JSON(500, gin.H{"error": "could not create glazed parameter layers"})
-			return
-		}
-
-		handle := server.HandleSimpleQueryOutputFileCommand(
-			sqlCommand,
-			tmpFile.Name(),
-			fileName,
-			glazed.WithParserOptions(
-				glazed.WithCustomizedParameterLayerParser(glazedParameterLayers, glazedParameters),
-				glazed.WithStaticLayer("sqleton-connection", sqletonConnectionLayer.Parameters),
-				glazed.WithStaticLayer("dbt", dbtConnectionLayer.Parameters),
-			),
-		)
-
-		handle(c)
-	})
+	cd.Serve(server, cdOptions, "")
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -403,29 +229,6 @@ func (s *ServeCommand) Run(
 	}
 
 	return nil
-}
-
-func getRepositoryCommand(c *gin.Context, r *repositories.Repository, commandPath string) (cmds.GlazeCommand, bool) {
-	path := strings.Split(commandPath, "/")
-	commands := r.Root.CollectCommands(path, false)
-	if len(commands) == 0 {
-		c.JSON(404, gin.H{"error": "command not found"})
-		return nil, false
-	}
-
-	if len(commands) > 1 {
-		c.JSON(404, gin.H{"error": "ambiguous command"})
-		return nil, false
-	}
-
-	// NOTE(manuel, 2023-05-15) Check if this is actually an alias, and populate the defaults from the alias flags
-	// This could potentially be moved to the repository code itself
-
-	sqlCommand, ok := commands[0].(cmds.GlazeCommand)
-	if !ok || sqlCommand == nil {
-		c.JSON(500, gin.H{"error": "command is not a sql command"})
-	}
-	return sqlCommand, true
 }
 
 func NewServeCommand(

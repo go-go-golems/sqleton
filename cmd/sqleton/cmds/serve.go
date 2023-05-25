@@ -205,7 +205,10 @@ func (s *ServeCommand) Run(
 		SqletonConnectionLayer:   sqletonConnectionLayer,
 	}
 
-	cd.Serve(server, cdOptions, "")
+	err = cd.Serve(server, cdOptions, "")
+	if err != nil {
+		return err
+	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

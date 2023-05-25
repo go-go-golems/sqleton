@@ -7,6 +7,7 @@ type Route struct {
 	CommandDirectory  *CommandDir  `yaml:"commandDirectory,omitempty"`
 	Command           *Command     `yaml:"command,omitempty"`
 	Static            *Static      `yaml:"static,omitempty"`
+	StaticFile        *StaticFile  `yaml:"staticFile,omitempty"`
 	TemplateDirectory *TemplateDir `yaml:"templateDirectory,omitempty"`
 	Template          *Template    `yaml:"template,omitempty"`
 }
@@ -30,6 +31,10 @@ type Command struct {
 }
 
 type Static struct {
+	LocalPath string `yaml:"localPath"`
+}
+
+type StaticFile struct {
 	LocalPath string `yaml:"localPath"`
 }
 

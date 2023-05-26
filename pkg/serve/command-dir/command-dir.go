@@ -13,7 +13,6 @@ import (
 	"github.com/go-go-golems/parka/pkg/glazed"
 	"github.com/go-go-golems/parka/pkg/render"
 	"github.com/go-go-golems/sqleton/pkg"
-	"github.com/go-go-golems/sqleton/pkg/serve"
 	"github.com/go-go-golems/sqleton/pkg/serve/config"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -43,6 +42,34 @@ type CommandDirHandler struct {
 
 	DbtConnectionLayer     *layers.ParsedParameterLayer
 	SqletonConnectionLayer *layers.ParsedParameterLayer
+
+	repository *repositories.Repository
+
+	// NOTE(manuel, 2023-05-26) This is probably the right location to add configurable
+	// templateLookup chains.
+}
+
+func GetRepositoryCommand(c *gin.Context, r *repositories.Repository, commandPath string) (cmds.GlazeCommand, bool) {
+	path := strings.Split(commandPath, "/")
+	commands := r.Root.CollectCommands(path, false)
+	if len(commands) == 0 {
+		c.JSON(404, gin.H{"error": "command not found"})
+		return nil, false
+	}
+
+	if len(commands) > 1 {
+		c.JSON(404, gin.H{"error": "ambiguous command"})
+		return nil, false
+	}
+
+	// NOTE(manuel, 2023-05-15) Check if this is actually an alias, and populate the defaults from the alias flags
+	// This could potentially be moved to the repository code itself
+
+	sqlCommand, ok := commands[0].(cmds.GlazeCommand)
+	if !ok || sqlCommand == nil {
+		c.JSON(500, gin.H{"error": "command is not a sql command"})
+	}
+	return sqlCommand, true
 }
 
 type CommandDirHandlerOption func(handler *CommandDirHandler)
@@ -103,6 +130,7 @@ func WithTemplateDirectory(directory string) CommandDirHandlerOption {
 	}
 }
 
+// TODO(manuel, 2023-05-26) This should be replaced by a generic ParsedParameterLayer overload thing
 func WithDbtConnectionLayer(layer *layers.ParsedParameterLayer) CommandDirHandlerOption {
 	return func(handler *CommandDirHandler) {
 		handler.DbtConnectionLayer = layer
@@ -142,10 +170,35 @@ func NewCommandDirHandlerFromConfig(
 	return cd, nil
 }
 
+// GetRepository uses the configured repositories to load a single repository watcher, and load all
+// the necessary commands and aliases at startup.
+//
+// NOTE(manuel, 2023-05-26) This could probably be extracted out of the CommandHandler and maybe submitted as
+// a utility, as this currently ties the YAML load and the whole sqleton thing directly into the CommandDirHandler.
 func (cd *CommandDirHandler) GetRepository() (*repositories.Repository, error) {
+	if cd.repository != nil {
+		return cd.repository, nil
+	}
+
 	if len(cd.Repositories) == 0 {
 		return nil, errors.New("no repositories defined")
 	}
+
+	locations := claycmds.CommandLocations{
+		Repositories: cd.Repositories,
+	}
+
+	yamlFSLoader := loaders.NewYAMLFSCommandLoader(&pkg.SqlCommandLoader{
+		DBConnectionFactory: pkg.OpenDatabaseFromSqletonConnectionLayer,
+	})
+	yamlLoader := &loaders.YAMLReaderCommandLoader{
+		YAMLCommandLoader: &pkg.SqlCommandLoader{
+			DBConnectionFactory: pkg.OpenDatabaseFromSqletonConnectionLayer,
+		},
+	}
+
+	commandLoader := claycmds.NewCommandLoader[cmds.Command](&locations)
+
 	r := repositories.NewRepository(
 		repositories.WithDirectories(cd.Repositories),
 		repositories.WithUpdateCallback(func(cmd cmds.Command) error {
@@ -166,20 +219,13 @@ func (cd *CommandDirHandler) GetRepository() (*repositories.Repository, error) {
 			// We don't need to recompute the func, since it fetches the command at runtime.
 			return nil
 		}),
+		repositories.WithCommandLoader(yamlLoader),
 	)
 
-	locations := claycmds.CommandLocations{
-		Repositories: cd.Repositories,
-	}
-
-	yamlLoader := loaders.NewYAMLFSCommandLoader(&pkg.SqlCommandLoader{
-		DBConnectionFactory: pkg.OpenDatabaseFromSqletonConnectionLayer,
-	})
-	commandLoader := claycmds.NewCommandLoader[cmds.Command](&locations)
 	// TODO(manuel, 2023-05-25) Add a way to configure serving the help of commands in a CommandDir
 	// See https://github.com/go-go-golems/sqleton/issues/163
 	helpSystem := help.NewHelpSystem()
-	commands, aliases, err := commandLoader.LoadCommands(yamlLoader, helpSystem)
+	commands, aliases, err := commandLoader.LoadCommands(yamlFSLoader, helpSystem)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
 		os.Exit(1)
@@ -191,6 +237,7 @@ func (cd *CommandDirHandler) GetRepository() (*repositories.Repository, error) {
 
 	return r, nil
 }
+
 func (cd *CommandDirHandler) Serve(server *parka.Server, path string) error {
 	repository, err := cd.GetRepository()
 	path = strings.TrimSuffix(path, "/")
@@ -198,7 +245,7 @@ func (cd *CommandDirHandler) Serve(server *parka.Server, path string) error {
 	server.Router.GET(path+"/data/*path", func(c *gin.Context) {
 		commandPath := c.Param("CommandPath")
 		commandPath = strings.TrimPrefix(commandPath, "/")
-		sqlCommand, ok := serve.GetRepositoryCommand(c, repository, commandPath)
+		sqlCommand, ok := GetRepositoryCommand(c, repository, commandPath)
 		if !ok {
 			c.JSON(404, gin.H{"error": "command not found"})
 			return
@@ -234,7 +281,7 @@ func (cd *CommandDirHandler) Serve(server *parka.Server, path string) error {
 			commandPath := strings.TrimPrefix(c.Param("path"), "/")
 
 			// Get repository command
-			sqlCommand, ok := serve.GetRepositoryCommand(c, repository, commandPath)
+			sqlCommand, ok := GetRepositoryCommand(c, repository, commandPath)
 			if !ok {
 				c.JSON(404, gin.H{"error": "command not found"})
 				return
@@ -343,7 +390,7 @@ func (cd *CommandDirHandler) Serve(server *parka.Server, path string) error {
 		fileName := path[index+1:]
 
 		commandPath := strings.TrimPrefix(path[:index], "/")
-		sqlCommand, ok := serve.GetRepositoryCommand(c, repository, commandPath)
+		sqlCommand, ok := GetRepositoryCommand(c, repository, commandPath)
 		if !ok {
 			c.JSON(404, gin.H{"error": "command not found"})
 			return

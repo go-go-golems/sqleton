@@ -1,4 +1,4 @@
-package serve
+package static_file
 
 import (
 	"github.com/go-go-golems/parka/pkg"
@@ -47,12 +47,11 @@ func NewStaticFileHandler(options ...StaticFileHandlerOption) *StaticFileHandler
 }
 
 func NewStaticFileHandlerFromConfig(shf *config.StaticFile, options ...StaticFileHandlerOption) *StaticFileHandler {
-	handler := &StaticFileHandler{
-		localPath: shf.LocalPath,
-	}
+	handler := &StaticFileHandler{}
 	for _, option := range options {
 		option(handler)
 	}
+	WithLocalPath(shf.LocalPath)(handler)
 	return handler
 }
 

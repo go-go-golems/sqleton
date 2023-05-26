@@ -1,6 +1,8 @@
 package config
 
-import "gopkg.in/yaml.v3"
+import (
+	"gopkg.in/yaml.v3"
+)
 
 type Route struct {
 	Path              string       `yaml:"path"`
@@ -55,7 +57,7 @@ type LayerParams struct {
 }
 
 type Config struct {
-	Routes []Route `yaml:"routes"`
+	Routes []*Route `yaml:"routes"`
 }
 
 func ParseConfig(data []byte) (*Config, error) {

@@ -1,4 +1,4 @@
-package static
+package static_dir
 
 import (
 	"github.com/go-go-golems/parka/pkg"
@@ -9,15 +9,15 @@ import (
 	"strings"
 )
 
-type StaticHandler struct {
+type StaticDirHandler struct {
 	fs        fs.FS
 	localPath string
 }
 
-type StaticHandlerOption func(handler *StaticHandler)
+type StaticDirHandlerOption func(handler *StaticDirHandler)
 
-func WithDefaultFS(fs fs.FS, localPath string) StaticHandlerOption {
-	return func(handler *StaticHandler) {
+func WithDefaultFS(fs fs.FS, localPath string) StaticDirHandlerOption {
+	return func(handler *StaticDirHandler) {
 		if handler.fs == nil {
 			handler.fs = fs
 			handler.localPath = localPath
@@ -25,8 +25,8 @@ func WithDefaultFS(fs fs.FS, localPath string) StaticHandlerOption {
 	}
 }
 
-func WithLocalPath(localPath string) StaticHandlerOption {
-	return func(handler *StaticHandler) {
+func WithLocalPath(localPath string) StaticDirHandlerOption {
+	return func(handler *StaticDirHandler) {
 		if localPath != "" {
 			if localPath[0] == '/' {
 				handler.fs = os.DirFS(localPath)
@@ -38,16 +38,16 @@ func WithLocalPath(localPath string) StaticHandlerOption {
 	}
 }
 
-func NewStaticHandler(options ...StaticHandlerOption) *StaticHandler {
-	handler := &StaticHandler{}
+func NewStaticDirHandler(options ...StaticDirHandlerOption) *StaticDirHandler {
+	handler := &StaticDirHandler{}
 	for _, option := range options {
 		option(handler)
 	}
 	return handler
 }
 
-func NewStaticHandlerFromConfig(sh *config.Static, options ...StaticHandlerOption) *StaticHandler {
-	handler := &StaticHandler{
+func NewStaticDirHandlerFromConfig(sh *config.Static, options ...StaticDirHandlerOption) *StaticDirHandler {
+	handler := &StaticDirHandler{
 		localPath: sh.LocalPath,
 	}
 	for _, option := range options {
@@ -56,7 +56,7 @@ func NewStaticHandlerFromConfig(sh *config.Static, options ...StaticHandlerOptio
 	return handler
 }
 
-func (s *StaticHandler) Serve(server *pkg.Server, path string) error {
+func (s *StaticDirHandler) Serve(server *pkg.Server, path string) error {
 	fs := s.fs
 	if s.localPath != "" {
 		fs = pkg.NewAddPrefixPathFS(s.fs, s.localPath)

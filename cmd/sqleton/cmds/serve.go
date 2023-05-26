@@ -86,15 +86,23 @@ func (s *ServeCommand) Run(
 	host := ps["serve-host"].(string)
 	dev, _ := ps["dev"].(bool)
 
-	// TODO(manuel, 2023-04-19) These are currently handled as template dirs only, not as static dirs
-	contentDirs := ps["content-dirs"].([]string)
-
 	serverOptions := []parka.ServerOption{
 		parka.WithPort(uint16(port)),
 		parka.WithAddress(host),
 		parka.WithGzip(),
 	}
 
+	// TODO(manuel, 2023-05-26) This shoudl all be replaced with the sqleton serve TemplateDir and co
+	//
+	// These template lookups are all passed to the default resolve middleware. This is just a step
+	// on the way to incorporating the serve config-file framework currently being built as part of
+	// sqleton serve into parka itself.
+	defaultLookups := []render.TemplateLookup{}
+
+	contentDirs := ps["content-dirs"].([]string)
+
+	// NOTE(manuel, 2023-05-26) See todo above, this will be subsumed by the config file framework once it has
+	// been deemed good enough to serve our needs in building sqleton serve
 	if len(contentDirs) > 0 {
 		lookups := make([]render.TemplateLookup, len(contentDirs))
 		for i, contentDir := range contentDirs {
@@ -121,7 +129,7 @@ func (s *ServeCommand) Run(
 			}
 			lookups[i] = localTemplateLookup
 		}
-		serverOptions = append(serverOptions, parka.WithAppendTemplateLookups(lookups...))
+		defaultLookups = append(defaultLookups, lookups...)
 	}
 
 	if dev {
@@ -133,8 +141,8 @@ func (s *ServeCommand) Run(
 		if err != nil {
 			return fmt.Errorf("failed to load local template: %w", err)
 		}
+		defaultLookups = append(defaultLookups, templateLookup)
 		serverOptions = append(serverOptions,
-			parka.WithAppendTemplateLookups(templateLookup),
 			parka.WithStaticPaths(
 				parka.NewStaticPath(http.FS(os.DirFS("cmd/sqleton/cmds/static")), "/static"),
 			))
@@ -143,8 +151,8 @@ func (s *ServeCommand) Run(
 		if err != nil {
 			return fmt.Errorf("failed to load embedded template: %w", err)
 		}
+		defaultLookups = append(defaultLookups, embeddedTemplateLookup)
 		serverOptions = append(serverOptions,
-			parka.WithAppendTemplateLookups(embeddedTemplateLookup),
 			parka.WithStaticPaths(
 				parka.NewStaticPath(http.FS(parka.NewAddPrefixPathFS(staticFiles, "static/")), "/static"),
 			),
@@ -152,7 +160,7 @@ func (s *ServeCommand) Run(
 	}
 
 	serverOptions = append(serverOptions,
-		parka.WithDefaultParkaLookup(),
+		parka.WithDefaultParkaLookup(render.WithPrependTemplateLookups(defaultLookups...)),
 		parka.WithDefaultParkaStaticPaths(),
 	)
 
@@ -202,6 +210,9 @@ func (s *ServeCommand) Run(
 	)
 
 	cdh, err := command_dir.NewCommandDirHandlerFromConfig(cd, options...)
+	if err != nil {
+		return err
+	}
 
 	err = cdh.Serve(server, "")
 	if err != nil {

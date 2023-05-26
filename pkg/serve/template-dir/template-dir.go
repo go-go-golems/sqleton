@@ -6,7 +6,6 @@ import (
 	"github.com/go-go-golems/parka/pkg"
 	"github.com/go-go-golems/parka/pkg/render"
 	"github.com/go-go-golems/sqleton/pkg/serve/config"
-	"io"
 	"io/fs"
 	"net/http"
 	"os"
@@ -64,43 +63,6 @@ func NewTemplateDirHandlerFromConfig(td *config.TemplateDir, options ...Template
 	return handler
 }
 
-// RenderTemplate takes a templateLookup function, a page name and additional data, and
-// renders a full resulting HTML page.
-//
-// If markdown content is found (either a .tmpl.md or a .md file), the markdown is rendered and converted
-// to HTML, and then passed to the base.tmpl.html file for final HTML rendering).
-//
-// TODO(manuel, 2023-05-26) The whole handling of render template lookup can probably be packaged in its own full package
-// There is quite a lot of things covered here:
-// - mapping URLs to actual templates
-// - loading templates from local directories or providing other ways of generating ultimately HTML content
-//   - static markdown content
-//   - templated markdown content
-//   - static HTML content
-//   - templated HTML content
-//
-// - embedding generated content into higher level templates (say, base.tmpl.html to serve markdown page)
-// - providing additional data
-//
-// In a way, this is actually some of what the parka.Server class tries to do, with its list of template lookup functions.
-func RenderTemplate(w io.Writer, lookup render.TemplateLookup, page string, data interface{}) error {
-	// first, we will check if we have markdown contexnt
-	markdown := ""
-	// first, check for a tmpl.md template
-	t, err := lookup(page + ".tmpl.md")
-	if err != nil {
-		return err
-	}
-
-	if t != nil {
-		markdown, err := render.RenderMarkdownTemplateToHTML(t, data)
-		if err != nil {
-			return fmt.Errorf("failed to render markdown template: %w", err)
-		}
-	}
-
-}
-
 func (td *TemplateDirHandler) Serve(server *pkg.Server, path string) error {
 	templateLookup, err := render.LookupTemplateFromFSReloadable(
 		td.fs,
@@ -112,47 +74,26 @@ func (td *TemplateDirHandler) Serve(server *pkg.Server, path string) error {
 	if err != nil {
 		return fmt.Errorf("failed to load local template: %w", err)
 	}
-	lookups[i] = templateLookup
+
+	r, err := render.NewRenderer(render.WithPrependTemplateLookups(templateLookup))
+	if err != nil {
+		return fmt.Errorf("failed to load local template: %w", err)
+	}
 
 	server.Router.GET(path+"/*path", func(c *gin.Context) {
 		page := strings.TrimPrefix(c.Param("path"), "/")
-		// The following is lifted from ServeMarkdownTemplatePage from parka.Server
-		// which can probably be consolidated into this approach and remove the list of template lookup handlers
-		// (or merge the template lookup mechanism in the template dir handling mechanism)
+		if page == "" {
+			page = td.IndexTemplateName
+		} else if strings.HasSuffix(page, "/") {
+			page = page + td.IndexTemplateName
+		}
 
-		// first, check for a markdown template or markdown file
-		t, err := templateLookup(page + ".tmpl.md")
+		err := r.Render(c, c.Writer, page, td.AdditionalData)
+		if err != nil {
+			_ = c.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
 	})
 
-	// NOTE(manuel, 2023-05-26) This needs to be extracted at a higher catch all path level in the config filer
-	// This is currently done with a middleware, but it should be a GET route
-	// match all remaining paths to the templates
-	server.Router.Use(
-		func(c *gin.Context) {
-			rawPath := c.Request.URL.Path
-			if len(rawPath) > 0 && rawPath[0] == '/' {
-				trimmedPath := rawPath[1:]
-				server.ServeMarkdownTemplatePage(c, trimmedPath, nil)
-				return
-			}
-			c.Next()
-		})
-
-	// TODO(manuel, 2023-05-25) Kill the whole staticPaths / templateLookups stuff
-	//
-	// This is the current way to serve templates, through this convoluted templateLookup mechanism
-	// that we might be able to kill entirely.
-	//
-	// It looks like the new method of declaring the layout in a config struct / config file
-	// and then repeatedly applying works much better.
-	//
-	// This should also allow us to watch and reload the config file,
-	//
-	// See: https://github.com/go-go-golems/sqleton/issues/164
-	lookups := make([]render.TemplateLookup, len(contentDirs))
-	for i, contentDir := range contentDirs {
-	}
-	serverOptions = append(serverOptions, parka.WithAppendTemplateLookups(lookups...))
-	server.Router.SetHTMLTemplate(http.FS(options.fs))
 	return nil
 }

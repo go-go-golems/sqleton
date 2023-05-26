@@ -2,12 +2,10 @@ package template_dir
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"github.com/go-go-golems/parka/pkg"
 	"github.com/go-go-golems/parka/pkg/render"
 	"github.com/go-go-golems/sqleton/pkg/serve/config"
 	"io/fs"
-	"net/http"
 	"os"
 	"strings"
 )
@@ -17,8 +15,6 @@ type TemplateDirHandler struct {
 	LocalDirectory           string
 	IndexTemplateName        string
 	MarkdownBaseTemplateName string
-	AdditionalData           map[string]interface{}
-	templateLookups          []render.TemplateLookup
 	rendererOptions          []render.RendererOption
 	renderer                 *render.Renderer
 }
@@ -53,24 +49,6 @@ func WithLocalDirectory(localPath string) TemplateDirHandlerOption {
 	}
 }
 
-func WithAppendTemplateLookups(templateLookups ...render.TemplateLookup) TemplateDirHandlerOption {
-	return func(handler *TemplateDirHandler) {
-		handler.templateLookups = append(handler.templateLookups, templateLookups...)
-	}
-}
-
-func WithPrependTemplateLookups(templateLookups ...render.TemplateLookup) TemplateDirHandlerOption {
-	return func(handler *TemplateDirHandler) {
-		handler.templateLookups = append(templateLookups, handler.templateLookups...)
-	}
-}
-
-func WithReplaceTemplateLookups(templateLookups ...render.TemplateLookup) TemplateDirHandlerOption {
-	return func(handler *TemplateDirHandler) {
-		handler.templateLookups = templateLookups
-	}
-}
-
 func NewTemplateDirHandler(options ...TemplateDirHandlerOption) *TemplateDirHandler {
 	handler := &TemplateDirHandler{}
 	for _, option := range options {
@@ -81,10 +59,9 @@ func NewTemplateDirHandler(options ...TemplateDirHandlerOption) *TemplateDirHand
 
 func NewTemplateDirHandlerFromConfig(td *config.TemplateDir, options ...TemplateDirHandlerOption) (*TemplateDirHandler, error) {
 	handler := &TemplateDirHandler{
-		LocalDirectory:    td.LocalDirectory,
 		IndexTemplateName: td.IndexTemplateName,
-		AdditionalData:    td.AdditionalData,
 	}
+	WithLocalDirectory(td.LocalDirectory)(handler)
 
 	for _, option := range options {
 		option(handler)
@@ -100,9 +77,12 @@ func NewTemplateDirHandlerFromConfig(td *config.TemplateDir, options ...Template
 	if err != nil {
 		return nil, fmt.Errorf("failed to load local template: %w", err)
 	}
-	r, err := render.NewRenderer(
+	rendererOptions := append(
+		handler.rendererOptions,
 		render.WithPrependTemplateLookups(templateLookup),
-		render.WithAppendTemplateLookups(handler.templateLookups...))
+		render.WithIndexTemplateName(handler.IndexTemplateName),
+	)
+	r, err := render.NewRenderer(rendererOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load local template: %w", err)
 	}
@@ -112,20 +92,8 @@ func NewTemplateDirHandlerFromConfig(td *config.TemplateDir, options ...Template
 }
 
 func (td *TemplateDirHandler) Serve(server *pkg.Server, path string) error {
-	server.Router.GET(path+"/*path", func(c *gin.Context) {
-		page := strings.TrimPrefix(c.Param("path"), "/")
-		if page == "" {
-			page = td.IndexTemplateName
-		} else if strings.HasSuffix(page, "/") {
-			page = page + td.IndexTemplateName
-		}
-
-		err := td.renderer.Render(c, c.Writer, page, td.AdditionalData)
-		if err != nil {
-			_ = c.AbortWithError(http.StatusInternalServerError, err)
-			return
-		}
-	})
+	// TODO(manuel, 2023-05-26) This is a hack because we currently mix and match content with commands.
+	server.Router.Use(td.renderer.HandleWithTrimPrefix(path, nil))
 
 	return nil
 }

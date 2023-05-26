@@ -1,4 +1,4 @@
-package serve
+package config
 
 import "gopkg.in/yaml.v3"
 
@@ -24,7 +24,7 @@ type CommandDir struct {
 
 type Command struct {
 	File           string            `yaml:"file"`
-	TemplateFile   string            `yaml:"templateFile"`
+	TemplateName   string            `yaml:"templateName"`
 	AdditionalData map[string]string `yaml:"additionalData,omitempty"`
 	Defaults       *LayerParams      `yaml:"defaults,omitempty"`
 	Overrides      *LayerParams      `yaml:"overrides,omitempty"`
@@ -40,7 +40,7 @@ type StaticFile struct {
 
 type TemplateDir struct {
 	LocalDirectory    string                 `yaml:"localDirectory"`
-	IndexTemplateFile string                 `yaml:"indexTemplateFile"`
+	IndexTemplateName string                 `yaml:"indexTemplateName,omitempty"`
 	AdditionalData    map[string]interface{} `yaml:"additionalData,omitempty"`
 }
 

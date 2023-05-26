@@ -15,10 +15,10 @@ import (
 	parka "github.com/go-go-golems/parka/pkg"
 	"github.com/go-go-golems/parka/pkg/render"
 	"github.com/go-go-golems/sqleton/pkg"
-	"github.com/go-go-golems/sqleton/pkg/serve"
+	"github.com/go-go-golems/sqleton/pkg/serve/command-dir"
+	"github.com/go-go-golems/sqleton/pkg/serve/config"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
-	"io/fs"
 	"net/http"
 	"os"
 	"strings"
@@ -177,7 +177,7 @@ func (s *ServeCommand) Run(
 
 	// "cmd/sqleton/cmds/templates",
 
-	cd := &serve.CommandDir{
+	cd := &config.CommandDir{
 		Repositories:      s.repositories,
 		TemplateDirectory: "",
 		TemplateName:      "",
@@ -187,25 +187,23 @@ func (s *ServeCommand) Run(
 		Overrides:         nil,
 	}
 
-	var defaultTemplateFS fs.FS = embeddedFiles
-	defaultTemplateDirectory := "templates"
-
+	options := []command_dir.CommandDirHandlerOption{}
 	if dev {
-		defaultTemplateFS = os.DirFS(".")
-		defaultTemplateDirectory = "cmd/sqleton/cmds/templates"
+		options = append(options, command_dir.WithDefaultTemplateFS(os.DirFS("."), "cmd/sqleton/cmds/templates"))
+	} else {
+		options = append(options, command_dir.WithDefaultTemplateFS(embeddedFiles, "templates"))
 	}
+	options = append(options,
+		command_dir.WithDbtConnectionLayer(dbtConnectionLayer),
+		command_dir.WithSqletonConnectionLayer(sqletonConnectionLayer),
+		command_dir.WithDefaultTemplateName("data-tables.tmpl.html"),
+		command_dir.WithDefaultIndexTemplateName(""),
+		command_dir.WithDevMode(dev),
+	)
 
-	cdOptions := &serve.ServeOptions{
-		DevMode:                  dev,
-		DefaultTemplateName:      "data-tables.tmpl.html",
-		DefaultIndexTemplateName: "",
-		DefaultTemplateFS:        defaultTemplateFS,
-		DefaultTemplateDirectory: defaultTemplateDirectory,
-		DbtConnectionLayer:       dbtConnectionLayer,
-		SqletonConnectionLayer:   sqletonConnectionLayer,
-	}
+	cdh, err := command_dir.NewCommandDirHandlerFromConfig(cd, options...)
 
-	err = cd.Serve(server, cdOptions, "")
+	err = cdh.Serve(server, "")
 	if err != nil {
 		return err
 	}

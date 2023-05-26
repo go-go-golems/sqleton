@@ -1,18 +1,20 @@
-package serve
+package command_dir
 
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
-	cmds2 "github.com/go-go-golems/clay/pkg/cmds"
+	claycmds "github.com/go-go-golems/clay/pkg/cmds"
 	"github.com/go-go-golems/clay/pkg/repositories"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
 	"github.com/go-go-golems/glazed/pkg/help"
-	pkg2 "github.com/go-go-golems/parka/pkg"
+	parka "github.com/go-go-golems/parka/pkg"
 	"github.com/go-go-golems/parka/pkg/glazed"
 	"github.com/go-go-golems/parka/pkg/render"
 	"github.com/go-go-golems/sqleton/pkg"
+	"github.com/go-go-golems/sqleton/pkg/serve"
+	"github.com/go-go-golems/sqleton/pkg/serve/config"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"io/fs"
@@ -27,7 +29,120 @@ type Link struct {
 	Class string
 }
 
-func (cd *CommandDir) GetRepository() (*repositories.Repository, error) {
+type CommandDirHandler struct {
+	DevMode bool
+
+	TemplateName      string
+	IndexTemplateName string
+	TemplateDirectory string
+	TemplateFS        fs.FS
+
+	Repositories []string
+	Overrides    *config.LayerParams
+	Defaults     *config.LayerParams
+
+	DbtConnectionLayer     *layers.ParsedParameterLayer
+	SqletonConnectionLayer *layers.ParsedParameterLayer
+}
+
+type CommandDirHandlerOption func(handler *CommandDirHandler)
+
+func WithTemplateName(name string) CommandDirHandlerOption {
+	return func(handler *CommandDirHandler) {
+		handler.TemplateName = name
+	}
+}
+
+func WithDefaultTemplateName(name string) CommandDirHandlerOption {
+	return func(handler *CommandDirHandler) {
+		if handler.TemplateName == "" {
+			handler.TemplateName = name
+		}
+	}
+}
+
+func WithIndexTemplateName(name string) CommandDirHandlerOption {
+	return func(handler *CommandDirHandler) {
+		handler.IndexTemplateName = name
+	}
+}
+
+func WithDefaultIndexTemplateName(name string) CommandDirHandlerOption {
+	return func(handler *CommandDirHandler) {
+		if handler.IndexTemplateName == "" {
+			handler.IndexTemplateName = name
+		}
+	}
+}
+
+func WithTemplateFS(fs fs.FS) CommandDirHandlerOption {
+	return func(handler *CommandDirHandler) {
+		handler.TemplateFS = fs
+	}
+}
+
+func WithDefaultTemplateFS(fs fs.FS, templateDirectory string) CommandDirHandlerOption {
+	return func(handler *CommandDirHandler) {
+		if handler.TemplateFS == nil {
+			handler.TemplateFS = fs
+			handler.TemplateDirectory = templateDirectory
+		}
+	}
+}
+
+func WithTemplateDirectory(directory string) CommandDirHandlerOption {
+	return func(handler *CommandDirHandler) {
+		if directory != "" {
+			if directory[0] == '/' {
+				handler.TemplateFS = os.DirFS(directory)
+			} else {
+				handler.TemplateFS = os.DirFS(directory)
+			}
+			handler.TemplateDirectory = strings.TrimPrefix(directory, "/")
+		}
+	}
+}
+
+func WithDbtConnectionLayer(layer *layers.ParsedParameterLayer) CommandDirHandlerOption {
+	return func(handler *CommandDirHandler) {
+		handler.DbtConnectionLayer = layer
+	}
+}
+
+func WithSqletonConnectionLayer(layer *layers.ParsedParameterLayer) CommandDirHandlerOption {
+	return func(handler *CommandDirHandler) {
+		handler.SqletonConnectionLayer = layer
+	}
+}
+
+func WithDevMode(devMode bool) CommandDirHandlerOption {
+	return func(handler *CommandDirHandler) {
+		handler.DevMode = devMode
+	}
+}
+
+func NewCommandDirHandlerFromConfig(
+	config *config.CommandDir,
+	options ...CommandDirHandlerOption,
+) (*CommandDirHandler, error) {
+	cd := &CommandDirHandler{
+		TemplateName:      config.TemplateName,
+		IndexTemplateName: config.IndexTemplateName,
+		Repositories:      config.Repositories,
+		Overrides:         config.Overrides,
+		Defaults:          config.Defaults,
+	}
+
+	WithTemplateDirectory(config.TemplateDirectory)(cd)
+
+	for _, option := range options {
+		option(cd)
+	}
+
+	return cd, nil
+}
+
+func (cd *CommandDirHandler) GetRepository() (*repositories.Repository, error) {
 	if len(cd.Repositories) == 0 {
 		return nil, errors.New("no repositories defined")
 	}
@@ -53,14 +168,14 @@ func (cd *CommandDir) GetRepository() (*repositories.Repository, error) {
 		}),
 	)
 
-	locations := cmds2.CommandLocations{
+	locations := claycmds.CommandLocations{
 		Repositories: cd.Repositories,
 	}
 
 	yamlLoader := loaders.NewYAMLFSCommandLoader(&pkg.SqlCommandLoader{
 		DBConnectionFactory: pkg.OpenDatabaseFromSqletonConnectionLayer,
 	})
-	commandLoader := cmds2.NewCommandLoader[cmds.Command](&locations)
+	commandLoader := claycmds.NewCommandLoader[cmds.Command](&locations)
 	// TODO(manuel, 2023-05-25) Add a way to configure serving the help of commands in a CommandDir
 	// See https://github.com/go-go-golems/sqleton/issues/163
 	helpSystem := help.NewHelpSystem()
@@ -76,25 +191,14 @@ func (cd *CommandDir) GetRepository() (*repositories.Repository, error) {
 
 	return r, nil
 }
-
-type ServeOptions struct {
-	DevMode                  bool
-	DefaultTemplateName      string
-	DefaultIndexTemplateName string
-	DefaultTemplateFS        fs.FS
-	DefaultTemplateDirectory string
-	DbtConnectionLayer       *layers.ParsedParameterLayer
-	SqletonConnectionLayer   *layers.ParsedParameterLayer
-}
-
-func (cd *CommandDir) Serve(server *pkg2.Server, options *ServeOptions, path string) error {
+func (cd *CommandDirHandler) Serve(server *parka.Server, path string) error {
 	repository, err := cd.GetRepository()
 	path = strings.TrimSuffix(path, "/")
 
 	server.Router.GET(path+"/data/*path", func(c *gin.Context) {
 		commandPath := c.Param("CommandPath")
 		commandPath = strings.TrimPrefix(commandPath, "/")
-		sqlCommand, ok := GetRepositoryCommand(c, repository, commandPath)
+		sqlCommand, ok := serve.GetRepositoryCommand(c, repository, commandPath)
 		if !ok {
 			c.JSON(404, gin.H{"error": "command not found"})
 			return
@@ -107,8 +211,8 @@ func (cd *CommandDir) Serve(server *pkg2.Server, options *ServeOptions, path str
 		// So for now, we only deal with overrides.
 
 		parserOptions := []glazed.ParserOption{
-			glazed.WithReplaceStaticLayer("sqleton-connection", options.SqletonConnectionLayer.Parameters),
-			glazed.WithReplaceStaticLayer("dbt", options.DbtConnectionLayer.Parameters),
+			glazed.WithReplaceStaticLayer("sqleton-connection", cd.SqletonConnectionLayer.Parameters),
+			glazed.WithReplaceStaticLayer("dbt", cd.DbtConnectionLayer.Parameters),
 		}
 
 		if cd.Overrides != nil {
@@ -130,7 +234,7 @@ func (cd *CommandDir) Serve(server *pkg2.Server, options *ServeOptions, path str
 			commandPath := strings.TrimPrefix(c.Param("path"), "/")
 
 			// Get repository command
-			sqlCommand, ok := GetRepositoryCommand(c, repository, commandPath)
+			sqlCommand, ok := serve.GetRepositoryCommand(c, repository, commandPath)
 			if !ok {
 				c.JSON(404, gin.H{"error": "command not found"})
 				return
@@ -173,33 +277,14 @@ func (cd *CommandDir) Serve(server *pkg2.Server, options *ServeOptions, path str
 
 			var localTemplateLookup render.TemplateLookup
 
-			var templateFS fs.FS = options.DefaultTemplateFS
-			templateDirectory := options.DefaultTemplateDirectory
-			templateName := options.DefaultTemplateName
-			indexTemplateName := options.DefaultIndexTemplateName
-
-			if cd.TemplateDirectory != "" {
-				if cd.TemplateDirectory[0] == '/' {
-					templateFS = os.DirFS("/")
-				} else {
-					templateFS = os.DirFS(".")
-				}
-			}
-			if cd.TemplateName != "" {
-				templateName = cd.TemplateName
-			}
-			if cd.IndexTemplateName != "" {
-				indexTemplateName = cd.IndexTemplateName
-			}
-
 			// TODO(manuel, 2023-05-25) Ignore indexTemplateName for now
 			// See https://github.com/go-go-golems/sqleton/issues/162
-			_ = indexTemplateName
+			_ = cd.IndexTemplateName
 
 			localTemplateLookup, err = render.LookupTemplateFromFSReloadable(
-				templateFS,
-				templateDirectory,
-				templateDirectory+"/**/*.tmpl.html",
+				cd.TemplateFS,
+				cd.TemplateDirectory,
+				cd.TemplateDirectory+"/**/*.tmpl.html",
 			)
 
 			if err != nil {
@@ -209,7 +294,7 @@ func (cd *CommandDir) Serve(server *pkg2.Server, options *ServeOptions, path str
 
 			dataTablesProcessorFunc := render.NewHTMLTemplateLookupCreateProcessorFunc(
 				localTemplateLookup,
-				templateName,
+				cd.TemplateName,
 				render.WithHTMLTemplateOutputFormatterData(
 					map[string]interface{}{
 						"Links": links,
@@ -223,8 +308,8 @@ func (cd *CommandDir) Serve(server *pkg2.Server, options *ServeOptions, path str
 			// So for now, we only deal with overrides.
 
 			parserOptions := []glazed.ParserOption{
-				glazed.WithReplaceStaticLayer("sqleton-connection", options.SqletonConnectionLayer.Parameters),
-				glazed.WithReplaceStaticLayer("dbt", options.DbtConnectionLayer.Parameters),
+				glazed.WithReplaceStaticLayer("sqleton-connection", cd.SqletonConnectionLayer.Parameters),
+				glazed.WithReplaceStaticLayer("dbt", cd.DbtConnectionLayer.Parameters),
 			}
 
 			if cd.Overrides != nil {
@@ -258,7 +343,7 @@ func (cd *CommandDir) Serve(server *pkg2.Server, options *ServeOptions, path str
 		fileName := path[index+1:]
 
 		commandPath := strings.TrimPrefix(path[:index], "/")
-		sqlCommand, ok := GetRepositoryCommand(c, repository, commandPath)
+		sqlCommand, ok := serve.GetRepositoryCommand(c, repository, commandPath)
 		if !ok {
 			c.JSON(404, gin.H{"error": "command not found"})
 			return
@@ -303,8 +388,8 @@ func (cd *CommandDir) Serve(server *pkg2.Server, options *ServeOptions, path str
 		}
 
 		parserOptions := []glazed.ParserOption{
-			glazed.WithReplaceStaticLayer("sqleton-connection", options.SqletonConnectionLayer.Parameters),
-			glazed.WithReplaceStaticLayer("dbt", options.DbtConnectionLayer.Parameters),
+			glazed.WithReplaceStaticLayer("sqleton-connection", cd.SqletonConnectionLayer.Parameters),
+			glazed.WithReplaceStaticLayer("dbt", cd.DbtConnectionLayer.Parameters),
 		}
 
 		if cd.Overrides != nil {

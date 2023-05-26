@@ -3,12 +3,10 @@ package command_dir
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
-	claycmds "github.com/go-go-golems/clay/pkg/cmds"
 	"github.com/go-go-golems/clay/pkg/repositories"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
-	"github.com/go-go-golems/glazed/pkg/help"
 	parka "github.com/go-go-golems/parka/pkg"
 	"github.com/go-go-golems/parka/pkg/glazed"
 	"github.com/go-go-golems/parka/pkg/render"
@@ -184,10 +182,6 @@ func (cd *CommandDirHandler) GetRepository() (*repositories.Repository, error) {
 		return nil, errors.New("no repositories defined")
 	}
 
-	locations := claycmds.CommandLocations{
-		Repositories: cd.Repositories,
-	}
-
 	yamlFSLoader := loaders.NewYAMLFSCommandLoader(&pkg.SqlCommandLoader{
 		DBConnectionFactory: pkg.OpenDatabaseFromSqletonConnectionLayer,
 	})
@@ -196,8 +190,6 @@ func (cd *CommandDirHandler) GetRepository() (*repositories.Repository, error) {
 			DBConnectionFactory: pkg.OpenDatabaseFromSqletonConnectionLayer,
 		},
 	}
-
-	commandLoader := claycmds.NewCommandLoader[cmds.Command](&locations)
 
 	r := repositories.NewRepository(
 		repositories.WithDirectories(cd.Repositories),
@@ -220,20 +212,16 @@ func (cd *CommandDirHandler) GetRepository() (*repositories.Repository, error) {
 			return nil
 		}),
 		repositories.WithCommandLoader(yamlLoader),
+		repositories.WithFSLoader(yamlFSLoader),
 	)
 
-	// TODO(manuel, 2023-05-25) Add a way to configure serving the help of commands in a CommandDir
-	// See https://github.com/go-go-golems/sqleton/issues/163
-	helpSystem := help.NewHelpSystem()
-	commands, aliases, err := commandLoader.LoadCommands(yamlFSLoader, helpSystem)
+	err := r.LoadCommands()
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
 		os.Exit(1)
 	}
-	r.Add(commands...)
-	for _, alias := range aliases {
-		r.Add(alias)
-	}
+
+	cd.repository = r
 
 	return r, nil
 }

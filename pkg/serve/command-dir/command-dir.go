@@ -228,6 +228,9 @@ func (cd *CommandDirHandler) GetRepository() (*repositories.Repository, error) {
 
 func (cd *CommandDirHandler) Serve(server *parka.Server, path string) error {
 	repository, err := cd.GetRepository()
+	if err != nil {
+		return err
+	}
 	path = strings.TrimSuffix(path, "/")
 
 	server.Router.GET(path+"/data/*path", func(c *gin.Context) {
@@ -316,11 +319,14 @@ func (cd *CommandDirHandler) Serve(server *parka.Server, path string) error {
 			// See https://github.com/go-go-golems/sqleton/issues/162
 			_ = cd.IndexTemplateName
 
-			localTemplateLookup, err = render.LookupTemplateFromFSReloadable(
-				cd.TemplateFS,
-				cd.TemplateDirectory,
-				cd.TemplateDirectory+"/**/*.tmpl.html",
+			// TODO(manuel, 2023-05-28) How does this link up with CreateProcessorFunc?
+			localTemplateLookup = render.NewLookupTemplateFromFS(
+				render.WithFS(cd.TemplateFS),
+				render.WithBaseDir(cd.TemplateDirectory),
+				render.WithPatterns(cd.TemplateDirectory+"/**/*.tmpl.html"),
+				render.WithAlwaysReload(cd.DevMode),
 			)
+			err := localTemplateLookup.Reload()
 
 			if err != nil {
 				c.JSON(500, gin.H{"error": "could not create template lookup"})

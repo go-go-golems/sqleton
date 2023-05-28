@@ -10,6 +10,9 @@ import (
 	"strings"
 )
 
+// TODO(manuel, 2023-05-28) Add a proper Handler interface that also
+// deals with devmode / reloading
+
 type TemplateDirHandler struct {
 	fs                       fs.FS
 	LocalDirectory           string
@@ -17,6 +20,7 @@ type TemplateDirHandler struct {
 	MarkdownBaseTemplateName string
 	rendererOptions          []render.RendererOption
 	renderer                 *render.Renderer
+	alwaysReload             bool
 }
 
 type TemplateDirHandlerOption func(handler *TemplateDirHandler)
@@ -27,6 +31,12 @@ func WithDefaultFS(fs fs.FS, localPath string) TemplateDirHandlerOption {
 			handler.fs = fs
 			handler.LocalDirectory = localPath
 		}
+	}
+}
+
+func WithAlwaysReload(alwaysReload bool) TemplateDirHandlerOption {
+	return func(handler *TemplateDirHandler) {
+		handler.alwaysReload = alwaysReload
 	}
 }
 
@@ -66,13 +76,18 @@ func NewTemplateDirHandlerFromConfig(td *config.TemplateDir, options ...Template
 	for _, option := range options {
 		option(handler)
 	}
-	templateLookup, err := render.LookupTemplateFromFSReloadable(
-		handler.fs,
-		handler.LocalDirectory,
-		"**/*.tmpl.md",
-		"**/*.md",
-		"**/*.tmpl.html",
-		"**/*.html")
+	templateLookup := render.NewLookupTemplateFromFS(
+		render.WithFS(handler.fs),
+		render.WithBaseDir(handler.LocalDirectory),
+		render.WithPatterns(
+			"**/*.tmpl.md",
+			"**/*.md",
+			"**/*.tmpl.html",
+			"**/*.html",
+		),
+		render.WithAlwaysReload(handler.alwaysReload),
+	)
+	err := templateLookup.Reload()
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to load local template: %w", err)

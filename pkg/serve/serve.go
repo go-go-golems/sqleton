@@ -79,7 +79,10 @@ func (cfh *ConfigFileHandler) Serve(server *parka.Server) error {
 		}
 
 		if route.TemplateDirectory != nil {
-			tdh, err := template_dir.NewTemplateDirHandlerFromConfig(route.TemplateDirectory, cfh.TemplateDirectoryOptions...)
+			tdh, err := template_dir.NewTemplateDirHandlerFromConfig(
+				route.TemplateDirectory,
+				cfh.TemplateDirectoryOptions...,
+			)
 			if err != nil {
 				return err
 			}

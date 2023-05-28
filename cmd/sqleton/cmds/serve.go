@@ -89,11 +89,13 @@ func (s *ServeCommand) Run(
 			},
 		})
 
-		templateLookup, err := render.LookupTemplateFromFSReloadable(
-			os.DirFS("."),
-			"cmd/sqleton/cmds/templates/static",
-			"**/*.tmpl.*",
+		templateLookup := render.NewLookupTemplateFromFS(
+			render.WithFS(os.DirFS(".")),
+			render.WithBaseDir("cmd/sqleton/cmds/templates/static"),
+			render.WithPatterns("**/*.tmpl.*"),
+			render.WithAlwaysReload(true),
 		)
+		err := templateLookup.Reload()
 		if err != nil {
 			return fmt.Errorf("failed to load local template: %w", err)
 		}
@@ -101,12 +103,17 @@ func (s *ServeCommand) Run(
 			render.WithAppendTemplateLookups(templateLookup),
 		)
 	} else {
-		embeddedTemplateLookup, err := render.LookupTemplateFromFS(embeddedFiles, "templates", "**/*.tmpl.*")
+		templateLookup := render.NewLookupTemplateFromFS(
+			render.WithFS(embeddedFiles),
+			render.WithBaseDir("templates"),
+			render.WithPatterns("**/*.tmpl.*"),
+		)
+		err := templateLookup.Reload()
 		if err != nil {
 			return fmt.Errorf("failed to load embedded template: %w", err)
 		}
 		sqletonRendererOptions = append(sqletonRendererOptions,
-			render.WithAppendTemplateLookups(embeddedTemplateLookup),
+			render.WithAppendTemplateLookups(templateLookup),
 		)
 		serverOptions = append(serverOptions,
 			parka.WithStaticPaths(
@@ -162,6 +169,7 @@ func (s *ServeCommand) Run(
 		template_dir.WithAppendRendererOptions(parkaDefaultRendererOptions...),
 		// add lookup functions for data-tables.tmpl.html and others
 		template_dir.WithAppendRendererOptions(sqletonRendererOptions...),
+		template_dir.WithAlwaysReload(dev),
 	}
 
 	cfh := serve.NewConfigFileHandler(

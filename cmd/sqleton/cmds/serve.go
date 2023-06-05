@@ -11,12 +11,13 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/helpers"
-	parka "github.com/go-go-golems/parka/pkg"
 	"github.com/go-go-golems/parka/pkg/handlers"
 	"github.com/go-go-golems/parka/pkg/handlers/command-dir"
 	"github.com/go-go-golems/parka/pkg/handlers/config"
 	"github.com/go-go-golems/parka/pkg/handlers/template-dir"
 	"github.com/go-go-golems/parka/pkg/render"
+	"github.com/go-go-golems/parka/pkg/server"
+	"github.com/go-go-golems/parka/pkg/utils/fs"
 	"github.com/go-go-golems/sqleton/pkg"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
@@ -50,10 +51,10 @@ func (s *ServeCommand) Run(
 	host := ps["serve-host"].(string)
 	dev, _ := ps["dev"].(bool)
 
-	serverOptions := []parka.ServerOption{
-		parka.WithPort(uint16(port)),
-		parka.WithAddress(host),
-		parka.WithGzip(),
+	serverOptions := []server.ServerOption{
+		server.WithPort(uint16(port)),
+		server.WithAddress(host),
+		server.WithGzip(),
 	}
 
 	configFile := &config.Config{
@@ -119,22 +120,22 @@ func (s *ServeCommand) Run(
 			render.WithAppendTemplateLookups(templateLookup),
 		)
 		serverOptions = append(serverOptions,
-			parka.WithStaticPaths(
-				parka.NewStaticPath(http.FS(parka.NewAddPrefixPathFS(staticFiles, "static/")), "/static"),
+			server.WithStaticPaths(
+				fs.NewStaticPath(http.FS(fs.NewAddPrefixPathFS(staticFiles, "static/")), "/static"),
 			),
 		)
 	}
 
 	serverOptions = append(serverOptions,
-		parka.WithDefaultParkaStaticPaths(),
+		server.WithDefaultParkaStaticPaths(),
 	)
 
-	server, err := parka.NewServer(serverOptions...)
+	server_, err := server.NewServer(serverOptions...)
 	if err != nil {
 		return err
 	}
 
-	server.Router.StaticFileFS(
+	server_.Router.StaticFileFS(
 		"favicon.ico",
 		"templates/favicon.ico",
 		http.FS(embeddedFiles),
@@ -178,7 +179,7 @@ func (s *ServeCommand) Run(
 	)
 
 	// templateDirHandlerOptions
-	parkaDefaultRendererOptions, err := parka.GetDefaultParkaRendererOptions()
+	parkaDefaultRendererOptions, err := server.GetDefaultParkaRendererOptions()
 	if err != nil {
 		return fmt.Errorf("failed to get default parka renderer options: %w", err)
 	}
@@ -197,7 +198,7 @@ func (s *ServeCommand) Run(
 		handlers.WithRepositoryFactory(CreateSqletonRepository),
 	)
 
-	err = cfh.Serve(server)
+	err = cfh.Serve(server_)
 	if err != nil {
 		return err
 	}
@@ -210,7 +211,7 @@ func (s *ServeCommand) Run(
 		return cfh.Watch(ctx)
 	})
 	errGroup.Go(func() error {
-		return server.Run(ctx)
+		return server_.Run(ctx)
 	})
 	errGroup.Go(func() error {
 		return helpers.CancelOnSignal(ctx, os.Interrupt, cancel)

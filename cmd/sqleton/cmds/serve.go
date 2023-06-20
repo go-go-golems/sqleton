@@ -17,6 +17,7 @@ import (
 	"github.com/go-go-golems/parka/pkg/handlers/template"
 	"github.com/go-go-golems/parka/pkg/handlers/template-dir"
 	"github.com/go-go-golems/parka/pkg/render"
+	"github.com/go-go-golems/parka/pkg/render/datatables"
 	"github.com/go-go-golems/parka/pkg/server"
 	"github.com/go-go-golems/parka/pkg/utils/fs"
 	"github.com/go-go-golems/sqleton/pkg"
@@ -142,6 +143,7 @@ func (s *ServeCommand) runWithConfigFile(
 		handlers.WithAppendTemplateDirHandlerOptions(templateDirHandlerOptions...),
 		handlers.WithAppendTemplateHandlerOptions(templateHandlerOptions...),
 		handlers.WithRepositoryFactory(CreateSqletonRepository),
+		handlers.WithDevMode(devMode),
 	)
 
 	err = runConfigFileHandler(ctx, server_, cfh)
@@ -207,32 +209,7 @@ func (s *ServeCommand) Run(
 			},
 		})
 
-		templateLookup := render.NewLookupTemplateFromFS(
-			render.WithFS(os.DirFS(".")),
-			render.WithBaseDir("cmd/sqleton/cmds/templates/static"),
-			render.WithPatterns("**/*.tmpl.*"),
-			render.WithAlwaysReload(true),
-		)
-		err := templateLookup.Reload()
-		if err != nil {
-			return fmt.Errorf("failed to load local template: %w", err)
-		}
-		sqletonRendererOptions = append(sqletonRendererOptions,
-			render.WithAppendTemplateLookups(templateLookup),
-		)
 	} else {
-		templateLookup := render.NewLookupTemplateFromFS(
-			render.WithFS(embeddedFiles),
-			render.WithBaseDir("templates"),
-			render.WithPatterns("**/*.tmpl.*"),
-		)
-		err := templateLookup.Reload()
-		if err != nil {
-			return fmt.Errorf("failed to load embedded template: %w", err)
-		}
-		sqletonRendererOptions = append(sqletonRendererOptions,
-			render.WithAppendTemplateLookups(templateLookup),
-		)
 		serverOptions = append(serverOptions,
 			server.WithStaticPaths(
 				fs.NewStaticPath(http.FS(fs.NewAddPrefixPathFS(staticFiles, "static/")), "/static"),
@@ -266,25 +243,8 @@ func (s *ServeCommand) Run(
 	}
 
 	// commandDirHandlerOptions will apply to all command dirs loaded by the server
-	commandDirHandlerOptions := []command_dir.CommandDirHandlerOption{}
-	if dev {
-		commandDirHandlerOptions = append(commandDirHandlerOptions,
-			command_dir.WithTemplateLookup(
-				render.NewLookupTemplateFromFS(
-					render.WithFS(os.DirFS(".")),
-					render.WithBaseDir("cmd/sqleton/cmds/templates"),
-				)),
-		)
-	} else {
-		commandDirHandlerOptions = append(commandDirHandlerOptions,
-			command_dir.WithTemplateLookup(
-				render.NewLookupTemplateFromFS(
-					render.WithFS(embeddedFiles),
-					render.WithBaseDir("templates"),
-				)),
-		)
-	}
-	commandDirHandlerOptions = append(commandDirHandlerOptions,
+	commandDirHandlerOptions := []command_dir.CommandDirHandlerOption{
+		command_dir.WithTemplateLookup(datatables.NewDataTablesLookupTemplate()),
 		command_dir.WithReplaceOverrideLayer(
 			dbtConnectionLayer.Layer.GetSlug(),
 			dbtConnectionLayer.Parameters,
@@ -296,7 +256,7 @@ func (s *ServeCommand) Run(
 		command_dir.WithDefaultTemplateName("data-tables.tmpl.html"),
 		command_dir.WithDefaultIndexTemplateName(""),
 		command_dir.WithDevMode(dev),
-	)
+	}
 
 	// templateDirHandlerOptions
 	parkaDefaultRendererOptions, err := server.GetDefaultParkaRendererOptions()
@@ -316,6 +276,7 @@ func (s *ServeCommand) Run(
 		handlers.WithAppendCommandDirHandlerOptions(commandDirHandlerOptions...),
 		handlers.WithAppendTemplateDirHandlerOptions(templateDirHandlerOptions...),
 		handlers.WithRepositoryFactory(CreateSqletonRepository),
+		handlers.WithDevMode(dev),
 	)
 
 	err = runConfigFileHandler(ctx, server_, cfh)

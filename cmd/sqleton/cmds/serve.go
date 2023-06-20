@@ -14,11 +14,13 @@ import (
 	"github.com/go-go-golems/parka/pkg/handlers"
 	"github.com/go-go-golems/parka/pkg/handlers/command-dir"
 	"github.com/go-go-golems/parka/pkg/handlers/config"
+	"github.com/go-go-golems/parka/pkg/handlers/template"
 	"github.com/go-go-golems/parka/pkg/handlers/template-dir"
 	"github.com/go-go-golems/parka/pkg/render"
 	"github.com/go-go-golems/parka/pkg/server"
 	"github.com/go-go-golems/parka/pkg/utils/fs"
 	"github.com/go-go-golems/sqleton/pkg"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
 	"net/http"
@@ -41,6 +43,114 @@ var embeddedFiles embed.FS
 //go:embed static
 var staticFiles embed.FS
 
+func (s *ServeCommand) runWithConfigFile(
+	ctx context.Context,
+	parsedLayers map[string]*layers.ParsedParameterLayer,
+	ps map[string]interface{},
+	configFilePath string,
+	serverOptions []server.ServerOption,
+) error {
+	configData, err := os.ReadFile(configFilePath)
+	if err != nil {
+		return err
+	}
+
+	configFile, err := config.ParseConfig(configData)
+	if err != nil {
+		return err
+	}
+
+	server_, err := server.NewServer(serverOptions...)
+	if err != nil {
+		return err
+	}
+
+	commandDirHandlerOptions := []command_dir.CommandDirHandlerOption{}
+	templateDirHandlerOptions := []template_dir.TemplateDirHandlerOption{}
+
+	sqletonConnectionLayer := parsedLayers["sqleton-connection"]
+	if sqletonConnectionLayer == nil {
+		return errors.New("sqleton-connection layer not found")
+	}
+	dbtConnectionLayer := parsedLayers["dbt"]
+	if dbtConnectionLayer == nil {
+		return errors.New("dbt layer not found")
+	}
+
+	// TODO(manuel, 2023-06-20): These should be able to be set from the config file itself.
+	// See: https://github.com/go-go-golems/parka/issues/51
+	devMode := ps["dev"].(bool)
+	commandDirHandlerOptions = append(
+		commandDirHandlerOptions,
+		command_dir.WithReplaceOverrideLayer(
+			sqletonConnectionLayer.Layer.GetSlug(),
+			sqletonConnectionLayer.Parameters,
+		),
+		command_dir.WithReplaceOverrideLayer(
+			dbtConnectionLayer.Layer.GetSlug(),
+			dbtConnectionLayer.Parameters,
+		),
+		command_dir.WithDefaultTemplateName("data-tables.tmpl.html"),
+		command_dir.WithDefaultIndexTemplateName("index.tmpl.html"),
+		command_dir.WithDevMode(devMode),
+	)
+
+	parkaDefaultRendererOptions, err := server.GetDefaultParkaRendererOptions()
+	if err != nil {
+		return err
+	}
+
+	templateDirHandlerOptions = append(
+		// pass in the default parka renderer options for being able to render markdown files
+		templateDirHandlerOptions,
+		template_dir.WithAppendRendererOptions(parkaDefaultRendererOptions...),
+		template_dir.WithAlwaysReload(devMode),
+	)
+
+	templateHandlerOptions := []template.TemplateHandlerOption{
+		template.WithAppendRendererOptions(parkaDefaultRendererOptions...),
+		template.WithAlwaysReload(devMode),
+	}
+
+	// TODO(manuel, 2023-06-17): we need to
+	//
+	// create the server
+	// - gather server options
+	//   - [x] port, address, gzip (passed in through the call)
+	//   - [x] static paths (from embedFS static/) -> can be done through normal option
+	//   - default parka static paths: /dist from GetParkaStaticFS
+	//   - favicon.ico from embeddedFiles templates/favicon.ico
+	//
+	// for the config file handler:
+	// - [x] gather commandDirHandlerOptions
+	//   - [x] templateLookup from cmds/templates/
+	//      - should be handled by the templateDirectoryHandler creation function
+	//   - [x] override dbt-connection and sqleton-connection layer from parsedLayers
+	//   - [x] defaultTemplateName data-tables.tmpl.html
+	//     - should be set from the config file, but setting it in the code will do for the first revision
+	//   - [x] defaultIndexTemplateName
+	//     - see comment for defaultTemplateName, and also https://github.com/go-go-golems/parka/issues/51
+	//   - [x] devMode
+	// - [x] gather templateDirHandlerOptions
+	//   - [x] default renderer options
+	//   - [x] sqletonRendererOptions (seems to be the templateLookup, so done through the config file?)
+	// - [x] get repository factory
+
+	cfh := handlers.NewConfigFileHandler(
+		configFile,
+		handlers.WithAppendCommandDirHandlerOptions(commandDirHandlerOptions...),
+		handlers.WithAppendTemplateDirHandlerOptions(templateDirHandlerOptions...),
+		handlers.WithAppendTemplateHandlerOptions(templateHandlerOptions...),
+		handlers.WithRepositoryFactory(CreateSqletonRepository),
+	)
+
+	err = runConfigFileHandler(ctx, server_, cfh)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *ServeCommand) Run(
 	ctx context.Context,
 	parsedLayers map[string]*layers.ParsedParameterLayer,
@@ -55,6 +165,10 @@ func (s *ServeCommand) Run(
 		server.WithPort(uint16(port)),
 		server.WithAddress(host),
 		server.WithGzip(),
+	}
+
+	if configFilePath, ok := ps["config-file"]; ok {
+		return s.runWithConfigFile(ctx, parsedLayers, ps, configFilePath.(string), serverOptions)
 	}
 
 	configFile := &config.Config{
@@ -143,7 +257,13 @@ func (s *ServeCommand) Run(
 
 	// This section configures the command directory default setting specific to sqleton
 	sqletonConnectionLayer := parsedLayers["sqleton-connection"]
+	if sqletonConnectionLayer == nil {
+		return fmt.Errorf("sqleton-connection layer is required")
+	}
 	dbtConnectionLayer := parsedLayers["dbt"]
+	if dbtConnectionLayer == nil {
+		return fmt.Errorf("dbt layer is required")
+	}
 
 	// commandDirHandlerOptions will apply to all command dirs loaded by the server
 	commandDirHandlerOptions := []command_dir.CommandDirHandlerOption{}
@@ -198,7 +318,18 @@ func (s *ServeCommand) Run(
 		handlers.WithRepositoryFactory(CreateSqletonRepository),
 	)
 
-	err = cfh.Serve(server_)
+	err = runConfigFileHandler(ctx, server_, cfh)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// runConfigFileHandler runs the config file handler and the server.
+// The config file handler will watch the config file for changes and reload the server.
+// The server will run until the context is canceled (which can be done through Ctrl-C).
+func runConfigFileHandler(ctx context.Context, server_ *server.Server, cfh *handlers.ConfigFileHandler) error {
+	err := cfh.Serve(server_)
 	if err != nil {
 		return err
 	}
@@ -258,6 +389,11 @@ func NewServeCommand(
 				parameters.ParameterTypeStringList,
 				parameters.WithHelp("Serve static and templated files from these directories"),
 				parameters.WithDefault([]string{}),
+			),
+			parameters.NewParameterDefinition(
+				"config-file",
+				parameters.ParameterTypeString,
+				parameters.WithHelp("Config file to configure the serve functionality"),
 			),
 		),
 	)

@@ -38,9 +38,6 @@ func (s *ServeCommand) Description() *cmds.CommandDescription {
 	return s.description
 }
 
-//go:embed templates
-var embeddedFiles embed.FS
-
 //go:embed static
 var staticFiles embed.FS
 
@@ -228,8 +225,8 @@ func (s *ServeCommand) Run(
 
 	server_.Router.StaticFileFS(
 		"favicon.ico",
-		"templates/favicon.ico",
-		http.FS(embeddedFiles),
+		"static/favicon.ico",
+		http.FS(staticFiles),
 	)
 
 	// This section configures the command directory default setting specific to sqleton

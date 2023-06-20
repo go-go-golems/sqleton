@@ -3,10 +3,9 @@ module github.com/go-go-golems/sqleton
 go 1.19
 
 require (
-	github.com/gin-gonic/gin v1.9.0
 	github.com/go-go-golems/clay v0.0.17
-	github.com/go-go-golems/glazed v0.2.82
-	github.com/go-go-golems/parka v0.2.28
+	github.com/go-go-golems/glazed v0.2.83
+	github.com/go-go-golems/parka v0.3.0
 	github.com/go-sql-driver/mysql v1.7.0
 	github.com/huandu/go-sqlbuilder v1.18.0
 	github.com/jmoiron/sqlx v1.3.5
@@ -44,6 +43,7 @@ require (
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/gin-gonic/contrib v0.0.0-20221130124618-7e01895a63f2 // indirect
+	github.com/gin-gonic/gin v1.9.0 // indirect
 	github.com/go-openapi/errors v0.20.3 // indirect
 	github.com/go-openapi/strfmt v0.21.7 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect

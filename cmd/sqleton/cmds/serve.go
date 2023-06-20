@@ -4,394 +4,303 @@ import (
 	"context"
 	"embed"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"github.com/go-go-golems/clay/pkg/repositories"
-	"github.com/go-go-golems/clay/pkg/watcher"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/helpers"
-	"github.com/go-go-golems/glazed/pkg/settings"
-	parka "github.com/go-go-golems/parka/pkg"
-	"github.com/go-go-golems/parka/pkg/glazed"
+	"github.com/go-go-golems/parka/pkg/handlers"
+	"github.com/go-go-golems/parka/pkg/handlers/command-dir"
+	"github.com/go-go-golems/parka/pkg/handlers/config"
+	"github.com/go-go-golems/parka/pkg/handlers/template"
+	"github.com/go-go-golems/parka/pkg/handlers/template-dir"
 	"github.com/go-go-golems/parka/pkg/render"
+	"github.com/go-go-golems/parka/pkg/render/datatables"
+	"github.com/go-go-golems/parka/pkg/server"
+	"github.com/go-go-golems/parka/pkg/utils/fs"
 	"github.com/go-go-golems/sqleton/pkg"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
 	"net/http"
 	"os"
-	"strings"
-	"time"
 )
 
 type ServeCommand struct {
 	description         *cmds.CommandDescription
 	dbConnectionFactory pkg.DBConnectionFactory
 	repositories        []string
-	commands            []cmds.Command
-	aliases             []*alias.CommandAlias
 }
 
 func (s *ServeCommand) Description() *cmds.CommandDescription {
 	return s.description
 }
 
-//go:embed templates
-var embeddedFiles embed.FS
-
 //go:embed static
 var staticFiles embed.FS
+
+func (s *ServeCommand) runWithConfigFile(
+	ctx context.Context,
+	parsedLayers map[string]*layers.ParsedParameterLayer,
+	ps map[string]interface{},
+	configFilePath string,
+	serverOptions []server.ServerOption,
+) error {
+	configData, err := os.ReadFile(configFilePath)
+	if err != nil {
+		return err
+	}
+
+	configFile, err := config.ParseConfig(configData)
+	if err != nil {
+		return err
+	}
+
+	server_, err := server.NewServer(serverOptions...)
+	if err != nil {
+		return err
+	}
+
+	commandDirHandlerOptions := []command_dir.CommandDirHandlerOption{}
+	templateDirHandlerOptions := []template_dir.TemplateDirHandlerOption{}
+
+	sqletonConnectionLayer := parsedLayers["sqleton-connection"]
+	if sqletonConnectionLayer == nil {
+		return errors.New("sqleton-connection layer not found")
+	}
+	dbtConnectionLayer := parsedLayers["dbt"]
+	if dbtConnectionLayer == nil {
+		return errors.New("dbt layer not found")
+	}
+
+	// TODO(manuel, 2023-06-20): These should be able to be set from the config file itself.
+	// See: https://github.com/go-go-golems/parka/issues/51
+	devMode := ps["dev"].(bool)
+	commandDirHandlerOptions = append(
+		commandDirHandlerOptions,
+		command_dir.WithReplaceOverrideLayer(
+			sqletonConnectionLayer.Layer.GetSlug(),
+			sqletonConnectionLayer.Parameters,
+		),
+		command_dir.WithReplaceOverrideLayer(
+			dbtConnectionLayer.Layer.GetSlug(),
+			dbtConnectionLayer.Parameters,
+		),
+		command_dir.WithDefaultTemplateName("data-tables.tmpl.html"),
+		command_dir.WithDefaultIndexTemplateName("index.tmpl.html"),
+		command_dir.WithDevMode(devMode),
+	)
+
+	parkaDefaultRendererOptions, err := server.GetDefaultParkaRendererOptions()
+	if err != nil {
+		return err
+	}
+
+	templateDirHandlerOptions = append(
+		// pass in the default parka renderer options for being able to render markdown files
+		templateDirHandlerOptions,
+		template_dir.WithAppendRendererOptions(parkaDefaultRendererOptions...),
+		template_dir.WithAlwaysReload(devMode),
+	)
+
+	templateHandlerOptions := []template.TemplateHandlerOption{
+		template.WithAppendRendererOptions(parkaDefaultRendererOptions...),
+		template.WithAlwaysReload(devMode),
+	}
+
+	// TODO(manuel, 2023-06-17): we need to
+	//
+	// create the server
+	// - gather server options
+	//   - [x] port, address, gzip (passed in through the call)
+	//   - [x] static paths (from embedFS static/) -> can be done through normal option
+	//   - default parka static paths: /dist from GetParkaStaticFS
+	//   - favicon.ico from embeddedFiles templates/favicon.ico
+	//
+	// for the config file handler:
+	// - [x] gather commandDirHandlerOptions
+	//   - [x] templateLookup from cmds/templates/
+	//      - should be handled by the templateDirectoryHandler creation function
+	//   - [x] override dbt-connection and sqleton-connection layer from parsedLayers
+	//   - [x] defaultTemplateName data-tables.tmpl.html
+	//     - should be set from the config file, but setting it in the code will do for the first revision
+	//   - [x] defaultIndexTemplateName
+	//     - see comment for defaultTemplateName, and also https://github.com/go-go-golems/parka/issues/51
+	//   - [x] devMode
+	// - [x] gather templateDirHandlerOptions
+	//   - [x] default renderer options
+	//   - [x] sqletonRendererOptions (seems to be the templateLookup, so done through the config file?)
+	// - [x] get repository factory
+
+	cfh := handlers.NewConfigFileHandler(
+		configFile,
+		handlers.WithAppendCommandDirHandlerOptions(commandDirHandlerOptions...),
+		handlers.WithAppendTemplateDirHandlerOptions(templateDirHandlerOptions...),
+		handlers.WithAppendTemplateHandlerOptions(templateHandlerOptions...),
+		handlers.WithRepositoryFactory(CreateSqletonRepository),
+		handlers.WithDevMode(devMode),
+	)
+
+	err = runConfigFileHandler(ctx, server_, cfh)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 func (s *ServeCommand) Run(
 	ctx context.Context,
 	parsedLayers map[string]*layers.ParsedParameterLayer,
 	ps map[string]interface{},
 ) error {
-	// set up repository watcher
-	r := repositories.NewRepository(
-		repositories.WithDirectories(s.repositories),
-		repositories.WithUpdateCallback(func(cmd cmds.Command) error {
-			description := cmd.Description()
-			log.Info().Str("name", description.Name).
-				Str("source", description.Source).
-				Msg("Updating cmd")
-			// TODO(manuel, 2023-04-19) This is where we would recompute the HandlerFunc used below in GET and POST
-			return nil
-		}),
-		repositories.WithRemoveCallback(func(cmd cmds.Command) error {
-			description := cmd.Description()
-			log.Info().Str("name", description.Name).
-				Str("source", description.Source).
-				Msg("Removing cmd")
-			// TODO(manuel, 2023-04-19) This is where we would recompute the HandlerFunc used below in GET and POST
-			return nil
-		}),
-	)
-
-	for _, command := range s.commands {
-		r.Add(command)
-	}
-	for _, alias := range s.aliases {
-		r.Add(alias)
-	}
-
-	yamlLoader := &loaders.YAMLReaderCommandLoader{
-		YAMLCommandLoader: &pkg.SqlCommandLoader{
-			DBConnectionFactory: pkg.OpenDatabaseFromSqletonConnectionLayer,
-		},
-	}
-
 	// now set up parka server
 	port := ps["serve-port"].(int)
 	host := ps["serve-host"].(string)
 	dev, _ := ps["dev"].(bool)
 
-	// TODO(manuel, 2023-04-19) These are currently handled as template dirs only, not as static dirs
+	serverOptions := []server.ServerOption{
+		server.WithPort(uint16(port)),
+		server.WithAddress(host),
+		server.WithGzip(),
+	}
+
+	if configFilePath, ok := ps["config-file"]; ok {
+		return s.runWithConfigFile(ctx, parsedLayers, ps, configFilePath.(string), serverOptions)
+	}
+
+	configFile := &config.Config{
+		Routes: []*config.Route{
+			{
+				Path: "/",
+				CommandDirectory: &config.CommandDir{
+					Repositories: s.repositories,
+				},
+			},
+		},
+	}
+
 	contentDirs := ps["content-dirs"].([]string)
 
-	serverOptions := []parka.ServerOption{
-		parka.WithPort(uint16(port)),
-		parka.WithAddress(host),
-		parka.WithGzip(),
+	if len(contentDirs) > 1 {
+		return fmt.Errorf("only one content directory is supported at the moment")
 	}
 
-	if len(contentDirs) > 0 {
-		lookups := make([]render.TemplateLookup, len(contentDirs))
-		for i, contentDir := range contentDirs {
-			isAbsoluteDir := strings.HasPrefix(contentDir, "/")
-
-			// resolve base dir
-			if !isAbsoluteDir {
-				baseDir, err := os.Getwd()
-				if err != nil {
-					return fmt.Errorf("failed to get working directory: %w", err)
-				}
-				contentDir = baseDir + "/" + contentDir
-			}
-
-			localTemplateLookup, err := render.LookupTemplateFromFSReloadable(
-				os.DirFS(contentDir),
-				"",
-				"**/*.tmpl.md",
-				"**/*.md",
-				"**/*.tmpl.html",
-				"**/*.html")
-			if err != nil {
-				return fmt.Errorf("failed to load local template: %w", err)
-			}
-			lookups[i] = localTemplateLookup
-		}
-		serverOptions = append(serverOptions, parka.WithAppendTemplateLookups(lookups...))
+	if len(contentDirs) == 1 {
+		configFile.Routes = append(configFile.Routes, &config.Route{
+			Path: "/",
+			TemplateDirectory: &config.TemplateDir{
+				LocalDirectory: contentDirs[0],
+			},
+		})
 	}
 
+	// static paths
+	sqletonRendererOptions := []render.RendererOption{}
 	if dev {
-		templateLookup, err := render.LookupTemplateFromFSReloadable(
-			os.DirFS("."),
-			"cmd/sqleton/cmds/templates/static",
-			"**/*.tmpl.*",
-		)
-		if err != nil {
-			return fmt.Errorf("failed to load local template: %w", err)
-		}
-		serverOptions = append(serverOptions,
-			parka.WithAppendTemplateLookups(templateLookup),
-			parka.WithStaticPaths(
-				parka.NewStaticPath(http.FS(os.DirFS("cmd/sqleton/cmds/static")), "/static"),
-			))
+		configFile.Routes = append(configFile.Routes, &config.Route{
+			Path: "/static",
+			Static: &config.Static{
+				LocalPath: "cmd/sqleton/cmds/static",
+			},
+		})
+
 	} else {
-		embeddedTemplateLookup, err := render.LookupTemplateFromFS(embeddedFiles, "templates", "**/*.tmpl.*")
-		if err != nil {
-			return fmt.Errorf("failed to load embedded template: %w", err)
-		}
 		serverOptions = append(serverOptions,
-			parka.WithAppendTemplateLookups(embeddedTemplateLookup),
-			parka.WithStaticPaths(
-				parka.NewStaticPath(http.FS(parka.NewAddPrefixPathFS(staticFiles, "static/")), "/static"),
+			server.WithStaticPaths(
+				fs.NewStaticPath(http.FS(fs.NewAddPrefixPathFS(staticFiles, "static/")), "/static"),
 			),
 		)
 	}
 
 	serverOptions = append(serverOptions,
-		parka.WithDefaultParkaLookup(),
-		parka.WithDefaultParkaStaticPaths(),
+		server.WithDefaultParkaStaticPaths(),
 	)
 
-	server, err := parka.NewServer(serverOptions...)
+	server_, err := server.NewServer(serverOptions...)
 	if err != nil {
 		return err
 	}
 
-	//glazedParameterLayers, err := cli.NewGlazedParameterLayers()
-	if err != nil {
-		return err
-	}
-
-	server.Router.StaticFileFS(
+	server_.Router.StaticFileFS(
 		"favicon.ico",
-		"templates/favicon.ico",
-		http.FS(embeddedFiles),
+		"static/favicon.ico",
+		http.FS(staticFiles),
 	)
 
+	// This section configures the command directory default setting specific to sqleton
 	sqletonConnectionLayer := parsedLayers["sqleton-connection"]
+	if sqletonConnectionLayer == nil {
+		return fmt.Errorf("sqleton-connection layer is required")
+	}
 	dbtConnectionLayer := parsedLayers["dbt"]
+	if dbtConnectionLayer == nil {
+		return fmt.Errorf("dbt layer is required")
+	}
 
-	// server as JSON for datatables
-	server.Router.GET("/data/*CommandPath", func(c *gin.Context) {
-		commandPath := c.Param("CommandPath")
-		commandPath = strings.TrimPrefix(commandPath, "/")
-		sqlCommand, ok := getRepositoryCommand(c, r, commandPath)
-		if !ok {
-			c.JSON(404, gin.H{"error": "command not found"})
-			return
-		}
+	// commandDirHandlerOptions will apply to all command dirs loaded by the server
+	commandDirHandlerOptions := []command_dir.CommandDirHandlerOption{
+		command_dir.WithTemplateLookup(datatables.NewDataTablesLookupTemplate()),
+		command_dir.WithReplaceOverrideLayer(
+			dbtConnectionLayer.Layer.GetSlug(),
+			dbtConnectionLayer.Parameters,
+		),
+		command_dir.WithReplaceOverrideLayer(
+			sqletonConnectionLayer.Layer.GetSlug(),
+			sqletonConnectionLayer.Parameters,
+		),
+		command_dir.WithDefaultTemplateName("data-tables.tmpl.html"),
+		command_dir.WithDefaultIndexTemplateName(""),
+		command_dir.WithDevMode(dev),
+	}
 
-		jsonProcessorFunc := glazed.CreateJSONProcessor
+	// templateDirHandlerOptions
+	parkaDefaultRendererOptions, err := server.GetDefaultParkaRendererOptions()
+	if err != nil {
+		return fmt.Errorf("failed to get default parka renderer options: %w", err)
+	}
 
-		handle := server.HandleSimpleQueryCommand(sqlCommand,
-			glazed.WithCreateProcessor(jsonProcessorFunc),
-			glazed.WithParserOptions(
-				glazed.WithStaticLayer("sqleton-connection", sqletonConnectionLayer.Parameters),
-				glazed.WithStaticLayer("dbt", dbtConnectionLayer.Parameters),
-			),
-		)
+	templateDirHandlerOptions := []template_dir.TemplateDirHandlerOption{
+		template_dir.WithAppendRendererOptions(parkaDefaultRendererOptions...),
+		// add lookup functions for data-tables.tmpl.html and others
+		template_dir.WithAppendRendererOptions(sqletonRendererOptions...),
+		template_dir.WithAlwaysReload(dev),
+	}
 
-		handle(c)
-	})
+	cfh := handlers.NewConfigFileHandler(
+		configFile,
+		handlers.WithAppendCommandDirHandlerOptions(commandDirHandlerOptions...),
+		handlers.WithAppendTemplateDirHandlerOptions(templateDirHandlerOptions...),
+		handlers.WithRepositoryFactory(CreateSqletonRepository),
+		handlers.WithDevMode(dev),
+	)
 
-	// Here we serve the HTML view of the command
-	server.Router.GET("/sqleton/*CommandPath", func(c *gin.Context) {
-		commandPath := c.Param("CommandPath")
-		commandPath = strings.TrimPrefix(commandPath, "/")
-		sqlCommand, ok := getRepositoryCommand(c, r, commandPath)
-		if !ok {
-			c.JSON(404, gin.H{"error": "command not found"})
-			return
-		}
+	err = runConfigFileHandler(ctx, server_, cfh)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
-		type Link struct {
-			Href  string
-			Text  string
-			Class string
-		}
-
-		name := sqlCommand.Description().Name
-		dateTime := time.Now().Format("2006-01-02--15-04-05")
-		links := []Link{
-			{
-				Href:  fmt.Sprintf("/download/%s/%s-%s.csv", commandPath, dateTime, name),
-				Text:  "Download CSV",
-				Class: "download",
-			},
-			{
-				Href:  fmt.Sprintf("/download/%s/%s-%s.json", commandPath, dateTime, name),
-				Text:  "Download JSON",
-				Class: "download",
-			},
-			{
-				Href:  fmt.Sprintf("/download/%s/%s-%s.xlsx", commandPath, dateTime, name),
-				Text:  "Download Excel",
-				Class: "download",
-			},
-			{
-				Href:  fmt.Sprintf("/download/%s/%s-%s.md", commandPath, dateTime, name),
-				Text:  "Download Markdown",
-				Class: "download",
-			},
-			{
-				Href:  fmt.Sprintf("/download/%s/%s-%s.html", commandPath, dateTime, name),
-				Text:  "Download HTML",
-				Class: "download",
-			},
-			{
-				Href:  fmt.Sprintf("/download/%s/%s-%s.txt", commandPath, dateTime, name),
-				Text:  "Download Text",
-				Class: "download",
-			},
-		}
-
-		dev, _ := ps["dev"].(bool)
-
-		var dataTablesProcessorFunc glazed.CreateProcessorFunc
-		var localTemplateLookup render.TemplateLookup
-
-		if dev {
-			// NOTE(2023-04-19, manuel): This would lookup a precomputed handlerFunc that is computed by the repository watcher
-			// See note in WithUpdateCallback above.
-			// let's make our own template lookup from a local directory, with blackjack and footers
-			localTemplateLookup, err = render.LookupTemplateFromFSReloadable(
-				os.DirFS("."),
-				"cmd/sqleton/cmds/templates",
-				"cmd/sqleton/cmds/templates/**.tmpl.html",
-			)
-			if err != nil {
-				c.JSON(500, gin.H{"error": "could not create template lookup"})
-				return
-			}
-		} else {
-			localTemplateLookup, err = render.LookupTemplateFromFSReloadable(embeddedFiles, "templates/", "templates/**/*.tmpl.html")
-			if err != nil {
-				c.JSON(500, gin.H{"error": "could not create template lookup"})
-				return
-			}
-		}
-
-		dataTablesProcessorFunc = render.NewHTMLTemplateLookupCreateProcessorFunc(
-			localTemplateLookup,
-			"data-tables.tmpl.html",
-			render.WithHTMLTemplateOutputFormatterData(
-				map[string]interface{}{
-					"Links": links,
-				},
-			),
-			render.WithJavascriptRendering(),
-		)
-
-		handle := server.HandleSimpleQueryCommand(
-			sqlCommand,
-			glazed.WithCreateProcessor(
-				dataTablesProcessorFunc,
-			),
-			glazed.WithParserOptions(
-				glazed.WithStaticLayer("sqleton-connection", sqletonConnectionLayer.Parameters),
-				glazed.WithStaticLayer("dbt", dbtConnectionLayer.Parameters),
-			),
-		)
-
-		handle(c)
-	})
-
-	server.Router.GET("/download/*CommandPath", func(c *gin.Context) {
-		path := c.Param("CommandPath")
-		// get file name at end of path
-		index := strings.LastIndex(path, "/")
-		if index == -1 {
-			c.JSON(500, gin.H{"error": "could not find file name"})
-			return
-		}
-		if index >= len(path)-1 {
-			c.JSON(500, gin.H{"error": "could not find file name"})
-			return
-		}
-		fileName := path[index+1:]
-
-		commandPath := strings.TrimPrefix(path[:index], "/")
-		sqlCommand, ok := getRepositoryCommand(c, r, commandPath)
-		if !ok {
-			c.JSON(404, gin.H{"error": "command not found"})
-			return
-		}
-
-		// create a temporary file for glazed output
-		tmpFile, err := os.CreateTemp("/tmp", fmt.Sprintf("glazed-output-*.%s", fileName))
-		if err != nil {
-			c.JSON(500, gin.H{"error": "could not create temporary file"})
-			return
-		}
-		defer os.Remove(tmpFile.Name())
-
-		// now check file suffix for content-type
-		glazedParameters := map[string]interface{}{
-			"output-file": tmpFile.Name(),
-		}
-		if strings.HasSuffix(fileName, ".csv") {
-			glazedParameters["output"] = "table"
-			glazedParameters["table-format"] = "csv"
-		} else if strings.HasSuffix(fileName, ".tsv") {
-			glazedParameters["output"] = "table"
-			glazedParameters["table-format"] = "tsv"
-		} else if strings.HasSuffix(fileName, ".md") {
-			glazedParameters["output"] = "table"
-			glazedParameters["table-format"] = "markdown"
-		} else if strings.HasSuffix(fileName, ".html") {
-			glazedParameters["output"] = "table"
-			glazedParameters["table-format"] = "html"
-		} else if strings.HasSuffix(fileName, ".json") {
-			glazedParameters["output"] = "json"
-		} else if strings.HasSuffix(fileName, ".yaml") {
-			glazedParameters["yaml"] = "yaml"
-		} else if strings.HasSuffix(fileName, ".xlsx") {
-			glazedParameters["output"] = "excel"
-		} else if strings.HasSuffix(fileName, ".txt") {
-			glazedParameters["output"] = "table"
-			glazedParameters["table-format"] = "ascii"
-		} else {
-			c.JSON(500, gin.H{"error": "could not determine output format"})
-			return
-		}
-
-		glazedParameterLayers, err := settings.NewGlazedParameterLayers()
-		if err != nil {
-			c.JSON(500, gin.H{"error": "could not create glazed parameter layers"})
-			return
-		}
-
-		handle := server.HandleSimpleQueryOutputFileCommand(
-			sqlCommand,
-			tmpFile.Name(),
-			fileName,
-			glazed.WithParserOptions(
-				glazed.WithCustomizedParameterLayerParser(glazedParameterLayers, glazedParameters),
-				glazed.WithStaticLayer("sqleton-connection", sqletonConnectionLayer.Parameters),
-				glazed.WithStaticLayer("dbt", dbtConnectionLayer.Parameters),
-			),
-		)
-
-		handle(c)
-	})
+// runConfigFileHandler runs the config file handler and the server.
+// The config file handler will watch the config file for changes and reload the server.
+// The server will run until the context is canceled (which can be done through Ctrl-C).
+func runConfigFileHandler(ctx context.Context, server_ *server.Server, cfh *handlers.ConfigFileHandler) error {
+	err := cfh.Serve(server_)
+	if err != nil {
+		return err
+	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	errGroup, ctx := errgroup.WithContext(ctx)
 	errGroup.Go(func() error {
-		return r.Watch(ctx, yamlLoader, nil,
-			watcher.WithMask("**/*.yaml"),
-		)
+		return cfh.Watch(ctx)
 	})
 	errGroup.Go(func() error {
-		return server.Run(ctx)
+		return server_.Run(ctx)
 	})
 	errGroup.Go(func() error {
 		return helpers.CancelOnSignal(ctx, os.Interrupt, cancel)
@@ -403,29 +312,6 @@ func (s *ServeCommand) Run(
 	}
 
 	return nil
-}
-
-func getRepositoryCommand(c *gin.Context, r *repositories.Repository, commandPath string) (cmds.GlazeCommand, bool) {
-	path := strings.Split(commandPath, "/")
-	commands := r.Root.CollectCommands(path, false)
-	if len(commands) == 0 {
-		c.JSON(404, gin.H{"error": "command not found"})
-		return nil, false
-	}
-
-	if len(commands) > 1 {
-		c.JSON(404, gin.H{"error": "ambiguous command"})
-		return nil, false
-	}
-
-	// NOTE(manuel, 2023-05-15) Check if this is actually an alias, and populate the defaults from the alias flags
-	// This could potentially be moved to the repository code itself
-
-	sqlCommand, ok := commands[0].(cmds.GlazeCommand)
-	if !ok || sqlCommand == nil {
-		c.JSON(500, gin.H{"error": "command is not a sql command"})
-	}
-	return sqlCommand, true
 }
 
 func NewServeCommand(
@@ -462,6 +348,11 @@ func NewServeCommand(
 				parameters.WithHelp("Serve static and templated files from these directories"),
 				parameters.WithDefault([]string{}),
 			),
+			parameters.NewParameterDefinition(
+				"config-file",
+				parameters.ParameterTypeString,
+				parameters.WithHelp("Config file to configure the serve functionality"),
+			),
 		),
 	)
 	return &ServeCommand{
@@ -471,7 +362,53 @@ func NewServeCommand(
 			options_...,
 		),
 		repositories: repositories,
-		commands:     commands,
-		aliases:      aliases,
 	}
+}
+
+// CreateSqletonRepository uses the configured repositories to load a single repository watcher, and load all
+// the necessary commands and aliases at startup.
+//
+// NOTE(manuel, 2023-05-26) This could probably be extracted out of the CommandHandler and maybe submitted as
+// a utility, as this currently ties the YAML load and the whole sqleton thing directly into the CommandDirHandler.
+func CreateSqletonRepository(dirs []string) (*repositories.Repository, error) {
+	yamlFSLoader := loaders.NewYAMLFSCommandLoader(&pkg.SqlCommandLoader{
+		DBConnectionFactory: pkg.OpenDatabaseFromSqletonConnectionLayer,
+	})
+	yamlLoader := &loaders.YAMLReaderCommandLoader{
+		YAMLCommandLoader: &pkg.SqlCommandLoader{
+			DBConnectionFactory: pkg.OpenDatabaseFromSqletonConnectionLayer,
+		},
+	}
+
+	r := repositories.NewRepository(
+		repositories.WithDirectories(dirs),
+		repositories.WithUpdateCallback(func(cmd cmds.Command) error {
+			description := cmd.Description()
+			log.Info().Str("name", description.Name).
+				Str("source", description.Source).
+				Msg("Updating cmd")
+			// TODO(manuel, 2023-04-19) This is where we would recompute the HandlerFunc used below in GET and POST
+			return nil
+		}),
+		repositories.WithRemoveCallback(func(cmd cmds.Command) error {
+			description := cmd.Description()
+			log.Info().Str("name", description.Name).
+				Str("source", description.Source).
+				Msg("Removing cmd")
+			// TODO(manuel, 2023-04-19) This is where we would recompute the HandlerFunc used below in GET and POST
+			// NOTE(manuel, 2023-05-25) Regarding the above TODO, why?
+			// We don't need to recompute the func, since it fetches the command at runtime.
+			return nil
+		}),
+		repositories.WithCommandLoader(yamlLoader),
+		repositories.WithFSLoader(yamlFSLoader),
+	)
+
+	err := r.LoadCommands()
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
+		os.Exit(1)
+	}
+
+	return r, nil
 }

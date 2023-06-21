@@ -26,6 +26,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"net/http"
 	"os"
+	"path/filepath"
 )
 
 type ServeCommand struct {
@@ -188,10 +189,15 @@ func (s *ServeCommand) Run(
 	}
 
 	if len(contentDirs) == 1 {
+		// resolve directory to absolute directory
+		dir, err := filepath.Abs(contentDirs[0])
+		if err != nil {
+			return err
+		}
 		configFile.Routes = append(configFile.Routes, &config.Route{
 			Path: "/",
 			TemplateDirectory: &config.TemplateDir{
-				LocalDirectory: contentDirs[0],
+				LocalDirectory: dir,
 			},
 		})
 	}

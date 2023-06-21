@@ -161,6 +161,36 @@ func (s *SqlCommand) Run(
 	return nil
 }
 
+func (s *SqlCommand) RenderQueryFull(
+	ctx context.Context,
+	parsedLayers map[string]*layers.ParsedParameterLayer,
+	ps map[string]interface{},
+) (string, error) {
+	if s.dbConnectionFactory == nil {
+		return "", fmt.Errorf("dbConnectionFactory is not set")
+	}
+
+	// at this point, the factory can probably be passed the sqleton-connection parsed layer
+	db, err := s.dbConnectionFactory(parsedLayers)
+	if err != nil {
+		return "", err
+	}
+	defer func(db *sqlx.DB) {
+		_ = db.Close()
+	}(db)
+
+	err = db.PingContext(ctx)
+	if err != nil {
+		return "", errors.Wrapf(err, "Could not ping database")
+	}
+
+	query, err := s.RenderQuery(ctx, ps, db)
+	if err != nil {
+		return "", errors.Wrapf(err, "Could not generate query")
+	}
+	return query, nil
+}
+
 func (s *SqlCommand) Description() *cmds.CommandDescription {
 	return s.description
 }
@@ -285,7 +315,9 @@ func createTemplate(
 					// Make better error messages:
 					return nil, errors.Wrapf(err, "Could not run query: %s", query)
 				}
-				defer rows.Close()
+				defer func(rows *sqlx.Rows) {
+					_ = rows.Close()
+				}(rows)
 
 				ret := []interface{}{}
 
@@ -310,7 +342,9 @@ func createTemplate(
 				if err != nil {
 					return nil, errors.Wrapf(err, "Could not run query: %s", renderedQuery)
 				}
-				defer rows.Close()
+				defer func(rows *sqlx.Rows) {
+					_ = rows.Close()
+				}(rows)
 
 				ret := make([]interface{}, 0)
 				for rows.Next() {
@@ -336,7 +370,9 @@ func createTemplate(
 				if err != nil {
 					return nil, errors.Wrapf(err, "Could not run query: %s", renderedQuery)
 				}
-				defer rows.Close()
+				defer func(rows *sqlx.Rows) {
+					_ = rows.Close()
+				}(rows)
 
 				ret := make([]interface{}, 0)
 				if rows.Next() {
@@ -371,7 +407,9 @@ func createTemplate(
 				if err != nil {
 					return nil, errors.Wrapf(err, "Could not run query: %s", renderedQuery)
 				}
-				defer rows.Close()
+				defer func(rows *sqlx.Rows) {
+					_ = rows.Close()
+				}(rows)
 
 				ret := []map[string]interface{}{}
 

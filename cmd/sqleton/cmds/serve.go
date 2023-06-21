@@ -80,11 +80,11 @@ func (s *ServeCommand) runWithConfigFile(
 	devMode := ps["dev"].(bool)
 	commandDirHandlerOptions = append(
 		commandDirHandlerOptions,
-		command_dir.WithReplaceOverrideLayer(
+		command_dir.WithLayerDefaults(
 			sqletonConnectionLayer.Layer.GetSlug(),
 			sqletonConnectionLayer.Parameters,
 		),
-		command_dir.WithReplaceOverrideLayer(
+		command_dir.WithLayerDefaults(
 			dbtConnectionLayer.Layer.GetSlug(),
 			dbtConnectionLayer.Parameters,
 		),

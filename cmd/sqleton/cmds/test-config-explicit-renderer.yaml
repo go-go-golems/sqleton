@@ -1,0 +1,33 @@
+routes:
+  # landing page
+  - path: /
+    template:
+      templateFile: ~/code/ttc/ttc/sql/sqleton/index.analytics.md
+  # content pages
+  - path: /
+    templateDirectory:
+      localDirectory: ~/code/ttc/ttc/sql/sqleton
+  # static content
+  - path: /static
+    static:
+      localPath: ~/code/wesen/corporate-headquarters/sqleton/cmd/sqleton/cmds/static
+  #  - path: /dist
+  #    static:
+  #      localPath: ~/code/wesen/corporate-headquarters/parka/pkg/server/web/dist
+  # commands
+  - path: /
+    commandDirectory:
+      repositories:
+        - ~/.sqleton/repositories
+        - ~/code/ttc/ttc/sql/sqleton
+      # maybe we could allow multiple directories here
+      # we also need to find a syntax to add embedded or default template lookup options
+      templateDirectory: ~/code/wesen/corporate-headquarters/parka/pkg/render/datatables/templates
+
+      # need to pass template path here
+      # localPath: ~/code/wesen/corporate-headquarters/sqleton/cmd/sqleton/cmds/templates
+defaults:
+  renderer:
+    templateDirectory: ~/code/wesen/corporate-headquarters/parka/pkg/server/web/src/templates
+    markdownBaseTemplateName: base.tmpl.html
+

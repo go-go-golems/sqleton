@@ -11,9 +11,6 @@ routes:
   - path: /static
     static:
       localPath: ~/code/wesen/corporate-headquarters/sqleton/cmd/sqleton/cmds/static
-#  - path: /dist
-#    static:
-#      localPath: ~/code/wesen/corporate-headquarters/parka/pkg/server/web/dist
   # commands
   - path: /
     commandDirectory:
@@ -26,5 +23,7 @@ routes:
 
       # need to pass template path here
       # localPath: ~/code/wesen/corporate-headquarters/sqleton/cmd/sqleton/cmds/templates
+defaults:
+  useParkaStaticFiles: false
 
 

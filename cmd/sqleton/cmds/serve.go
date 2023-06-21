@@ -117,7 +117,7 @@ func (s *ServeCommand) runWithConfigFile(
 	// - gather server options
 	//   - [x] port, address, gzip (passed in through the call)
 	//   - [x] static paths (from embedFS static/) -> can be done through normal option
-	//   - default parka static paths: /dist from GetParkaStaticFS
+	//   - default parka static paths: /dist from GetParkaStaticHttpFS
 	//   - favicon.ico from embeddedFiles templates/favicon.ico
 	//
 	// for the config file handler:

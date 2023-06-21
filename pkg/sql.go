@@ -134,7 +134,9 @@ func (s *SqlCommand) Run(
 	if err != nil {
 		return err
 	}
-	defer db.Close()
+	defer func(db *sqlx.DB) {
+		_ = db.Close()
+	}(db)
 
 	err = db.PingContext(ctx)
 	if err != nil {

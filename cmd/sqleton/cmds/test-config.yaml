@@ -11,19 +11,60 @@ routes:
   - path: /static
     static:
       localPath: ~/code/wesen/corporate-headquarters/sqleton/cmd/sqleton/cmds/static
-  - path: /dist
-    static:
-      localPath: ~/code/wesen/corporate-headquarters/parka/pkg/server/web/dist
   # commands
   - path: /
+    commandDirectory:
+      includeDefaultRepositories: true
+      repositories:
+        - ~/code/ttc/ttc/sql/sqleton
+
+      templateLookup:
+        directories:
+          - ~/code/wesen/corporate-headquarters/parka/pkg/render/datatables/templates
+      indexTemplateName: index.tmpl.html
+      defaults:
+        flags:
+          limit: 1337
+        layers:
+          glazed:
+            filter:
+              - id
+      overrides:
+        layers:
+          dbt:
+            dbt-profile: ttc.analytics
+          glazed:
+            # these don't work yet because of the lack of row level middleware (which would apply the filtering)
+            filter:
+              - quantity_sold
+              - sales_usd
+      additionalData:
+        foobar: baz
+  - path: /analytics
+    commandDirectory:
+      includeDefaultRepositories: false
+      repositories:
+        - ~/code/ttc/ttc/sql/sqleton
+  - path: /foobar
     commandDirectory:
       repositories:
         - ~/.sqleton/repositories
         - ~/code/ttc/ttc/sql/sqleton
-      # maybe we could allow multiple directories here
-      # we also need to find a syntax to add embedded or default template lookup options
-      templateDirectory: ~/code/wesen/corporate-headquarters/parka/pkg/render/datatables/templates
+      overrides:
+        layers:
+          dbt:
+            dbt-profile: ttc.foobar
+  - path: /prod
+    commandDirectory:
+      repositories:
+        - ~/.sqleton/repositories
+        - ~/code/ttc/ttc/sql/sqleton
+      overrides:
+        layers:
+          dbt:
+            dbt-profile: ttc.prod
 
       # need to pass template path here
       # localPath: ~/code/wesen/corporate-headquarters/sqleton/cmd/sqleton/cmds/templates
+
 

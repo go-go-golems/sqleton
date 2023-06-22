@@ -16,7 +16,6 @@ import (
 	"github.com/go-go-golems/parka/pkg/handlers/config"
 	"github.com/go-go-golems/parka/pkg/handlers/template"
 	"github.com/go-go-golems/parka/pkg/handlers/template-dir"
-	"github.com/go-go-golems/parka/pkg/render"
 	"github.com/go-go-golems/parka/pkg/render/datatables"
 	"github.com/go-go-golems/parka/pkg/server"
 	"github.com/go-go-golems/parka/pkg/utils/fs"
@@ -81,11 +80,11 @@ func (s *ServeCommand) runWithConfigFile(
 	devMode := ps["dev"].(bool)
 	commandDirHandlerOptions = append(
 		commandDirHandlerOptions,
-		command_dir.WithReplaceOverrideLayer(
+		command_dir.WithLayerDefaults(
 			sqletonConnectionLayer.Layer.GetSlug(),
 			sqletonConnectionLayer.Parameters,
 		),
-		command_dir.WithReplaceOverrideLayer(
+		command_dir.WithLayerDefaults(
 			dbtConnectionLayer.Layer.GetSlug(),
 			dbtConnectionLayer.Parameters,
 		),
@@ -94,20 +93,13 @@ func (s *ServeCommand) runWithConfigFile(
 		command_dir.WithDevMode(devMode),
 	)
 
-	parkaDefaultRendererOptions, err := server.GetDefaultParkaRendererOptions()
-	if err != nil {
-		return err
-	}
-
 	templateDirHandlerOptions = append(
 		// pass in the default parka renderer options for being able to render markdown files
 		templateDirHandlerOptions,
-		template_dir.WithAppendRendererOptions(parkaDefaultRendererOptions...),
 		template_dir.WithAlwaysReload(devMode),
 	)
 
 	templateHandlerOptions := []template.TemplateHandlerOption{
-		template.WithAppendRendererOptions(parkaDefaultRendererOptions...),
 		template.WithAlwaysReload(devMode),
 	}
 
@@ -117,7 +109,7 @@ func (s *ServeCommand) runWithConfigFile(
 	// - gather server options
 	//   - [x] port, address, gzip (passed in through the call)
 	//   - [x] static paths (from embedFS static/) -> can be done through normal option
-	//   - default parka static paths: /dist from GetParkaStaticFS
+	//   - default parka static paths: /dist from GetParkaStaticHttpFS
 	//   - favicon.ico from embeddedFiles templates/favicon.ico
 	//
 	// for the config file handler:
@@ -203,7 +195,6 @@ func (s *ServeCommand) Run(
 	}
 
 	// static paths
-	sqletonRendererOptions := []render.RendererOption{}
 	if dev {
 		configFile.Routes = append(configFile.Routes, &config.Route{
 			Path: "/static",
@@ -219,10 +210,6 @@ func (s *ServeCommand) Run(
 			),
 		)
 	}
-
-	serverOptions = append(serverOptions,
-		server.WithDefaultParkaStaticPaths(),
-	)
 
 	server_, err := server.NewServer(serverOptions...)
 	if err != nil {
@@ -261,17 +248,14 @@ func (s *ServeCommand) Run(
 		command_dir.WithDevMode(dev),
 	}
 
-	// templateDirHandlerOptions
-	parkaDefaultRendererOptions, err := server.GetDefaultParkaRendererOptions()
-	if err != nil {
-		return fmt.Errorf("failed to get default parka renderer options: %w", err)
+	templateDirHandlerOptions := []template_dir.TemplateDirHandlerOption{
+		// add lookup functions for data-tables.tmpl.html and others
+		template_dir.WithAlwaysReload(dev),
 	}
 
-	templateDirHandlerOptions := []template_dir.TemplateDirHandlerOption{
-		template_dir.WithAppendRendererOptions(parkaDefaultRendererOptions...),
-		// add lookup functions for data-tables.tmpl.html and others
-		template_dir.WithAppendRendererOptions(sqletonRendererOptions...),
-		template_dir.WithAlwaysReload(dev),
+	err = configFile.Initialize()
+	if err != nil {
+		return err
 	}
 
 	cfh := handlers.NewConfigFileHandler(

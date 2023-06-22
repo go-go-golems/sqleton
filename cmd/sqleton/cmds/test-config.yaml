@@ -23,10 +23,17 @@ routes:
       # maybe we could allow multiple directories here
       # we also need to find a syntax to add embedded or default template lookup options
       templateDirectory: ~/code/wesen/corporate-headquarters/parka/pkg/render/datatables/templates
+      defaults:
+        flags:
+          limit: 1337
+        layers:
+          glazed:
+            filter:
+              - id
       overrides:
         layers:
           dbt:
-            dbt-profile: ttc.prod
+            dbt-profile: ttc.analytics
           glazed:
             # these don't work yet because of the lack of row level middleware (which would apply the filtering)
             filter:
@@ -44,7 +51,7 @@ routes:
         layers:
           dbt:
             dbt-profile: ttc.foobar
-  - path: /analytics
+  - path: /prod
     commandDirectory:
       repositories:
         - ~/.sqleton/repositories
@@ -55,7 +62,7 @@ routes:
       overrides:
         layers:
           dbt:
-            dbt-profile: ttc.analytics
+            dbt-profile: ttc.prod
 
       # need to pass template path here
       # localPath: ~/code/wesen/corporate-headquarters/sqleton/cmd/sqleton/cmds/templates

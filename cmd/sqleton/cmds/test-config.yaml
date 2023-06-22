@@ -11,18 +11,17 @@ routes:
   - path: /static
     static:
       localPath: ~/code/wesen/corporate-headquarters/sqleton/cmd/sqleton/cmds/static
-#  - path: /dist
-#    static:
-#      localPath: ~/code/wesen/corporate-headquarters/parka/pkg/server/web/dist
   # commands
   - path: /
     commandDirectory:
+      includeDefaultRepositories: true
       repositories:
-        - ~/.sqleton/repositories
         - ~/code/ttc/ttc/sql/sqleton
-      # maybe we could allow multiple directories here
-      # we also need to find a syntax to add embedded or default template lookup options
-      templateDirectory: ~/code/wesen/corporate-headquarters/parka/pkg/render/datatables/templates
+
+      templateLookup:
+        directories:
+          - ~/code/wesen/corporate-headquarters/parka/pkg/render/datatables/templates
+      indexTemplateName: index.tmpl.html
       defaults:
         flags:
           limit: 1337
@@ -39,14 +38,13 @@ routes:
             filter:
               - quantity_sold
               - sales_usd
+      additionalData:
+        foobar: baz
   - path: /foobar
     commandDirectory:
       repositories:
         - ~/.sqleton/repositories
         - ~/code/ttc/ttc/sql/sqleton
-      # maybe we could allow multiple directories here
-      # we also need to find a syntax to add embedded or default template lookup options
-      templateDirectory: ~/code/wesen/corporate-headquarters/parka/pkg/render/datatables/templates
       overrides:
         layers:
           dbt:
@@ -56,9 +54,6 @@ routes:
       repositories:
         - ~/.sqleton/repositories
         - ~/code/ttc/ttc/sql/sqleton
-      # maybe we could allow multiple directories here
-      # we also need to find a syntax to add embedded or default template lookup options
-      templateDirectory: ~/code/wesen/corporate-headquarters/parka/pkg/render/datatables/templates
       overrides:
         layers:
           dbt:

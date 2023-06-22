@@ -1,0 +1,13 @@
+routes:
+  # landing page
+  - path: /
+    template:
+      templateFile: ~/code/ttc/ttc/sql/sqleton/index.analytics.md
+  # content pages
+  - path: /
+    templateDirectory:
+      localDirectory: ~/code/ttc/ttc/sql/sqleton
+  # commands
+  - path: /
+    commandDirectory:
+      includeDefaultRepositories: true

@@ -40,6 +40,11 @@ routes:
               - sales_usd
       additionalData:
         foobar: baz
+  - path: /analytics
+    commandDirectory:
+      includeDefaultRepositories: false
+      repositories:
+        - ~/code/ttc/ttc/sql/sqleton
   - path: /foobar
     commandDirectory:
       repositories:

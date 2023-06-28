@@ -52,7 +52,7 @@ func (sc *SelectCommand) Run(
 	ctx context.Context,
 	parsedLayers map[string]*layers.ParsedParameterLayer,
 	ps map[string]interface{},
-	gp processor.Processor,
+	gp processor.TableProcessor,
 ) error {
 	s := &SelectCommandSettings{}
 

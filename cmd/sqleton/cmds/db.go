@@ -240,7 +240,7 @@ var dbPrintSettingsCmd = &cobra.Command{
 		}
 
 		addRow := func(name string, value interface{}) {
-			_ = gp.ProcessInputObject(ctx, types.NewRow(
+			_ = gp.AddRow(ctx, types.NewRow(
 				types.MRP("name", name),
 				types.MRP("value", value),
 			))
@@ -257,7 +257,7 @@ var dbPrintSettingsCmd = &cobra.Command{
 			addRow(useDbtProfiles, config.UseDbtProfiles)
 			addRow(dbtProfilesPath, config.DbtProfilesPath)
 		} else {
-			_ = gp.ProcessInputObject(ctx, types.NewRow(
+			_ = gp.AddRow(ctx, types.NewRow(
 				types.MRP(host, source.Hostname),
 				types.MRP(port, source.Port),
 				types.MRP(database, source.Database),
@@ -271,10 +271,10 @@ var dbPrintSettingsCmd = &cobra.Command{
 			))
 		}
 
-		err = gp.Processor().FinalizeTable(ctx)
+		err = gp.Finalize(ctx)
 		cobra.CheckErr(err)
 
-		err = gp.OutputFormatter().Output(ctx, gp.Processor().GetTable(), os.Stdout)
+		err = gp.OutputFormatter().Output(ctx, gp.GetTable(), os.Stdout)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Error rendering output: %s\n", err)
 			os.Exit(1)
@@ -307,19 +307,19 @@ var dbLsCmd = &cobra.Command{
 		}
 
 		// don't output the password
-		gp.Processor().AddRowMiddleware(row.NewFieldsFilterMiddleware([]string{}, []string{"password"}))
-		gp.Processor().AddRowMiddleware(row.NewReorderColumnOrderMiddleware([]string{"name", "type", "hostname", "port", "database", "schema"}))
+		gp.AddRowMiddleware(row.NewFieldsFilterMiddleware([]string{}, []string{"password"}))
+		gp.AddRowMiddleware(row.NewReorderColumnOrderMiddleware([]string{"name", "type", "hostname", "port", "database", "schema"}))
 
 		for _, source := range sources {
 			row := types.NewRowFromStruct(source, true)
-			err := gp.ProcessInputObject(ctx, row)
+			err := gp.AddRow(ctx, row)
 			cobra.CheckErr(err)
 		}
 
-		err = gp.Processor().FinalizeTable(ctx)
+		err = gp.Finalize(ctx)
 		cobra.CheckErr(err)
 
-		err = gp.OutputFormatter().Output(ctx, gp.Processor().GetTable(), os.Stdout)
+		err = gp.OutputFormatter().Output(ctx, gp.GetTable(), os.Stdout)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Error rendering output: %s\n", err)
 			os.Exit(1)

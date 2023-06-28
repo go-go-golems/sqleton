@@ -26,9 +26,9 @@ func (q *QueriesCommand) Run(
 	ctx context.Context,
 	parsedLayers map[string]*layers.ParsedParameterLayer,
 	ps map[string]interface{},
-	gp processor.Processor,
+	gp processor.TableProcessor,
 ) error {
-	gp.Processor().AddRowMiddleware(
+	gp.AddRowMiddleware(
 		row.NewReorderColumnOrderMiddleware(
 			[]string{"name", "short", "long", "source", "query"}),
 	)
@@ -42,7 +42,7 @@ func (q *QueriesCommand) Run(
 			types.MRP("query", query.Query),
 			types.MRP("source", description.Source),
 		)
-		err := gp.ProcessInputObject(ctx, obj)
+		err := gp.AddRow(ctx, obj)
 		if err != nil {
 			return err
 		}
@@ -54,7 +54,7 @@ func (q *QueriesCommand) Run(
 			types.MRP("aliasFor", alias.AliasFor),
 			types.MRP("source", alias.Source),
 		)
-		err := gp.ProcessInputObject(ctx, obj)
+		err := gp.AddRow(ctx, obj)
 		if err != nil {
 			return err
 		}

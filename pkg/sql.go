@@ -29,7 +29,7 @@ type SqletonCommand interface {
 		ctx context.Context,
 		db *sqlx.DB,
 		parameters map[string]interface{},
-		gp processor.Processor,
+		gp processor.TableProcessor,
 	) error
 	RenderQuery(parameters map[string]interface{}) (string, error)
 }
@@ -124,7 +124,7 @@ func (s *SqlCommand) Run(
 	ctx context.Context,
 	parsedLayers map[string]*layers.ParsedParameterLayer,
 	ps map[string]interface{},
-	gp processor.Processor,
+	gp processor.TableProcessor,
 ) error {
 	if s.dbConnectionFactory == nil {
 		return fmt.Errorf("dbConnectionFactory is not set")
@@ -517,7 +517,7 @@ func RunQueryIntoGlaze(
 	db *sqlx.DB,
 	query string,
 	parameters []interface{},
-	gp processor.Processor) error {
+	gp processor.TableProcessor) error {
 
 	// use a prepared statement so that when using mysql, we get native types back
 	stmt, err := db.PreparexContext(dbContext, query)
@@ -538,7 +538,7 @@ func RunNamedQueryIntoGlaze(
 	db *sqlx.DB,
 	query string,
 	parameters map[string]interface{},
-	gp processor.Processor) error {
+	gp processor.TableProcessor) error {
 
 	// use a statement so that when using mysql, we get native types back
 	stmt, err := db.PrepareNamedContext(dbContext, query)
@@ -554,7 +554,7 @@ func RunNamedQueryIntoGlaze(
 	return processQueryResults(dbContext, rows, gp)
 }
 
-func processQueryResults(ctx context.Context, rows *sqlx.Rows, gp processor.Processor) error {
+func processQueryResults(ctx context.Context, rows *sqlx.Rows, gp processor.TableProcessor) error {
 	// we need a way to order the columns
 	cols, err := rows.Columns()
 	if err != nil {
@@ -580,7 +580,7 @@ func processQueryResults(ctx context.Context, rows *sqlx.Rows, gp processor.Proc
 			}
 		}
 
-		err = gp.ProcessInputObject(ctx, row)
+		err = gp.AddRow(ctx, row)
 		if err != nil {
 			return errors.Wrapf(err, "Could not process input object")
 		}
@@ -593,7 +593,7 @@ func (s *SqlCommand) RunQueryIntoGlaze(
 	ctx context.Context,
 	db *sqlx.DB,
 	ps map[string]interface{},
-	gp processor.Processor) error {
+	gp processor.TableProcessor) error {
 
 	query, err := s.RenderQuery(ctx, ps, db)
 	if err != nil {

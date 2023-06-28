@@ -107,12 +107,15 @@ func TestSimpleRun(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	gp := processor.NewSimpleGlazeProcessor()
+	gp, err := processor.NewSimpleGlazeProcessor()
+	require.NoError(t, err)
 	ctx := context.Background()
 	err = s.Run(ctx, map[string]*layers.ParsedParameterLayer{}, map[string]interface{}{}, gp)
 	require.NoError(t, err)
 
-	table_, err := gp.GetTable(ctx)
+	err = gp.Finalize(ctx)
+	require.NoError(t, err)
+	table_ := gp.GetTable()
 	require.NoError(t, err)
 
 	expected := []types.Row{
@@ -166,11 +169,14 @@ func TestSimpleSubQuery(t *testing.T) {
 	)
 `, s_)
 
-	gp := processor.NewSimpleGlazeProcessor()
+	gp, err := processor.NewSimpleGlazeProcessor()
+	require.NoError(t, err)
 	err = s.Run(ctx, map[string]*layers.ParsedParameterLayer{}, ps, gp)
 	require.NoError(t, err)
 
-	table_, err := gp.GetTable(ctx)
+	err = gp.Finalize(ctx)
+	require.NoError(t, err)
+	table_ := gp.GetTable()
 	require.NoError(t, err)
 
 	assert2.EqualRows(t, []types.Row{
@@ -270,11 +276,14 @@ func TestSimpleSubQueryWithArguments(t *testing.T) {
 	)
 `, s_)
 
-	gp := processor.NewSimpleGlazeProcessor()
+	gp, err := processor.NewSimpleGlazeProcessor()
+	require.NoError(t, err)
 	err = s.Run(ctx, map[string]*layers.ParsedParameterLayer{}, ps, gp)
 	require.NoError(t, err)
 
-	table_, err := gp.GetTable(ctx)
+	err = gp.Finalize(ctx)
+	require.NoError(t, err)
+	table_ := gp.GetTable()
 	require.NoError(t, err)
 
 	assert2.EqualRows(t, []types.Row{
@@ -404,11 +413,14 @@ func TestMapSubQuery(t *testing.T) {
 	)
 `, s_)
 
-	gp := processor.NewSimpleGlazeProcessor()
+	gp, err := processor.NewSimpleGlazeProcessor()
+	require.NoError(t, err)
 	err = s.Run(ctx, map[string]*layers.ParsedParameterLayer{}, ps, gp)
 	require.NoError(t, err)
 
-	table_, err := gp.GetTable(ctx)
+	err = gp.Finalize(ctx)
+	require.NoError(t, err)
+	table_ := gp.GetTable()
 	require.NoError(t, err)
 	rows := table_.Rows
 	assert.Equal(t, 1, len(rows))

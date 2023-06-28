@@ -4,7 +4,9 @@ import (
 	"context"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
+	assert2 "github.com/go-go-golems/glazed/pkg/helpers/assert"
 	"github.com/go-go-golems/glazed/pkg/processor"
+	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -105,21 +107,33 @@ func TestSimpleRun(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	gp := processor.NewSimpleGlazeProcessor()
-	err = s.Run(context.Background(), map[string]*layers.ParsedParameterLayer{}, map[string]interface{}{}, gp)
+	gp, err := processor.NewSimpleGlazeProcessor()
+	require.NoError(t, err)
+	ctx := context.Background()
+	err = s.Run(ctx, map[string]*layers.ParsedParameterLayer{}, map[string]interface{}{}, gp)
 	require.NoError(t, err)
 
-	rows := gp.GetTable().Rows
-	assert.Equal(t, 3, len(rows))
-	row := rows[0].GetValues()
-	assert.Equal(t, int64(1), row["id"])
-	assert.Equal(t, "test1", row["name"])
-	row = rows[1].GetValues()
-	assert.Equal(t, int64(2), row["id"])
-	assert.Equal(t, "test2", row["name"])
-	row = rows[2].GetValues()
-	assert.Equal(t, int64(3), row["id"])
-	assert.Equal(t, "test3", row["name"])
+	err = gp.Finalize(ctx)
+	require.NoError(t, err)
+	table_ := gp.GetTable()
+	require.NoError(t, err)
+
+	expected := []types.Row{
+		types.NewRow(
+			types.MRP("id", int64(1)),
+			types.MRP("name", "test1"),
+		),
+		types.NewRow(
+			types.MRP("id", int64(2)),
+			types.MRP("name", "test2"),
+		),
+		types.NewRow(
+			types.MRP("id", int64(3)),
+			types.MRP("name", "test3"),
+		),
+	}
+
+	assert2.EqualRows(t, expected, table_.Rows)
 }
 
 func TestSimpleSubQuery(t *testing.T) {
@@ -137,13 +151,16 @@ func TestSimpleSubQuery(t *testing.T) {
 	require.NoError(t, err)
 	db, err := createDB(nil)
 	require.NoError(t, err)
-	defer db.Close()
+	defer func(db *sqlx.DB) {
+		_ = db.Close()
+	}(db)
 
 	ps := map[string]interface{}{
 		"name": "test2_3",
 	}
 
-	s_, err := s.RenderQuery(context.Background(), ps, db)
+	ctx := context.Background()
+	s_, err := s.RenderQuery(ctx, ps, db)
 	require.NoError(t, err)
 	assert.Equal(t, `
 	SELECT * FROM test
@@ -152,15 +169,19 @@ func TestSimpleSubQuery(t *testing.T) {
 	)
 `, s_)
 
-	gp := processor.NewSimpleGlazeProcessor()
-	err = s.Run(context.Background(), map[string]*layers.ParsedParameterLayer{}, ps, gp)
+	gp, err := processor.NewSimpleGlazeProcessor()
+	require.NoError(t, err)
+	err = s.Run(ctx, map[string]*layers.ParsedParameterLayer{}, ps, gp)
 	require.NoError(t, err)
 
-	rows := gp.GetTable().Rows
-	assert.Equal(t, 1, len(rows))
-	row := rows[0].GetValues()
-	assert.Equal(t, int64(2), row["id"])
-	assert.Equal(t, "test2", row["name"])
+	err = gp.Finalize(ctx)
+	require.NoError(t, err)
+	table_ := gp.GetTable()
+	require.NoError(t, err)
+
+	assert2.EqualRows(t, []types.Row{
+		types.NewRow(types.MRP("id", int64(2)), types.MRP("name", "test2")),
+	}, table_.Rows)
 }
 
 func TestSimpleSubQuerySingle(t *testing.T) {
@@ -176,7 +197,9 @@ func TestSimpleSubQuerySingle(t *testing.T) {
 	require.NoError(t, err)
 	db, err := createDB(nil)
 	require.NoError(t, err)
-	defer db.Close()
+	defer func(db *sqlx.DB) {
+		_ = db.Close()
+	}(db)
 
 	ps := map[string]interface{}{
 		"name": "test1_1",
@@ -235,13 +258,16 @@ func TestSimpleSubQueryWithArguments(t *testing.T) {
 	require.NoError(t, err)
 	db, err := createDB(nil)
 	require.NoError(t, err)
-	defer db.Close()
+	defer func(db *sqlx.DB) {
+		_ = db.Close()
+	}(db)
 
 	ps := map[string]interface{}{
 		"name": "test1_2",
 	}
 
-	s_, err := s.RenderQuery(context.Background(), ps, db)
+	ctx := context.Background()
+	s_, err := s.RenderQuery(ctx, ps, db)
 	require.NoError(t, err)
 	assert.Equal(t, `
 	SELECT * FROM test
@@ -250,15 +276,22 @@ func TestSimpleSubQueryWithArguments(t *testing.T) {
 	)
 `, s_)
 
-	gp := processor.NewSimpleGlazeProcessor()
-	err = s.Run(context.Background(), map[string]*layers.ParsedParameterLayer{}, ps, gp)
+	gp, err := processor.NewSimpleGlazeProcessor()
+	require.NoError(t, err)
+	err = s.Run(ctx, map[string]*layers.ParsedParameterLayer{}, ps, gp)
 	require.NoError(t, err)
 
-	rows := gp.GetTable().Rows
-	assert.Equal(t, 1, len(rows))
-	row := rows[0].GetValues()
-	assert.Equal(t, int64(1), row["id"])
-	assert.Equal(t, "test1", row["name"])
+	err = gp.Finalize(ctx)
+	require.NoError(t, err)
+	table_ := gp.GetTable()
+	require.NoError(t, err)
+
+	assert2.EqualRows(t, []types.Row{
+		types.NewRow(
+			types.MRP("id", int64(1)),
+			types.MRP("name", "test1"),
+		),
+	}, table_.Rows)
 
 	s, err = NewSqlCommand(
 		cmds.NewCommandDescription("test"),
@@ -273,7 +306,7 @@ func TestSimpleSubQueryWithArguments(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	_, err = s.RenderQuery(context.Background(), ps, db)
+	_, err = s.RenderQuery(ctx, ps, db)
 	require.Error(t, err)
 }
 
@@ -292,7 +325,9 @@ func TestSliceSubQueryWithArguments(t *testing.T) {
 	require.NoError(t, err)
 	db, err := createDB(nil)
 	require.NoError(t, err)
-	defer db.Close()
+	defer func(db *sqlx.DB) {
+		_ = db.Close()
+	}(db)
 
 	ps := map[string]interface{}{
 		"name": "test1_2",
@@ -323,7 +358,9 @@ func TestMapSubQueryWithArguments(t *testing.T) {
 	require.NoError(t, err)
 	db, err := createDB(nil)
 	require.NoError(t, err)
-	defer db.Close()
+	defer func(db *sqlx.DB) {
+		_ = db.Close()
+	}(db)
 
 	ps := map[string]interface{}{
 		"name": "test1_2",
@@ -358,13 +395,16 @@ func TestMapSubQuery(t *testing.T) {
 	require.NoError(t, err)
 	db, err := createDB(nil)
 	require.NoError(t, err)
-	defer db.Close()
+	defer func(db *sqlx.DB) {
+		_ = db.Close()
+	}(db)
 
 	ps := map[string]interface{}{
 		"name": "test1_2",
 	}
 
-	s_, err := s.RenderQuery(context.Background(), ps, db)
+	ctx := context.Background()
+	s_, err := s.RenderQuery(ctx, ps, db)
 	require.NoError(t, err)
 	assert.Equal(t, `
 	SELECT * FROM test
@@ -373,14 +413,23 @@ func TestMapSubQuery(t *testing.T) {
 	)
 `, s_)
 
-	gp := processor.NewSimpleGlazeProcessor()
-	err = s.Run(context.Background(), map[string]*layers.ParsedParameterLayer{}, ps, gp)
+	gp, err := processor.NewSimpleGlazeProcessor()
+	require.NoError(t, err)
+	err = s.Run(ctx, map[string]*layers.ParsedParameterLayer{}, ps, gp)
 	require.NoError(t, err)
 
-	rows := gp.GetTable().Rows
+	err = gp.Finalize(ctx)
+	require.NoError(t, err)
+	table_ := gp.GetTable()
+	require.NoError(t, err)
+	rows := table_.Rows
 	assert.Equal(t, 1, len(rows))
-	row := rows[0].GetValues()
-	assert.Equal(t, int64(1), row["id"])
-	assert.Equal(t, "test1", row["name"])
+	row := rows[0]
+	id, ok := row.Get("id")
+	assert.True(t, ok)
+	assert.Equal(t, int64(1), id)
+	name, ok := row.Get("name")
+	assert.True(t, ok)
+	assert.Equal(t, "test1", name)
 
 }

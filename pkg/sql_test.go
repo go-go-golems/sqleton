@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
+	assert2 "github.com/go-go-golems/glazed/pkg/helpers/assert"
 	"github.com/go-go-golems/glazed/pkg/processor"
 	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/jmoiron/sqlx"
@@ -98,19 +99,6 @@ func TestSimpleTemplateRender(t *testing.T) {
 	assert.Equal(t, "SELECT * FROM test", query)
 }
 
-func assertEqualRows(t *testing.T, expected []map[string]interface{}, actual []types.Row) {
-	require.Equal(t, len(expected), len(actual))
-
-	for i, expRow := range expected {
-		actualRow := actual[i].GetValues()
-		for key, expValue := range expRow {
-			actualValue, ok := actualRow.Get(key)
-			require.True(t, ok)
-			assert.Equal(t, expValue, actualValue)
-		}
-	}
-}
-
 func TestSimpleRun(t *testing.T) {
 	s, err := NewSqlCommand(
 		cmds.NewCommandDescription("test"),
@@ -127,13 +115,22 @@ func TestSimpleRun(t *testing.T) {
 	table_, err := gp.GetTable(ctx)
 	require.NoError(t, err)
 
-	expected := []map[string]interface{}{
-		{"id": int64(1), "name": "test1"},
-		{"id": int64(2), "name": "test2"},
-		{"id": int64(3), "name": "test3"},
+	expected := []types.Row{
+		types.NewRow(
+			types.MRP("id", int64(1)),
+			types.MRP("name", "test1"),
+		),
+		types.NewRow(
+			types.MRP("id", int64(2)),
+			types.MRP("name", "test2"),
+		),
+		types.NewRow(
+			types.MRP("id", int64(3)),
+			types.MRP("name", "test3"),
+		),
 	}
 
-	assertEqualRows(t, expected, table_.Rows)
+	assert2.EqualRows(t, expected, table_.Rows)
 }
 
 func TestSimpleSubQuery(t *testing.T) {
@@ -176,8 +173,8 @@ func TestSimpleSubQuery(t *testing.T) {
 	table_, err := gp.GetTable(ctx)
 	require.NoError(t, err)
 
-	assertEqualRows(t, []map[string]interface{}{
-		{"id": int64(2), "name": "test2"},
+	assert2.EqualRows(t, []types.Row{
+		types.NewRow(types.MRP("id", int64(2)), types.MRP("name", "test2")),
 	}, table_.Rows)
 }
 
@@ -280,8 +277,11 @@ func TestSimpleSubQueryWithArguments(t *testing.T) {
 	table_, err := gp.GetTable(ctx)
 	require.NoError(t, err)
 
-	assertEqualRows(t, []map[string]interface{}{
-		{"id": int64(1), "name": "test1"},
+	assert2.EqualRows(t, []types.Row{
+		types.NewRow(
+			types.MRP("id", int64(1)),
+			types.MRP("name", "test1"),
+		),
 	}, table_.Rows)
 
 	s, err = NewSqlCommand(
@@ -412,7 +412,7 @@ func TestMapSubQuery(t *testing.T) {
 	require.NoError(t, err)
 	rows := table_.Rows
 	assert.Equal(t, 1, len(rows))
-	row := rows[0].GetValues()
+	row := rows[0]
 	id, ok := row.Get("id")
 	assert.True(t, ok)
 	assert.Equal(t, int64(1), id)

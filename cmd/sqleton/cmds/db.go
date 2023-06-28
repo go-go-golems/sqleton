@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
-	"github.com/go-go-golems/glazed/pkg/helpers/maps"
-	"github.com/go-go-golems/glazed/pkg/middlewares/table"
+	"github.com/go-go-golems/glazed/pkg/middlewares/row"
+	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/go-go-golems/sqleton/pkg"
 	"github.com/jmoiron/sqlx"
 	"github.com/spf13/cobra"
@@ -239,63 +239,42 @@ var dbPrintSettingsCmd = &cobra.Command{
 			dbtProfilesPath = fmt.Sprintf("%sDBT_PROFILES_PATH", withEnvPrefix)
 		}
 
+		addRow := func(name string, value interface{}) {
+			_ = gp.ProcessInputObject(ctx, types.NewRow(
+				types.MRP("name", name),
+				types.MRP("value", value),
+			))
+		}
 		if individualRows {
-			_ = gp.ProcessInputObject(ctx, map[string]interface{}{
-				"name":  host,
-				"value": source.Hostname,
-			})
-			_ = gp.ProcessInputObject(ctx, map[string]interface{}{
-				"name":  port,
-				"value": source.Port,
-			})
-			_ = gp.ProcessInputObject(ctx, map[string]interface{}{
-				"name":  database,
-				"value": source.Database,
-			})
-			_ = gp.ProcessInputObject(ctx, map[string]interface{}{
-				"name":  user,
-				"value": source.Username,
-			})
-			_ = gp.ProcessInputObject(ctx, map[string]interface{}{
-				"name":  password,
-				"value": source.Password,
-			})
-			_ = gp.ProcessInputObject(ctx, map[string]interface{}{
-				"name":  type_,
-				"value": source.Type,
-			})
-			_ = gp.ProcessInputObject(ctx, map[string]interface{}{
-				"name":  schema,
-				"value": source.Schema,
-			})
-			_ = gp.ProcessInputObject(ctx, map[string]interface{}{
-				"name":  dbtProfile,
-				"value": config.DbtProfile,
-			})
-			_ = gp.ProcessInputObject(ctx, map[string]interface{}{
-				"name":  useDbtProfiles,
-				"value": config.UseDbtProfiles,
-			})
-			_ = gp.ProcessInputObject(ctx, map[string]interface{}{
-				"name":  dbtProfilesPath,
-				"value": config.DbtProfilesPath,
-			})
+			addRow(host, source.Hostname)
+			addRow(port, source.Port)
+			addRow(database, source.Database)
+			addRow(user, source.Username)
+			addRow(password, source.Password)
+			addRow(type_, source.Type)
+			addRow(schema, source.Schema)
+			addRow(dbtProfile, config.DbtProfile)
+			addRow(useDbtProfiles, config.UseDbtProfiles)
+			addRow(dbtProfilesPath, config.DbtProfilesPath)
 		} else {
-			_ = gp.ProcessInputObject(ctx, map[string]interface{}{
-				host:            source.Hostname,
-				port:            source.Port,
-				database:        source.Database,
-				user:            source.Username,
-				password:        source.Password,
-				type_:           source.Type,
-				schema:          source.Schema,
-				dbtProfile:      config.DbtProfile,
-				useDbtProfiles:  config.UseDbtProfiles,
-				dbtProfilesPath: config.DbtProfilesPath,
-			})
+			_ = gp.ProcessInputObject(ctx, types.NewRow(
+				types.MRP(host, source.Hostname),
+				types.MRP(port, source.Port),
+				types.MRP(database, source.Database),
+				types.MRP(user, source.Username),
+				types.MRP(password, source.Password),
+				types.MRP(type_, source.Type),
+				types.MRP(schema, source.Schema),
+				types.MRP(dbtProfile, config.DbtProfile),
+				types.MRP(useDbtProfiles, config.UseDbtProfiles),
+				types.MRP(dbtProfilesPath, config.DbtProfilesPath),
+			))
 		}
 
-		err = gp.OutputFormatter().Output(ctx, os.Stdout)
+		err = gp.Processor().FinalizeTable(ctx)
+		cobra.CheckErr(err)
+
+		err = gp.OutputFormatter().Output(ctx, gp.Processor().GetTable(), os.Stdout)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Error rendering output: %s\n", err)
 			os.Exit(1)
@@ -328,16 +307,19 @@ var dbLsCmd = &cobra.Command{
 		}
 
 		// don't output the password
-		gp.OutputFormatter().AddTableMiddleware(table.NewFieldsFilterMiddleware([]string{}, []string{"password"}))
-		gp.OutputFormatter().AddTableMiddleware(table.NewReorderColumnOrderMiddleware([]string{"name", "type", "hostname", "port", "database", "schema"}))
+		gp.Processor().AddRowMiddleware(row.NewFieldsFilterMiddleware([]string{}, []string{"password"}))
+		gp.Processor().AddRowMiddleware(row.NewReorderColumnOrderMiddleware([]string{"name", "type", "hostname", "port", "database", "schema"}))
 
 		for _, source := range sources {
-			sourceObj := maps.StructToMap(source, true)
-			err := gp.ProcessInputObject(ctx, sourceObj)
+			row := types.NewRowFromStruct(source, true)
+			err := gp.ProcessInputObject(ctx, row)
 			cobra.CheckErr(err)
 		}
 
-		err = gp.OutputFormatter().Output(ctx, os.Stdout)
+		err = gp.Processor().FinalizeTable(ctx)
+		cobra.CheckErr(err)
+
+		err = gp.OutputFormatter().Output(ctx, gp.Processor().GetTable(), os.Stdout)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Error rendering output: %s\n", err)
 			os.Exit(1)

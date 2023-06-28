@@ -13,6 +13,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/helpers/templating"
 	"github.com/go-go-golems/glazed/pkg/processor"
 	"github.com/go-go-golems/glazed/pkg/settings"
+	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -560,19 +561,22 @@ func processQueryResults(ctx context.Context, rows *sqlx.Rows, gp processor.Proc
 		return errors.Wrapf(err, "Could not get columns")
 	}
 
-	gp.OutputFormatter().SetColumnOrder(cols)
-
 	for rows.Next() {
-		row := map[string]interface{}{}
-		err = rows.MapScan(row)
+		m := map[string]interface{}{}
+		row := types.NewRow()
+		err = rows.MapScan(m)
 		if err != nil {
 			return errors.Wrapf(err, "Could not scan row")
 		}
 
-		for key, value := range row {
-			switch value := value.(type) {
-			case []byte:
-				row[key] = string(value)
+		for _, col := range cols {
+			if v, ok := m[col]; ok {
+				switch v := v.(type) {
+				case []byte:
+					row.Set(col, string(v))
+				default:
+					row.Set(col, v)
+				}
 			}
 		}
 

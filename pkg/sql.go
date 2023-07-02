@@ -11,7 +11,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/helpers/cast"
 	"github.com/go-go-golems/glazed/pkg/helpers/templating"
-	"github.com/go-go-golems/glazed/pkg/processor"
+	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/jmoiron/sqlx"
@@ -29,7 +29,7 @@ type SqletonCommand interface {
 		ctx context.Context,
 		db *sqlx.DB,
 		parameters map[string]interface{},
-		gp processor.TableProcessor,
+		gp middlewares.TableProcessor,
 	) error
 	RenderQuery(parameters map[string]interface{}) (string, error)
 }
@@ -124,7 +124,7 @@ func (s *SqlCommand) Run(
 	ctx context.Context,
 	parsedLayers map[string]*layers.ParsedParameterLayer,
 	ps map[string]interface{},
-	gp processor.TableProcessor,
+	gp middlewares.Processor,
 ) error {
 	if s.dbConnectionFactory == nil {
 		return fmt.Errorf("dbConnectionFactory is not set")
@@ -517,7 +517,7 @@ func RunQueryIntoGlaze(
 	db *sqlx.DB,
 	query string,
 	parameters []interface{},
-	gp processor.TableProcessor) error {
+	gp middlewares.Processor) error {
 
 	// use a prepared statement so that when using mysql, we get native types back
 	stmt, err := db.PreparexContext(dbContext, query)
@@ -538,7 +538,7 @@ func RunNamedQueryIntoGlaze(
 	db *sqlx.DB,
 	query string,
 	parameters map[string]interface{},
-	gp processor.TableProcessor) error {
+	gp middlewares.Processor) error {
 
 	// use a statement so that when using mysql, we get native types back
 	stmt, err := db.PrepareNamedContext(dbContext, query)
@@ -554,7 +554,7 @@ func RunNamedQueryIntoGlaze(
 	return processQueryResults(dbContext, rows, gp)
 }
 
-func processQueryResults(ctx context.Context, rows *sqlx.Rows, gp processor.TableProcessor) error {
+func processQueryResults(ctx context.Context, rows *sqlx.Rows, gp middlewares.Processor) error {
 	// we need a way to order the columns
 	cols, err := rows.Columns()
 	if err != nil {
@@ -593,7 +593,7 @@ func (s *SqlCommand) RunQueryIntoGlaze(
 	ctx context.Context,
 	db *sqlx.DB,
 	ps map[string]interface{},
-	gp processor.TableProcessor) error {
+	gp middlewares.Processor) error {
 
 	query, err := s.RenderQuery(ctx, ps, db)
 	if err != nil {

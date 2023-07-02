@@ -16,7 +16,7 @@ import (
 	"github.com/go-go-golems/parka/pkg/handlers/config"
 	"github.com/go-go-golems/parka/pkg/handlers/template"
 	"github.com/go-go-golems/parka/pkg/handlers/template-dir"
-	"github.com/go-go-golems/parka/pkg/render/datatables"
+	"github.com/go-go-golems/parka/pkg/render/formatters/datatables"
 	"github.com/go-go-golems/parka/pkg/server"
 	"github.com/go-go-golems/parka/pkg/utils/fs"
 	"github.com/go-go-golems/sqleton/pkg"

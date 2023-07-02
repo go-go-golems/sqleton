@@ -6,8 +6,9 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
-	"github.com/go-go-golems/glazed/pkg/processor"
+	"github.com/go-go-golems/glazed/pkg/middlewares"
 	cli "github.com/go-go-golems/glazed/pkg/settings"
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 
 	"github.com/go-go-golems/sqleton/pkg"
@@ -25,7 +26,7 @@ func (c *RunCommand) Run(
 	ctx context.Context,
 	parsedLayers map[string]*layers.ParsedParameterLayer,
 	ps map[string]interface{},
-	gp processor.TableProcessor) error {
+	gp middlewares.Processor) error {
 	inputFiles, ok := ps["input-files"].([]string)
 	if !ok {
 		return fmt.Errorf("input-files is not a string list")
@@ -35,7 +36,9 @@ func (c *RunCommand) Run(
 	if err != nil {
 		return errors.Wrap(err, "could not open database")
 	}
-	defer db.Close()
+	defer func(db *sqlx.DB) {
+		_ = db.Close()
+	}(db)
 
 	err = db.PingContext(ctx)
 	if err != nil {

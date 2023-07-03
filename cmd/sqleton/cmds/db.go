@@ -108,7 +108,7 @@ var dbTestConnectionCmdWithPrefix = &cobra.Command{
 // mix sqleton commands with say, escuse-me commands
 var dbPrintEvidenceSettingsCmd = &cobra.Command{
 	Use:   "print-evidence-settings",
-	Short: "OutputTable the settings to connect to a database for evidence.dev",
+	Short: "Output the settings to connect to a database for evidence.dev",
 	Run: func(cmd *cobra.Command, args []string) {
 		config := createConfigFromCobra(cmd)
 		source, err := config.GetSource()
@@ -153,7 +153,7 @@ var dbPrintEvidenceSettingsCmd = &cobra.Command{
 
 var dbPrintEnvCmd = &cobra.Command{
 	Use:   "print-env",
-	Short: "OutputTable the settings to connect to a database as environment variables",
+	Short: "Output the settings to connect to a database as environment variables",
 	Run: func(cmd *cobra.Command, args []string) {
 		config := createConfigFromCobra(cmd)
 		source, err := config.GetSource()
@@ -186,7 +186,7 @@ var dbPrintEnvCmd = &cobra.Command{
 
 var dbPrintSettingsCmd = &cobra.Command{
 	Use:   "print-settings",
-	Short: "OutputTable the settings to connect to a database using glazed",
+	Short: "Output the settings to connect to a database using glazed",
 	Run: func(cmd *cobra.Command, args []string) {
 		config := createConfigFromCobra(cmd)
 		source, err := config.GetSource()
@@ -347,15 +347,15 @@ func init() {
 
 	err = connectionLayer.AddFlagsToCobraCommand(dbPrintEnvCmd)
 	cobra.CheckErr(err)
-	dbPrintEnvCmd.Flags().Bool("envrc", false, "OutputTable as an .envrc file")
+	dbPrintEnvCmd.Flags().Bool("envrc", false, "Output as an .envrc file")
 	dbPrintEnvCmd.Flags().String("env-prefix", "SQLETON_", "Prefix for environment variables")
 	DbCmd.AddCommand(dbPrintEnvCmd)
 
 	err = connectionLayer.AddFlagsToCobraCommand(dbPrintSettingsCmd)
 	cobra.CheckErr(err)
-	dbPrintSettingsCmd.Flags().Bool("individual-rows", false, "OutputTable as individual rows")
-	dbPrintSettingsCmd.Flags().String("with-env-prefix", "", "OutputTable as environment variables with a prefix")
-	dbPrintSettingsCmd.Flags().Bool("use-env-names", false, "OutputTable as SQLETON_ environment variables with a prefix")
+	dbPrintSettingsCmd.Flags().Bool("individual-rows", false, "Output as individual rows")
+	dbPrintSettingsCmd.Flags().String("with-env-prefix", "", "Output as environment variables with a prefix")
+	dbPrintSettingsCmd.Flags().Bool("use-env-names", false, "Output as SQLETON_ environment variables with a prefix")
 	err = cli.AddGlazedProcessorFlagsToCobraCommand(dbPrintSettingsCmd)
 	cobra.CheckErr(err)
 	DbCmd.AddCommand(dbPrintSettingsCmd)

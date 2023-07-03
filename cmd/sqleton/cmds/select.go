@@ -7,10 +7,11 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
-	"github.com/go-go-golems/glazed/pkg/processor"
+	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/sqleton/pkg"
 	"github.com/huandu/go-sqlbuilder"
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 	"strings"
@@ -52,7 +53,7 @@ func (sc *SelectCommand) Run(
 	ctx context.Context,
 	parsedLayers map[string]*layers.ParsedParameterLayer,
 	ps map[string]interface{},
-	gp processor.TableProcessor,
+	gp middlewares.Processor,
 ) error {
 	s := &SelectCommandSettings{}
 
@@ -200,7 +201,9 @@ func (sc *SelectCommand) Run(
 	if err != nil {
 		return err
 	}
-	defer db.Close()
+	defer func(db *sqlx.DB) {
+		_ = db.Close()
+	}(db)
 
 	err = db.PingContext(ctx)
 	if err != nil {

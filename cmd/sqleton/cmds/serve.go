@@ -4,24 +4,21 @@ import (
 	"context"
 	"embed"
 	"fmt"
-	"github.com/go-go-golems/clay/pkg/repositories"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
-	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/helpers"
+	"github.com/go-go-golems/parka/pkg/glazed/handlers/datatables"
 	"github.com/go-go-golems/parka/pkg/handlers"
 	"github.com/go-go-golems/parka/pkg/handlers/command-dir"
 	"github.com/go-go-golems/parka/pkg/handlers/config"
 	"github.com/go-go-golems/parka/pkg/handlers/template"
 	"github.com/go-go-golems/parka/pkg/handlers/template-dir"
-	"github.com/go-go-golems/parka/pkg/render/datatables"
 	"github.com/go-go-golems/parka/pkg/server"
 	"github.com/go-go-golems/parka/pkg/utils/fs"
 	"github.com/go-go-golems/sqleton/pkg"
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
 	"net/http"
 	"os"
@@ -132,7 +129,7 @@ func (s *ServeCommand) runWithConfigFile(
 		handlers.WithAppendCommandDirHandlerOptions(commandDirHandlerOptions...),
 		handlers.WithAppendTemplateDirHandlerOptions(templateDirHandlerOptions...),
 		handlers.WithAppendTemplateHandlerOptions(templateHandlerOptions...),
-		handlers.WithRepositoryFactory(CreateSqletonRepository),
+		handlers.WithRepositoryFactory(pkg.NewRepositoryFactory()),
 		handlers.WithDevMode(devMode),
 	)
 
@@ -262,7 +259,7 @@ func (s *ServeCommand) Run(
 		configFile,
 		handlers.WithAppendCommandDirHandlerOptions(commandDirHandlerOptions...),
 		handlers.WithAppendTemplateDirHandlerOptions(templateDirHandlerOptions...),
-		handlers.WithRepositoryFactory(CreateSqletonRepository),
+		handlers.WithRepositoryFactory(pkg.NewRepositoryFactory()),
 		handlers.WithDevMode(dev),
 	)
 
@@ -353,52 +350,4 @@ func NewServeCommand(
 		),
 		repositories: repositories,
 	}
-}
-
-// CreateSqletonRepository uses the configured repositories to load a single repository watcher, and load all
-// the necessary commands and aliases at startup.
-//
-// NOTE(manuel, 2023-05-26) This could probably be extracted out of the CommandHandler and maybe submitted as
-// a utility, as this currently ties the YAML load and the whole sqleton thing directly into the CommandDirHandler.
-func CreateSqletonRepository(dirs []string) (*repositories.Repository, error) {
-	yamlFSLoader := loaders.NewYAMLFSCommandLoader(&pkg.SqlCommandLoader{
-		DBConnectionFactory: pkg.OpenDatabaseFromSqletonConnectionLayer,
-	})
-	yamlLoader := &loaders.YAMLReaderCommandLoader{
-		YAMLCommandLoader: &pkg.SqlCommandLoader{
-			DBConnectionFactory: pkg.OpenDatabaseFromSqletonConnectionLayer,
-		},
-	}
-
-	r := repositories.NewRepository(
-		repositories.WithDirectories(dirs),
-		repositories.WithUpdateCallback(func(cmd cmds.Command) error {
-			description := cmd.Description()
-			log.Info().Str("name", description.Name).
-				Str("source", description.Source).
-				Msg("Updating cmd")
-			// TODO(manuel, 2023-04-19) This is where we would recompute the HandlerFunc used below in GET and POST
-			return nil
-		}),
-		repositories.WithRemoveCallback(func(cmd cmds.Command) error {
-			description := cmd.Description()
-			log.Info().Str("name", description.Name).
-				Str("source", description.Source).
-				Msg("Removing cmd")
-			// TODO(manuel, 2023-04-19) This is where we would recompute the HandlerFunc used below in GET and POST
-			// NOTE(manuel, 2023-05-25) Regarding the above TODO, why?
-			// We don't need to recompute the func, since it fetches the command at runtime.
-			return nil
-		}),
-		repositories.WithCommandLoader(yamlLoader),
-		repositories.WithFSLoader(yamlFSLoader),
-	)
-
-	err := r.LoadCommands()
-	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
-		os.Exit(1)
-	}
-
-	return r, nil
 }

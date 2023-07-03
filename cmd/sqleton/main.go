@@ -21,6 +21,8 @@ import (
 	"syscall"
 )
 
+import _ "net/http/pprof"
+
 var profiler interface {
 	Stop()
 }

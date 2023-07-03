@@ -192,7 +192,7 @@ var dbPrintSettingsCmd = &cobra.Command{
 		source, err := config.GetSource()
 		cobra.CheckErr(err)
 
-		gp, err := cli.CreateGlazedProcessorFromCobra(cmd)
+		gp, _, err := cli.CreateGlazedProcessorFromCobra(cmd)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Could not create glaze  procersors: %v\n", err)
 			os.Exit(1)
@@ -271,14 +271,12 @@ var dbPrintSettingsCmd = &cobra.Command{
 			))
 		}
 
-		err = gp.Finalize(ctx)
-		cobra.CheckErr(err)
-
-		err = gp.OutputFormatter().Output(ctx, gp.GetTable(), os.Stdout)
+		err = gp.Close(ctx)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Error rendering output: %s\n", err)
 			os.Exit(1)
 		}
+		cobra.CheckErr(err)
 	},
 }
 
@@ -300,7 +298,7 @@ var dbLsCmd = &cobra.Command{
 		sources, err := pkg.ParseDbtProfiles(dbtProfilesPath)
 		cobra.CheckErr(err)
 
-		gp, err := cli.CreateGlazedProcessorFromCobra(cmd)
+		gp, _, err := cli.CreateGlazedProcessorFromCobra(cmd)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Could not create glaze  procersors: %v\n", err)
 			os.Exit(1)
@@ -316,14 +314,12 @@ var dbLsCmd = &cobra.Command{
 			cobra.CheckErr(err)
 		}
 
-		err = gp.Finalize(ctx)
-		cobra.CheckErr(err)
-
-		err = gp.OutputFormatter().Output(ctx, gp.GetTable(), os.Stdout)
+		err = gp.Close(ctx)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Error rendering output: %s\n", err)
 			os.Exit(1)
 		}
+		cobra.CheckErr(err)
 	},
 }
 

@@ -5,11 +5,12 @@ import (
 	glazed_cmds "github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
+	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/middlewares/row"
-	"github.com/go-go-golems/glazed/pkg/processor"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
 	sqleton "github.com/go-go-golems/sqleton/pkg"
+	"github.com/pkg/errors"
 )
 
 type QueriesCommand struct {
@@ -26,9 +27,14 @@ func (q *QueriesCommand) Run(
 	ctx context.Context,
 	parsedLayers map[string]*layers.ParsedParameterLayer,
 	ps map[string]interface{},
-	gp processor.TableProcessor,
+	gp middlewares.Processor,
 ) error {
-	gp.AddRowMiddleware(
+	tableProcessor, ok := gp.(*middlewares.TableProcessor)
+	if !ok {
+		return errors.New("expected a table processor")
+	}
+
+	tableProcessor.AddRowMiddleware(
 		row.NewReorderColumnOrderMiddleware(
 			[]string{"name", "short", "long", "source", "query"}),
 	)
@@ -48,11 +54,11 @@ func (q *QueriesCommand) Run(
 		}
 	}
 
-	for _, alias := range q.aliases {
+	for _, alias_ := range q.aliases {
 		obj := types.NewRow(
-			types.MRP("name", alias.Name),
-			types.MRP("aliasFor", alias.AliasFor),
-			types.MRP("source", alias.Source),
+			types.MRP("name", alias_.Name),
+			types.MRP("aliasFor", alias_.AliasFor),
+			types.MRP("source", alias_.Source),
 		)
 		err := gp.AddRow(ctx, obj)
 		if err != nil {

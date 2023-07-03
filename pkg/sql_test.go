@@ -5,7 +5,8 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	assert2 "github.com/go-go-golems/glazed/pkg/helpers/assert"
-	"github.com/go-go-golems/glazed/pkg/processor"
+	"github.com/go-go-golems/glazed/pkg/middlewares"
+	"github.com/go-go-golems/glazed/pkg/middlewares/table"
 	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -107,13 +108,14 @@ func TestSimpleRun(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	gp, err := processor.NewSimpleGlazeProcessor()
+	gp := middlewares.NewTableProcessor()
 	require.NoError(t, err)
+	gp.AddTableMiddleware(&table.NullTableMiddleware{})
 	ctx := context.Background()
 	err = s.Run(ctx, map[string]*layers.ParsedParameterLayer{}, map[string]interface{}{}, gp)
 	require.NoError(t, err)
 
-	err = gp.Finalize(ctx)
+	err = gp.Close(ctx)
 	require.NoError(t, err)
 	table_ := gp.GetTable()
 	require.NoError(t, err)
@@ -169,12 +171,12 @@ func TestSimpleSubQuery(t *testing.T) {
 	)
 `, s_)
 
-	gp, err := processor.NewSimpleGlazeProcessor()
-	require.NoError(t, err)
+	gp := middlewares.NewTableProcessor()
+	gp.AddTableMiddleware(&table.NullTableMiddleware{})
 	err = s.Run(ctx, map[string]*layers.ParsedParameterLayer{}, ps, gp)
 	require.NoError(t, err)
 
-	err = gp.Finalize(ctx)
+	err = gp.Close(ctx)
 	require.NoError(t, err)
 	table_ := gp.GetTable()
 	require.NoError(t, err)
@@ -276,12 +278,12 @@ func TestSimpleSubQueryWithArguments(t *testing.T) {
 	)
 `, s_)
 
-	gp, err := processor.NewSimpleGlazeProcessor()
-	require.NoError(t, err)
+	gp := middlewares.NewTableProcessor()
+	gp.AddTableMiddleware(&table.NullTableMiddleware{})
 	err = s.Run(ctx, map[string]*layers.ParsedParameterLayer{}, ps, gp)
 	require.NoError(t, err)
 
-	err = gp.Finalize(ctx)
+	err = gp.Close(ctx)
 	require.NoError(t, err)
 	table_ := gp.GetTable()
 	require.NoError(t, err)
@@ -413,12 +415,12 @@ func TestMapSubQuery(t *testing.T) {
 	)
 `, s_)
 
-	gp, err := processor.NewSimpleGlazeProcessor()
-	require.NoError(t, err)
+	gp := middlewares.NewTableProcessor()
+	gp.AddTableMiddleware(&table.NullTableMiddleware{})
 	err = s.Run(ctx, map[string]*layers.ParsedParameterLayer{}, ps, gp)
 	require.NoError(t, err)
 
-	err = gp.Finalize(ctx)
+	err = gp.Close(ctx)
 	require.NoError(t, err)
 	table_ := gp.GetTable()
 	require.NoError(t, err)

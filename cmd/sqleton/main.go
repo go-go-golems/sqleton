@@ -5,6 +5,7 @@ import (
 	"fmt"
 	clay "github.com/go-go-golems/clay/pkg"
 	clay_cmds "github.com/go-go-golems/clay/pkg/cmds"
+	"github.com/go-go-golems/clay/pkg/repositories/sql"
 	"github.com/go-go-golems/glazed/pkg/cli"
 	glazed_cmds "github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
@@ -148,11 +149,11 @@ func initRootCmd() (*help.HelpSystem, error) {
 func initAllCommands(helpSystem *help.HelpSystem) error {
 	rootCmd.AddCommand(cmds.DbCmd)
 
-	dbtParameterLayer, err := pkg.NewDbtParameterLayer()
+	dbtParameterLayer, err := sql.NewDbtParameterLayer()
 	if err != nil {
 		return err
 	}
-	sqlConnectionParameterLayer, err := pkg.NewSqlConnectionParameterLayer()
+	sqlConnectionParameterLayer, err := sql.NewSqlConnectionParameterLayer()
 	if err != nil {
 		return err
 	}

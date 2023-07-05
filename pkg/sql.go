@@ -3,6 +3,7 @@ package pkg
 import (
 	"context"
 	"fmt"
+	"github.com/go-go-golems/clay/pkg/repositories/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
@@ -89,11 +90,11 @@ func NewSqlCommand(
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create Glazed parameter layer")
 	}
-	sqlConnectionParameterLayer, err := NewSqlConnectionParameterLayer()
+	sqlConnectionParameterLayer, err := sql.NewSqlConnectionParameterLayer()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create SQL connection parameter layer")
 	}
-	dbtParameterLayer, err := NewDbtParameterLayer()
+	dbtParameterLayer, err := sql.NewDbtParameterLayer()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create dbt parameter layer")
 	}
@@ -130,7 +131,7 @@ func (s *SqlCommand) Run(
 		return fmt.Errorf("dbConnectionFactory is not set")
 	}
 
-	// at this point, the factory can probably be passed the sqleton-connection parsed layer
+	// at this point, the factory can probably be passed the sql-connection parsed layer
 	db, err := s.dbConnectionFactory(parsedLayers)
 	if err != nil {
 		return err
@@ -171,7 +172,7 @@ func (s *SqlCommand) RenderQueryFull(
 		return "", fmt.Errorf("dbConnectionFactory is not set")
 	}
 
-	// at this point, the factory can probably be passed the sqleton-connection parsed layer
+	// at this point, the factory can probably be passed the sql-connection parsed layer
 	db, err := s.dbConnectionFactory(parsedLayers)
 	if err != nil {
 		return "", err

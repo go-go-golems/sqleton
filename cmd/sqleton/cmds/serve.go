@@ -60,6 +60,11 @@ func (s *ServeCommand) runWithConfigFile(
 		return err
 	}
 
+	debug := ps["debug"].(bool)
+	if debug {
+		server_.RegisterDebugRoutes()
+	}
+
 	commandDirHandlerOptions := []command_dir.CommandDirHandlerOption{}
 	templateDirHandlerOptions := []template_dir.TemplateDirHandlerOption{}
 
@@ -148,6 +153,7 @@ func (s *ServeCommand) Run(
 	// now set up parka server
 	port := ps["serve-port"].(int)
 	host := ps["serve-host"].(string)
+	debug := ps["debug"].(bool)
 	dev, _ := ps["dev"].(bool)
 
 	serverOptions := []server.ServerOption{
@@ -211,6 +217,10 @@ func (s *ServeCommand) Run(
 	server_, err := server.NewServer(serverOptions...)
 	if err != nil {
 		return err
+	}
+
+	if debug {
+		server_.RegisterDebugRoutes()
 	}
 
 	server_.Router.StaticFileFS(
@@ -327,6 +337,12 @@ func NewServeCommand(
 				"dev",
 				parameters.ParameterTypeBool,
 				parameters.WithHelp("Run in development mode"),
+				parameters.WithDefault(false),
+			),
+			parameters.NewParameterDefinition(
+				"debug",
+				parameters.ParameterTypeBool,
+				parameters.WithHelp("Run in debug mode (expose /debug/pprof routes)"),
 				parameters.WithDefault(false),
 			),
 			parameters.NewParameterDefinition(

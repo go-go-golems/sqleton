@@ -1,6 +1,7 @@
 package cmds
 
 import (
+	"github.com/go-go-golems/clay/pkg/repositories/sql"
 	"github.com/go-go-golems/glazed/pkg/cli"
 	glazed_cmds "github.com/go-go-golems/glazed/pkg/cmds"
 	sqleton "github.com/go-go-golems/sqleton/pkg"
@@ -18,7 +19,7 @@ func init() {
 			glazed_cmds.WithShort("List MySQL processes"),
 			glazed_cmds.WithLong("SHOW PROCESSLIST"),
 		),
-		sqleton.WithDbConnectionFactory(sqleton.OpenDatabaseFromSqletonConnectionLayer),
+		sqleton.WithDbConnectionFactory(sql.OpenDatabaseFromDefaultSqlConnectionLayer),
 		sqleton.WithQuery("SHOW PROCESSLIST"),
 	)
 	if err != nil {

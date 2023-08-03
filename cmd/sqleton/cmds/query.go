@@ -2,6 +2,7 @@ package cmds
 
 import (
 	"context"
+	"github.com/go-go-golems/clay/pkg/repositories/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
@@ -67,7 +68,7 @@ func (q *QueryCommand) Run(
 		return err
 	}
 
-	err = pkg.RunNamedQueryIntoGlaze(ctx, db, query, map[string]interface{}{}, gp)
+	err = sql.RunNamedQueryIntoGlaze(ctx, db, query, map[string]interface{}{}, gp)
 	if err != nil {
 		return err
 	}

@@ -204,7 +204,7 @@ func (s *ServeCommand) Run(
 		configFile.Routes = append(configFile.Routes, &config.Route{
 			Path: "/static",
 			Static: &config.Static{
-				LocalPath: "cmd/sqleton/cmds/static",
+				LocalPath: "cmd/sqleton/cmd/static",
 			},
 		})
 

@@ -69,7 +69,7 @@ func main() {
 	if len(os.Args) >= 3 && os.Args[1] == "run-command" && os.Args[2] != "--help" {
 		// load the command
 		loader := &pkg.SqlCommandLoader{
-			DBConnectionFactory: pkg.OpenDatabaseFromSqletonConnectionLayer,
+			DBConnectionFactory: sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 		}
 		f, err := os.Open(os.Args[2])
 		if err != nil {
@@ -158,7 +158,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		return err
 	}
 
-	runCommand, err := cmds.NewRunCommand(pkg.OpenDatabaseFromSqletonConnectionLayer,
+	runCommand, err := cmds.NewRunCommand(sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 		glazed_cmds.WithLayers(
 			dbtParameterLayer,
 			sqlConnectionParameterLayer,
@@ -172,7 +172,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	}
 	rootCmd.AddCommand(cobraRunCommand)
 
-	selectCommand, err := cmds.NewSelectCommand(pkg.OpenDatabaseFromSqletonConnectionLayer,
+	selectCommand, err := cmds.NewSelectCommand(sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 		glazed_cmds.WithLayers(
 			dbtParameterLayer,
 			sqlConnectionParameterLayer,
@@ -187,7 +187,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	rootCmd.AddCommand(cobraSelectCommand)
 
 	queryCommand, err := cmds.NewQueryCommand(
-		pkg.OpenDatabaseFromSqletonConnectionLayer,
+		sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 		glazed_cmds.WithLayers(
 			dbtParameterLayer,
 			sqlConnectionParameterLayer,
@@ -224,7 +224,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	}
 
 	yamlLoader := loaders.NewYAMLFSCommandLoader(&pkg.SqlCommandLoader{
-		DBConnectionFactory: pkg.OpenDatabaseFromSqletonConnectionLayer,
+		DBConnectionFactory: sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 	})
 	commandLoader := clay_cmds.NewCommandLoader[glazed_cmds.Command](&locations)
 	commands, aliases, err := commandLoader.LoadCommands(yamlLoader, helpSystem)
@@ -246,7 +246,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	}
 
 	serveCommand := cmds.NewServeCommand(
-		pkg.OpenDatabaseFromSqletonConnectionLayer,
+		sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 		repositories, commands, aliases,
 		glazed_cmds.WithLayers(
 			dbtParameterLayer,

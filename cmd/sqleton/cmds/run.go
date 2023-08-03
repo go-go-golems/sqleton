@@ -3,6 +3,7 @@ package cmds
 import (
 	"context"
 	"fmt"
+	"github.com/go-go-golems/clay/pkg/repositories/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
@@ -68,7 +69,7 @@ func (c *RunCommand) Run(
 
 		// TODO(2022-12-20, manuel): collect named parameters here, maybe through prerun?
 		// See: https://github.com/wesen/sqleton/issues/40
-		err = pkg.RunNamedQueryIntoGlaze(ctx, db, query, map[string]interface{}{}, gp)
+		err = sql.RunNamedQueryIntoGlaze(ctx, db, query, map[string]interface{}{}, gp)
 		cobra.CheckErr(err)
 	}
 

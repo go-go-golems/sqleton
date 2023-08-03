@@ -82,13 +82,15 @@ func (s *ServeCommand) runWithConfigFile(
 	devMode := ps["dev"].(bool)
 	commandDirHandlerOptions = append(
 		commandDirHandlerOptions,
-		command_dir.WithLayerDefaults(
-			sqlConnectionLayer.Layer.GetSlug(),
-			sqlConnectionLayer.Parameters,
-		),
-		command_dir.WithLayerDefaults(
-			dbtConnectionLayer.Layer.GetSlug(),
-			dbtConnectionLayer.Parameters,
+		command_dir.WithOverridesAndDefaultsOptions(
+			config.WithLayerDefaults(
+				sqlConnectionLayer.Layer.GetSlug(),
+				sqlConnectionLayer.Parameters,
+			),
+			config.WithLayerDefaults(
+				dbtConnectionLayer.Layer.GetSlug(),
+				dbtConnectionLayer.Parameters,
+			),
 		),
 		command_dir.WithDefaultTemplateName("data-tables.tmpl.html"),
 		command_dir.WithDefaultIndexTemplateName("index.tmpl.html"),
@@ -116,7 +118,7 @@ func (s *ServeCommand) runWithConfigFile(
 	//
 	// for the config file handler:
 	// - [x] gather commandDirHandlerOptions
-	//   - [x] templateLookup from cmds/templates/
+	//   - [x] templateLookup from cmd/templates/
 	//      - should be handled by the templateDirectoryHandler creation function
 	//   - [x] override dbt-connection and sql-connection layer from parsedLayers
 	//   - [x] defaultTemplateName data-tables.tmpl.html
@@ -242,13 +244,15 @@ func (s *ServeCommand) Run(
 	// commandDirHandlerOptions will apply to all command dirs loaded by the server
 	commandDirHandlerOptions := []command_dir.CommandDirHandlerOption{
 		command_dir.WithTemplateLookup(datatables.NewDataTablesLookupTemplate()),
-		command_dir.WithReplaceOverrideLayer(
-			dbtConnectionLayer.Layer.GetSlug(),
-			dbtConnectionLayer.Parameters,
-		),
-		command_dir.WithReplaceOverrideLayer(
-			sqlConnectionLayer.Layer.GetSlug(),
-			sqlConnectionLayer.Parameters,
+		command_dir.WithOverridesAndDefaultsOptions(
+			config.WithReplaceOverrideLayer(
+				dbtConnectionLayer.Layer.GetSlug(),
+				dbtConnectionLayer.Parameters,
+			),
+			config.WithReplaceOverrideLayer(
+				sqlConnectionLayer.Layer.GetSlug(),
+				sqlConnectionLayer.Parameters,
+			),
 		),
 		command_dir.WithDefaultTemplateName("data-tables.tmpl.html"),
 		command_dir.WithDefaultIndexTemplateName(""),

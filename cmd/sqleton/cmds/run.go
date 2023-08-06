@@ -19,7 +19,7 @@ import (
 )
 
 type RunCommand struct {
-	description         *cmds.CommandDescription
+	*cmds.CommandDescription
 	dbConnectionFactory pkg.DBConnectionFactory
 }
 
@@ -76,10 +76,6 @@ func (c *RunCommand) Run(
 	return nil
 }
 
-func (c *RunCommand) Description() *cmds.CommandDescription {
-	return c.description
-}
-
 func NewRunCommand(
 	dbConnectionFactory pkg.DBConnectionFactory,
 	options ...cmds.CommandDescriptionOption,
@@ -110,7 +106,7 @@ func NewRunCommand(
 
 	return &RunCommand{
 		dbConnectionFactory: dbConnectionFactory,
-		description: cmds.NewCommandDescription(
+		CommandDescription: cmds.NewCommandDescription(
 			"run",
 			options_...,
 		),

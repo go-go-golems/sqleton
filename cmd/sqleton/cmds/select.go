@@ -31,7 +31,7 @@ func NewSelectParameterLayer() (*layers.ParameterLayerImpl, error) {
 }
 
 type SelectCommand struct {
-	description         *cmds.CommandDescription
+	*cmds.CommandDescription
 	dbConnectionFactory pkg.DBConnectionFactory
 }
 
@@ -44,10 +44,6 @@ type SelectCommandSettings struct {
 	OrderBy  string   `glazed.parameter:"order-by"`
 	Distinct bool     `glazed.parameter:"distinct"`
 	Table    string   `glazed.parameter:"table"`
-}
-
-func (sc *SelectCommand) Description() *cmds.CommandDescription {
-	return sc.description
 }
 
 func (sc *SelectCommand) Run(
@@ -254,7 +250,7 @@ func NewSelectCommand(
 
 	return &SelectCommand{
 		dbConnectionFactory: dbConnectionFactory,
-		description: cmds.NewCommandDescription(
+		CommandDescription: cmds.NewCommandDescription(
 			"select",
 			options_...,
 		),

@@ -14,7 +14,7 @@ import (
 
 type QueryCommand struct {
 	dbConnectionFactory pkg.DBConnectionFactory
-	description         *cmds.CommandDescription
+	*cmds.CommandDescription
 }
 
 func NewQueryCommand(
@@ -39,12 +39,8 @@ func NewQueryCommand(
 
 	return &QueryCommand{
 		dbConnectionFactory: dbConnectionFactory,
-		description:         cmds.NewCommandDescription("query", options_...),
+		CommandDescription:  cmds.NewCommandDescription("query", options_...),
 	}, nil
-}
-
-func (q *QueryCommand) Description() *cmds.CommandDescription {
-	return q.description
 }
 
 func (q *QueryCommand) Run(

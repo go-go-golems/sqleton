@@ -26,13 +26,9 @@ import (
 )
 
 type ServeCommand struct {
-	description         *cmds.CommandDescription
+	*cmds.CommandDescription
 	dbConnectionFactory pkg.DBConnectionFactory
 	repositories        []string
-}
-
-func (s *ServeCommand) Description() *cmds.CommandDescription {
-	return s.description
 }
 
 //go:embed static
@@ -364,7 +360,7 @@ func NewServeCommand(
 	)
 	return &ServeCommand{
 		dbConnectionFactory: dbConnectionFactory,
-		description: cmds.NewCommandDescription(
+		CommandDescription: cmds.NewCommandDescription(
 			"serve",
 			options_...,
 		),

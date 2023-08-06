@@ -48,14 +48,23 @@ type DBConnectionFactory func(parsedLayers map[string]*layers.ParsedParameterLay
 
 // SqlCommand describes a command line command that runs a query
 type SqlCommand struct {
-	description         *cmds.CommandDescription
-	Query               string
-	SubQueries          map[string]string
-	dbConnectionFactory DBConnectionFactory
+	*cmds.CommandDescription
+	Query               string              `yaml:"query"`
+	SubQueries          map[string]string   `yaml:"subqueries,omitempty"`
+	dbConnectionFactory DBConnectionFactory `yaml:"-"`
 }
 
 func (s *SqlCommand) String() string {
-	return fmt.Sprintf("SqlCommand{Name: %s, Parents: %s}", s.description.Name, strings.Join(s.description.Parents, " "))
+	return fmt.Sprintf("SqlCommand{Name: %s, Parents: %s}", s.Name, strings.Join(s.Parents, " "))
+}
+
+func (s *SqlCommand) ToYAML(w io.Writer) error {
+	enc := yaml.NewEncoder(w)
+	defer func(enc *yaml.Encoder) {
+		_ = enc.Close()
+	}(enc)
+
+	return enc.Encode(s)
 }
 
 type SqlCommandOption func(*SqlCommand)
@@ -106,8 +115,8 @@ func NewSqlCommand(
 	)
 
 	ret := &SqlCommand{
-		description: description,
-		SubQueries:  make(map[string]string),
+		CommandDescription: description,
+		SubQueries:         make(map[string]string),
 	}
 
 	for _, option := range options {
@@ -190,11 +199,11 @@ func (s *SqlCommand) RenderQueryFull(
 }
 
 func (s *SqlCommand) Description() *cmds.CommandDescription {
-	return s.description
+	return s.CommandDescription
 }
 
 func (s *SqlCommand) IsValid() bool {
-	return s.description.Name != "" && s.Query != "" && s.description.Short != ""
+	return s.Name != "" && s.Query != "" && s.Short != ""
 }
 
 func (s *SqlCommand) RenderQuery(

@@ -1,7 +1,7 @@
 package pkg
 
 import (
-	"github.com/go-go-golems/clay/pkg/repositories/sql"
+	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
 	"github.com/go-go-golems/parka/pkg/handlers"
 )

@@ -3,7 +3,7 @@ package cmds
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/go-go-golems/clay/pkg/repositories/sql"
+	sql2 "github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/middlewares/row"
@@ -27,14 +27,14 @@ var DbCmd = &cobra.Command{
 	Short: "Manage databases",
 }
 
-func createConfigFromCobra(cmd *cobra.Command) *sql.DatabaseConfig {
-	connectionLayer, err := sql.NewSqlConnectionParameterLayer()
+func createConfigFromCobra(cmd *cobra.Command) *sql2.DatabaseConfig {
+	connectionLayer, err := sql2.NewSqlConnectionParameterLayer()
 	cobra.CheckErr(err)
 
 	ps, err := connectionLayer.ParseFlagsFromCobraCommand(cmd)
 	cobra.CheckErr(err)
 
-	dbtLayer, err := sql.NewDbtParameterLayer()
+	dbtLayer, err := sql2.NewDbtParameterLayer()
 	cobra.CheckErr(err)
 
 	ps2, err := dbtLayer.ParseFlagsFromCobraCommand(cmd)
@@ -51,7 +51,7 @@ func createConfigFromCobra(cmd *cobra.Command) *sql.DatabaseConfig {
 		},
 	}
 
-	config, err := sql.NewConfigFromParsedLayers(parsedLayers...)
+	config, err := sql2.NewConfigFromParsedLayers(parsedLayers...)
 	cobra.CheckErr(err)
 
 	return config
@@ -295,7 +295,7 @@ var dbLsCmd = &cobra.Command{
 
 		dbtProfilesPath := viper.GetString("dbt-profiles-path")
 
-		sources, err := sql.ParseDbtProfiles(dbtProfilesPath)
+		sources, err := sql2.ParseDbtProfiles(dbtProfilesPath)
 		cobra.CheckErr(err)
 
 		gp, _, err := cli.CreateGlazedProcessorFromCobra(cmd)
@@ -328,9 +328,9 @@ func init() {
 	cobra.CheckErr(err)
 	DbCmd.AddCommand(dbLsCmd)
 
-	connectionLayer, err := sql.NewSqlConnectionParameterLayer()
+	connectionLayer, err := sql2.NewSqlConnectionParameterLayer()
 	cobra.CheckErr(err)
-	dbtParameterLayer, err := sql.NewDbtParameterLayer()
+	dbtParameterLayer, err := sql2.NewDbtParameterLayer()
 	cobra.CheckErr(err)
 
 	err = connectionLayer.AddFlagsToCobraCommand(dbTestConnectionCmd)
@@ -360,7 +360,7 @@ func init() {
 	cobra.CheckErr(err)
 	DbCmd.AddCommand(dbPrintSettingsCmd)
 
-	connectionLayer, err = sql.NewSqlConnectionParameterLayer(
+	connectionLayer, err = sql2.NewSqlConnectionParameterLayer(
 		layers.WithPrefix("test-"),
 	)
 	cobra.CheckErr(err)

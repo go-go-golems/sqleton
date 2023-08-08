@@ -3,7 +3,7 @@ package cmds
 import (
 	"context"
 	"fmt"
-	"github.com/go-go-golems/clay/pkg/repositories/sql"
+	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"

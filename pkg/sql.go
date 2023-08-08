@@ -3,7 +3,7 @@ package pkg
 import (
 	"context"
 	"fmt"
-	"github.com/go-go-golems/clay/pkg/repositories/sql"
+	sql2 "github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
@@ -95,11 +95,11 @@ func NewSqlCommand(
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create Glazed parameter layer")
 	}
-	sqlConnectionParameterLayer, err := sql.NewSqlConnectionParameterLayer()
+	sqlConnectionParameterLayer, err := sql2.NewSqlConnectionParameterLayer()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create SQL connection parameter layer")
 	}
-	dbtParameterLayer, err := sql.NewDbtParameterLayer()
+	dbtParameterLayer, err := sql2.NewDbtParameterLayer()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create dbt parameter layer")
 	}
@@ -211,7 +211,7 @@ func (s *SqlCommand) RenderQuery(
 	ps map[string]interface{},
 	db *sqlx.DB,
 ) (string, error) {
-	t2 := sql.CreateTemplate(ctx, s.SubQueries, ps, db)
+	t2 := sql2.CreateTemplate(ctx, s.SubQueries, ps, db)
 
 	t, err := t2.Parse(s.Query)
 	if err != nil {
@@ -231,7 +231,7 @@ func (s *SqlCommand) RunQueryIntoGlaze(
 	if err != nil {
 		return err
 	}
-	return sql.RunQueryIntoGlaze(ctx, db, query, []interface{}{}, gp)
+	return sql2.RunQueryIntoGlaze(ctx, db, query, []interface{}{}, gp)
 }
 
 type SqlCommandLoader struct {

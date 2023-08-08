@@ -4,7 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"github.com/go-go-golems/clay/pkg/repositories/sql"
+	sql2 "github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
@@ -167,7 +167,7 @@ func (sc *SelectCommand) Run(
 			Short: short,
 			Flags: flags,
 		},
-			pkg.WithDbConnectionFactory(sql.OpenDatabaseFromDefaultSqlConnectionLayer),
+			pkg.WithDbConnectionFactory(sql2.OpenDatabaseFromDefaultSqlConnectionLayer),
 			pkg.WithQuery(query),
 		)
 		if err != nil {
@@ -207,7 +207,7 @@ func (sc *SelectCommand) Run(
 		return err
 	}
 
-	err = sql.RunQueryIntoGlaze(ctx, db, query, queryArgs, gp)
+	err = sql2.RunQueryIntoGlaze(ctx, db, query, queryArgs, gp)
 	if err != nil {
 		return err
 	}

@@ -3,14 +3,13 @@ module github.com/go-go-golems/sqleton
 go 1.19
 
 require (
-	github.com/go-go-golems/clay v0.0.18
-	github.com/go-go-golems/glazed v0.3.6
-	github.com/go-go-golems/parka v0.4.5
-	github.com/go-sql-driver/mysql v1.7.0
+	github.com/go-go-golems/clay v0.0.20
+	github.com/go-go-golems/glazed v0.4.0
+	github.com/go-go-golems/parka v0.4.6
+	github.com/go-sql-driver/mysql v1.7.1
 	github.com/huandu/go-sqlbuilder v1.18.0
 	github.com/jmoiron/sqlx v1.3.5
-	github.com/lib/pq v1.10.4
-	github.com/mattn/go-sqlite3 v1.14.10
+	github.com/mattn/go-sqlite3 v1.14.17
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/profile v1.7.0
 	github.com/rs/zerolog v1.29.0
@@ -66,6 +65,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
 	github.com/kopoli/go-terminal-size v0.0.0-20170219200355-5c97524c8b54 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
+	github.com/lib/pq v1.10.9 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect

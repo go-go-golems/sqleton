@@ -3,24 +3,21 @@ package pkg
 import (
 	"context"
 	"fmt"
+	sql2 "github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/layout"
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
-	"github.com/go-go-golems/glazed/pkg/helpers/cast"
 	"github.com/go-go-golems/glazed/pkg/helpers/templating"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
-	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 	"io"
 	"strings"
-	"text/template"
-	"time"
 )
 
 type SqletonCommand interface {
@@ -51,14 +48,23 @@ type DBConnectionFactory func(parsedLayers map[string]*layers.ParsedParameterLay
 
 // SqlCommand describes a command line command that runs a query
 type SqlCommand struct {
-	description         *cmds.CommandDescription
-	Query               string
-	SubQueries          map[string]string
-	dbConnectionFactory DBConnectionFactory
+	*cmds.CommandDescription
+	Query               string              `yaml:"query"`
+	SubQueries          map[string]string   `yaml:"subqueries,omitempty"`
+	dbConnectionFactory DBConnectionFactory `yaml:"-"`
 }
 
 func (s *SqlCommand) String() string {
-	return fmt.Sprintf("SqlCommand{Name: %s, Parents: %s}", s.description.Name, strings.Join(s.description.Parents, " "))
+	return fmt.Sprintf("SqlCommand{Name: %s, Parents: %s}", s.Name, strings.Join(s.Parents, " "))
+}
+
+func (s *SqlCommand) ToYAML(w io.Writer) error {
+	enc := yaml.NewEncoder(w)
+	defer func(enc *yaml.Encoder) {
+		_ = enc.Close()
+	}(enc)
+
+	return enc.Encode(s)
 }
 
 type SqlCommandOption func(*SqlCommand)
@@ -89,11 +95,11 @@ func NewSqlCommand(
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create Glazed parameter layer")
 	}
-	sqlConnectionParameterLayer, err := NewSqlConnectionParameterLayer()
+	sqlConnectionParameterLayer, err := sql2.NewSqlConnectionParameterLayer()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create SQL connection parameter layer")
 	}
-	dbtParameterLayer, err := NewDbtParameterLayer()
+	dbtParameterLayer, err := sql2.NewDbtParameterLayer()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create dbt parameter layer")
 	}
@@ -109,8 +115,8 @@ func NewSqlCommand(
 	)
 
 	ret := &SqlCommand{
-		description: description,
-		SubQueries:  make(map[string]string),
+		CommandDescription: description,
+		SubQueries:         make(map[string]string),
 	}
 
 	for _, option := range options {
@@ -130,7 +136,7 @@ func (s *SqlCommand) Run(
 		return fmt.Errorf("dbConnectionFactory is not set")
 	}
 
-	// at this point, the factory can probably be passed the sqleton-connection parsed layer
+	// at this point, the factory can probably be passed the sql-connection parsed layer
 	db, err := s.dbConnectionFactory(parsedLayers)
 	if err != nil {
 		return err
@@ -171,7 +177,7 @@ func (s *SqlCommand) RenderQueryFull(
 		return "", fmt.Errorf("dbConnectionFactory is not set")
 	}
 
-	// at this point, the factory can probably be passed the sqleton-connection parsed layer
+	// at this point, the factory can probably be passed the sql-connection parsed layer
 	db, err := s.dbConnectionFactory(parsedLayers)
 	if err != nil {
 		return "", err
@@ -193,308 +199,11 @@ func (s *SqlCommand) RenderQueryFull(
 }
 
 func (s *SqlCommand) Description() *cmds.CommandDescription {
-	return s.description
+	return s.CommandDescription
 }
 
 func (s *SqlCommand) IsValid() bool {
-	return s.description.Name != "" && s.Query != "" && s.description.Short != ""
-}
-
-// TODO(manuel, 2023-04-23) These should be moved to the templating helpers in  glazed
-func sqlEscape(value string) string {
-	return strings.Replace(value, "'", "''", -1)
-}
-
-func sqlString(value string) string {
-	return fmt.Sprintf("'%s'", value)
-}
-
-func sqlStringLike(value string) string {
-	return fmt.Sprintf("'%%%s%%'", sqlEscape(value))
-}
-
-func sqlStringIn(values interface{}) (string, error) {
-	strList, ok := cast.CastList2[string, interface{}](values)
-	if !ok {
-		return "", fmt.Errorf("could not cast %v to []string", values)
-	}
-	return fmt.Sprintf("'%s'", strings.Join(strList, "','")), nil
-}
-
-func sqlIn(values []interface{}) string {
-	strValues := make([]string, len(values))
-	for i, v := range values {
-		strValues[i] = fmt.Sprintf("%v", v)
-	}
-	return strings.Join(strValues, ",")
-}
-
-func sqlIntIn(values interface{}) string {
-	v_, ok := cast.CastInterfaceToIntList[int64](values)
-	if !ok {
-		return ""
-	}
-	strValues := make([]string, len(v_))
-	for i, v := range v_ {
-		strValues[i] = fmt.Sprintf("%d", v)
-	}
-	return strings.Join(strValues, ",")
-}
-
-func sqlDate(date interface{}) (string, error) {
-	switch v := date.(type) {
-	case string:
-		parsedDate, err := parameters.ParseDate(v)
-		if err != nil {
-			return "", err
-		}
-		return "'" + parsedDate.Format("2006-01-02") + "'", nil
-	case time.Time:
-		return "'" + v.Format("2006-01-02") + "'", nil
-	default:
-		return "", fmt.Errorf("could not parse date %v", date)
-	}
-}
-
-func sqlDateTime(date interface{}) (string, error) {
-	switch v := date.(type) {
-	case string:
-		parsedDate, err := parameters.ParseDate(v)
-		if err != nil {
-			return "", err
-		}
-		return "'" + parsedDate.Format("2006-01-02 15:03:04") + "'", nil
-	case time.Time:
-		return "'" + v.Format("2006-01-02 15:02:03") + "'", nil
-	default:
-		return "", fmt.Errorf("could not parse date %v", date)
-	}
-}
-
-func sqlLike(value string) string {
-	return "'%" + value + "%'"
-}
-
-func createTemplate(
-	ctx context.Context,
-	subQueries map[string]string,
-	ps map[string]interface{},
-	db *sqlx.DB,
-) *template.Template {
-	t2 := templating.CreateTemplate("query").
-		Funcs(templating.TemplateFuncs).
-		Funcs(template.FuncMap{
-			"sqlStringIn":   sqlStringIn,
-			"sqlStringLike": sqlStringLike,
-			"sqlIntIn":      sqlIntIn,
-			"sqlIn":         sqlIn,
-			"sqlDate":       sqlDate,
-			"sqlDateTime":   sqlDateTime,
-			"sqlLike":       sqlLike,
-			"sqlString":     sqlString,
-			"sqlEscape":     sqlEscape,
-			"subQuery": func(name string) (string, error) {
-				s, ok := subQueries[name]
-				if !ok {
-					return "", errors.Errorf("Subquery %s not found", name)
-				}
-				return s, nil
-			},
-			"sqlSlice": func(query string, args ...interface{}) ([]interface{}, error) {
-				_, rows, err := runQuery(ctx, subQueries, query, args, ps, db)
-				if err != nil {
-					// TODO(manuel, 2023-03-27) This nesting of errors in nested templates becomes quite unpalatable
-					// This is what can be output for just one level deep:
-					//
-					// Error: Could not generate query: template: query:1:13: executing "query" at <sqlColumn (subQuery "post_types")>: error calling sqlColumn: Could not run query: SELECT post_type
-					// FROM wp_posts
-					// GROUP BY post_type
-					// ORDER BY post_type
-					// : Error 1146 (42S02): Table 'ttc_analytics.wp_posts' doesn't exist
-					// exit status 1
-					//
-					// Make better error messages:
-					return nil, errors.Wrapf(err, "Could not run query: %s", query)
-				}
-				defer func(rows *sqlx.Rows) {
-					_ = rows.Close()
-				}(rows)
-
-				ret := []interface{}{}
-
-				for rows.Next() {
-					ret_, err := rows.SliceScan()
-					if err != nil {
-						return nil, errors.Wrapf(err, "Could not scan query: %s", query)
-					}
-
-					row := make([]interface{}, len(ret_))
-					for i, v := range ret_ {
-						row[i] = sqlEltToTemplateValue(v)
-					}
-
-					ret = append(ret, row)
-				}
-
-				return ret, nil
-			},
-			"sqlColumn": func(query string, args ...interface{}) ([]interface{}, error) {
-				renderedQuery, rows, err := runQuery(ctx, subQueries, query, args, ps, db)
-				if err != nil {
-					return nil, errors.Wrapf(err, "Could not run query: %s", renderedQuery)
-				}
-				defer func(rows *sqlx.Rows) {
-					_ = rows.Close()
-				}(rows)
-
-				ret := make([]interface{}, 0)
-				for rows.Next() {
-					rows_, err := rows.SliceScan()
-					if err != nil {
-						return nil, errors.Wrapf(err, "Could not scan query: %s", renderedQuery)
-					}
-
-					if len(rows_) != 1 {
-						return nil, errors.Errorf("Expected 1 column, got %d", len(rows_))
-					}
-					elt := rows_[0]
-
-					v := sqlEltToTemplateValue(elt)
-
-					ret = append(ret, v)
-				}
-
-				return ret, nil
-			},
-			"sqlSingle": func(query string, args ...interface{}) (interface{}, error) {
-				renderedQuery, rows, err := runQuery(ctx, subQueries, query, args, ps, db)
-				if err != nil {
-					return nil, errors.Wrapf(err, "Could not run query: %s", renderedQuery)
-				}
-				defer func(rows *sqlx.Rows) {
-					_ = rows.Close()
-				}(rows)
-
-				ret := make([]interface{}, 0)
-				if rows.Next() {
-					rows_, err := rows.SliceScan()
-					if err != nil {
-						return nil, errors.Wrapf(err, "Could not scan query: %s", renderedQuery)
-					}
-
-					if len(rows_) != 1 {
-						return nil, errors.Errorf("Expected 1 column, got %d", len(rows_))
-					}
-
-					ret = append(ret, rows_[0])
-				}
-
-				if rows.Next() {
-					return nil, errors.Errorf("Expected 1 row, got more")
-				}
-
-				if len(ret) == 0 {
-					return nil, nil
-				}
-
-				if len(ret) > 1 {
-					return nil, errors.Errorf("Expected 1 row, got %d", len(ret))
-				}
-
-				return sqlEltToTemplateValue(ret[0]), nil
-			},
-			"sqlMap": func(query string, args ...interface{}) (interface{}, error) {
-				renderedQuery, rows, err := runQuery(ctx, subQueries, query, args, ps, db)
-				if err != nil {
-					return nil, errors.Wrapf(err, "Could not run query: %s", renderedQuery)
-				}
-				defer func(rows *sqlx.Rows) {
-					_ = rows.Close()
-				}(rows)
-
-				ret := []map[string]interface{}{}
-
-				for rows.Next() {
-					ret_ := make(map[string]interface{})
-					err = rows.MapScan(ret_)
-					if err != nil {
-						return nil, errors.Wrapf(err, "Could not scan query: %s", renderedQuery)
-					}
-
-					row := make(map[string]interface{})
-					for k, v := range ret_ {
-						row[k] = sqlEltToTemplateValue(v)
-					}
-
-					ret = append(ret, row)
-				}
-
-				return ret, nil
-			},
-		})
-
-	return t2
-}
-
-func sqlEltToTemplateValue(elt interface{}) interface{} {
-	switch v := elt.(type) {
-	case []byte:
-		return string(v)
-	default:
-		return v
-	}
-}
-
-func runQuery(
-	ctx context.Context,
-	subQueries map[string]string,
-	query string,
-	args []interface{},
-	ps map[string]interface{},
-	db *sqlx.DB,
-) (string, *sqlx.Rows, error) {
-	if db == nil {
-		return "", nil, errors.New("No database connection")
-	}
-
-	ps2 := map[string]interface{}{}
-	for k, v := range ps {
-		ps2[k] = v
-	}
-	// args is k, v, k, v, k, v
-	if len(args)%2 != 0 {
-		return "", nil, errors.Errorf("Could not run query: %s", query)
-	}
-	for i := 0; i < len(args); i += 2 {
-		k, ok := args[i].(string)
-		if !ok {
-			return "", nil, errors.Errorf("Could not run query: %s", query)
-		}
-		ps2[k] = args[i+1]
-	}
-
-	t2 := createTemplate(ctx, subQueries, ps2, db)
-	t, err := t2.Parse(query)
-	if err != nil {
-		return "", nil, err
-	}
-
-	query_, err := templating.RenderTemplate(t, ps2)
-	if err != nil {
-		return query_, nil, err
-	}
-
-	stmt, err := db.PreparexContext(ctx, query_)
-	if err != nil {
-		return query_, nil, err
-	}
-
-	rows, err := stmt.QueryxContext(ctx)
-	if err != nil {
-		return query_, nil, err
-	}
-
-	return query_, rows, err
+	return s.Name != "" && s.Query != "" && s.Short != ""
 }
 
 func (s *SqlCommand) RenderQuery(
@@ -502,7 +211,7 @@ func (s *SqlCommand) RenderQuery(
 	ps map[string]interface{},
 	db *sqlx.DB,
 ) (string, error) {
-	t2 := createTemplate(ctx, s.SubQueries, ps, db)
+	t2 := sql2.CreateTemplate(ctx, s.SubQueries, ps, db)
 
 	t, err := t2.Parse(s.Query)
 	if err != nil {
@@ -510,83 +219,6 @@ func (s *SqlCommand) RenderQuery(
 	}
 
 	return templating.RenderTemplate(t, ps)
-}
-
-func RunQueryIntoGlaze(
-	dbContext context.Context,
-	db *sqlx.DB,
-	query string,
-	parameters []interface{},
-	gp middlewares.Processor) error {
-
-	// use a prepared statement so that when using mysql, we get native types back
-	stmt, err := db.PreparexContext(dbContext, query)
-	if err != nil {
-		return errors.Wrapf(err, "Could not prepare query: %s", query)
-	}
-
-	rows, err := stmt.QueryxContext(dbContext, parameters...)
-	if err != nil {
-		return errors.Wrapf(err, "Could not execute query: %s", query)
-	}
-
-	return processQueryResults(dbContext, rows, gp)
-}
-
-func RunNamedQueryIntoGlaze(
-	dbContext context.Context,
-	db *sqlx.DB,
-	query string,
-	parameters map[string]interface{},
-	gp middlewares.Processor) error {
-
-	// use a statement so that when using mysql, we get native types back
-	stmt, err := db.PrepareNamedContext(dbContext, query)
-	if err != nil {
-		return errors.Wrapf(err, "Could not prepare query: %s", query)
-	}
-
-	rows, err := stmt.QueryxContext(dbContext, parameters)
-	if err != nil {
-		return errors.Wrapf(err, "Could not execute query: %s", query)
-	}
-
-	return processQueryResults(dbContext, rows, gp)
-}
-
-func processQueryResults(ctx context.Context, rows *sqlx.Rows, gp middlewares.Processor) error {
-	// we need a way to order the columns
-	cols, err := rows.Columns()
-	if err != nil {
-		return errors.Wrapf(err, "Could not get columns")
-	}
-
-	for rows.Next() {
-		m := map[string]interface{}{}
-		row := types.NewRow()
-		err = rows.MapScan(m)
-		if err != nil {
-			return errors.Wrapf(err, "Could not scan row")
-		}
-
-		for _, col := range cols {
-			if v, ok := m[col]; ok {
-				switch v := v.(type) {
-				case []byte:
-					row.Set(col, string(v))
-				default:
-					row.Set(col, v)
-				}
-			}
-		}
-
-		err = gp.AddRow(ctx, row)
-		if err != nil {
-			return errors.Wrapf(err, "Could not process input object")
-		}
-	}
-
-	return nil
 }
 
 func (s *SqlCommand) RunQueryIntoGlaze(
@@ -599,7 +231,7 @@ func (s *SqlCommand) RunQueryIntoGlaze(
 	if err != nil {
 		return err
 	}
-	return RunQueryIntoGlaze(ctx, db, query, []interface{}{}, gp)
+	return sql2.RunQueryIntoGlaze(ctx, db, query, []interface{}{}, gp)
 }
 
 type SqlCommandLoader struct {
@@ -653,26 +285,4 @@ func (scl *SqlCommandLoader) LoadCommandFromYAML(
 	}
 
 	return []cmds.Command{sq}, nil
-}
-
-func LoadSqletonCommandFromYAML(
-	s io.Reader,
-	factory DBConnectionFactory,
-	options ...cmds.CommandDescriptionOption) (SqletonCommand, error) {
-	loader := &SqlCommandLoader{
-		DBConnectionFactory: factory,
-	}
-
-	cmds_, err := loader.LoadCommandFromYAML(s, options...)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(cmds_) != 1 {
-		return nil, errors.New("expected only one command")
-	}
-
-	sqletonCommand := cmds_[0].(SqletonCommand)
-
-	return sqletonCommand, nil
 }

@@ -3,6 +3,7 @@ package cmds
 import (
 	"context"
 	"fmt"
+	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
@@ -18,7 +19,7 @@ import (
 )
 
 type RunCommand struct {
-	description         *cmds.CommandDescription
+	*cmds.CommandDescription
 	dbConnectionFactory pkg.DBConnectionFactory
 }
 
@@ -68,15 +69,11 @@ func (c *RunCommand) Run(
 
 		// TODO(2022-12-20, manuel): collect named parameters here, maybe through prerun?
 		// See: https://github.com/wesen/sqleton/issues/40
-		err = pkg.RunNamedQueryIntoGlaze(ctx, db, query, map[string]interface{}{}, gp)
+		err = sql.RunNamedQueryIntoGlaze(ctx, db, query, map[string]interface{}{}, gp)
 		cobra.CheckErr(err)
 	}
 
 	return nil
-}
-
-func (c *RunCommand) Description() *cmds.CommandDescription {
-	return c.description
 }
 
 func NewRunCommand(
@@ -109,7 +106,7 @@ func NewRunCommand(
 
 	return &RunCommand{
 		dbConnectionFactory: dbConnectionFactory,
-		description: cmds.NewCommandDescription(
+		CommandDescription: cmds.NewCommandDescription(
 			"run",
 			options_...,
 		),

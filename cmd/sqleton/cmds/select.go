@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	sql2 "github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
@@ -30,7 +31,7 @@ func NewSelectParameterLayer() (*layers.ParameterLayerImpl, error) {
 }
 
 type SelectCommand struct {
-	description         *cmds.CommandDescription
+	*cmds.CommandDescription
 	dbConnectionFactory pkg.DBConnectionFactory
 }
 
@@ -43,10 +44,6 @@ type SelectCommandSettings struct {
 	OrderBy  string   `glazed.parameter:"order-by"`
 	Distinct bool     `glazed.parameter:"distinct"`
 	Table    string   `glazed.parameter:"table"`
-}
-
-func (sc *SelectCommand) Description() *cmds.CommandDescription {
-	return sc.description
 }
 
 func (sc *SelectCommand) Run(
@@ -170,7 +167,7 @@ func (sc *SelectCommand) Run(
 			Short: short,
 			Flags: flags,
 		},
-			pkg.WithDbConnectionFactory(pkg.OpenDatabaseFromSqletonConnectionLayer),
+			pkg.WithDbConnectionFactory(sql2.OpenDatabaseFromDefaultSqlConnectionLayer),
 			pkg.WithQuery(query),
 		)
 		if err != nil {
@@ -210,7 +207,7 @@ func (sc *SelectCommand) Run(
 		return err
 	}
 
-	err = pkg.RunQueryIntoGlaze(ctx, db, query, queryArgs, gp)
+	err = sql2.RunQueryIntoGlaze(ctx, db, query, queryArgs, gp)
 	if err != nil {
 		return err
 	}
@@ -253,7 +250,7 @@ func NewSelectCommand(
 
 	return &SelectCommand{
 		dbConnectionFactory: dbConnectionFactory,
-		description: cmds.NewCommandDescription(
+		CommandDescription: cmds.NewCommandDescription(
 			"select",
 			options_...,
 		),

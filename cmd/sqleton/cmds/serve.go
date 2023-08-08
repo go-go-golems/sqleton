@@ -26,13 +26,9 @@ import (
 )
 
 type ServeCommand struct {
-	description         *cmds.CommandDescription
+	*cmds.CommandDescription
 	dbConnectionFactory pkg.DBConnectionFactory
 	repositories        []string
-}
-
-func (s *ServeCommand) Description() *cmds.CommandDescription {
-	return s.description
 }
 
 //go:embed static
@@ -68,9 +64,9 @@ func (s *ServeCommand) runWithConfigFile(
 	commandDirHandlerOptions := []command_dir.CommandDirHandlerOption{}
 	templateDirHandlerOptions := []template_dir.TemplateDirHandlerOption{}
 
-	sqletonConnectionLayer := parsedLayers["sqleton-connection"]
-	if sqletonConnectionLayer == nil {
-		return errors.New("sqleton-connection layer not found")
+	sqlConnectionLayer := parsedLayers["sql-connection"]
+	if sqlConnectionLayer == nil {
+		return errors.New("sql-connection layer not found")
 	}
 	dbtConnectionLayer := parsedLayers["dbt"]
 	if dbtConnectionLayer == nil {
@@ -82,13 +78,15 @@ func (s *ServeCommand) runWithConfigFile(
 	devMode := ps["dev"].(bool)
 	commandDirHandlerOptions = append(
 		commandDirHandlerOptions,
-		command_dir.WithLayerDefaults(
-			sqletonConnectionLayer.Layer.GetSlug(),
-			sqletonConnectionLayer.Parameters,
-		),
-		command_dir.WithLayerDefaults(
-			dbtConnectionLayer.Layer.GetSlug(),
-			dbtConnectionLayer.Parameters,
+		command_dir.WithOverridesAndDefaultsOptions(
+			config.WithLayerDefaults(
+				sqlConnectionLayer.Layer.GetSlug(),
+				sqlConnectionLayer.Parameters,
+			),
+			config.WithLayerDefaults(
+				dbtConnectionLayer.Layer.GetSlug(),
+				dbtConnectionLayer.Parameters,
+			),
 		),
 		command_dir.WithDefaultTemplateName("data-tables.tmpl.html"),
 		command_dir.WithDefaultIndexTemplateName("index.tmpl.html"),
@@ -116,9 +114,9 @@ func (s *ServeCommand) runWithConfigFile(
 	//
 	// for the config file handler:
 	// - [x] gather commandDirHandlerOptions
-	//   - [x] templateLookup from cmds/templates/
+	//   - [x] templateLookup from cmd/templates/
 	//      - should be handled by the templateDirectoryHandler creation function
-	//   - [x] override dbt-connection and sqleton-connection layer from parsedLayers
+	//   - [x] override dbt-connection and sql-connection layer from parsedLayers
 	//   - [x] defaultTemplateName data-tables.tmpl.html
 	//     - should be set from the config file, but setting it in the code will do for the first revision
 	//   - [x] defaultIndexTemplateName
@@ -202,7 +200,7 @@ func (s *ServeCommand) Run(
 		configFile.Routes = append(configFile.Routes, &config.Route{
 			Path: "/static",
 			Static: &config.Static{
-				LocalPath: "cmd/sqleton/cmds/static",
+				LocalPath: "cmd/sqleton/cmd/static",
 			},
 		})
 
@@ -230,9 +228,9 @@ func (s *ServeCommand) Run(
 	)
 
 	// This section configures the command directory default setting specific to sqleton
-	sqletonConnectionLayer := parsedLayers["sqleton-connection"]
-	if sqletonConnectionLayer == nil {
-		return fmt.Errorf("sqleton-connection layer is required")
+	sqlConnectionLayer := parsedLayers["sql-connection"]
+	if sqlConnectionLayer == nil {
+		return fmt.Errorf("sql-connection layer is required")
 	}
 	dbtConnectionLayer := parsedLayers["dbt"]
 	if dbtConnectionLayer == nil {
@@ -242,13 +240,15 @@ func (s *ServeCommand) Run(
 	// commandDirHandlerOptions will apply to all command dirs loaded by the server
 	commandDirHandlerOptions := []command_dir.CommandDirHandlerOption{
 		command_dir.WithTemplateLookup(datatables.NewDataTablesLookupTemplate()),
-		command_dir.WithReplaceOverrideLayer(
-			dbtConnectionLayer.Layer.GetSlug(),
-			dbtConnectionLayer.Parameters,
-		),
-		command_dir.WithReplaceOverrideLayer(
-			sqletonConnectionLayer.Layer.GetSlug(),
-			sqletonConnectionLayer.Parameters,
+		command_dir.WithOverridesAndDefaultsOptions(
+			config.WithReplaceOverrideLayer(
+				dbtConnectionLayer.Layer.GetSlug(),
+				dbtConnectionLayer.Parameters,
+			),
+			config.WithReplaceOverrideLayer(
+				sqlConnectionLayer.Layer.GetSlug(),
+				sqlConnectionLayer.Parameters,
+			),
 		),
 		command_dir.WithDefaultTemplateName("data-tables.tmpl.html"),
 		command_dir.WithDefaultIndexTemplateName(""),
@@ -360,7 +360,7 @@ func NewServeCommand(
 	)
 	return &ServeCommand{
 		dbConnectionFactory: dbConnectionFactory,
-		description: cmds.NewCommandDescription(
+		CommandDescription: cmds.NewCommandDescription(
 			"serve",
 			options_...,
 		),

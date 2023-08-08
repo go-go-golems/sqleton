@@ -10,7 +10,7 @@ routes:
   # static content
   - path: /static
     static:
-      localPath: ~/code/wesen/corporate-headquarters/sqleton/cmd/sqleton/cmds/static
+      localPath: ~/code/wesen/corporate-headquarters/sqleton/cmd/sqleton/cmd/static
   # commands
   - path: /
     commandDirectory:
@@ -20,7 +20,7 @@ routes:
 
       templateLookup:
         directories:
-          - ~/code/wesen/corporate-headquarters/parka/pkg/render/datatables/templates
+          - ~/code/wesen/corporate-headquarters/parka/pkg/glazed/handlers/datatables/templates
       indexTemplateName: index.tmpl.html
       defaults:
         flags:
@@ -65,6 +65,6 @@ routes:
             dbt-profile: ttc.prod
 
       # need to pass template path here
-      # localPath: ~/code/wesen/corporate-headquarters/sqleton/cmd/sqleton/cmds/templates
+      # localPath: ~/code/wesen/corporate-headquarters/sqleton/cmd/sqleton/cmd/templates
 
 

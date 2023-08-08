@@ -10,7 +10,7 @@ routes:
   # static content
   - path: /static
     static:
-      localPath: ~/code/wesen/corporate-headquarters/sqleton/cmd/sqleton/cmds/static
+      localPath: ~/code/wesen/corporate-headquarters/sqleton/cmd/sqleton/cmd/static
   #  - path: /dist
   #    static:
   #      localPath: ~/code/wesen/corporate-headquarters/parka/pkg/server/web/dist
@@ -25,7 +25,7 @@ routes:
       templateDirectory: ~/code/wesen/corporate-headquarters/parka/pkg/render/datatables/templates
 
       # need to pass template path here
-      # localPath: ~/code/wesen/corporate-headquarters/sqleton/cmd/sqleton/cmds/templates
+      # localPath: ~/code/wesen/corporate-headquarters/sqleton/cmd/sqleton/cmd/templates
 defaults:
   renderer:
     templateDirectory: ~/code/wesen/corporate-headquarters/parka/pkg/server/web/src/templates

@@ -3,11 +3,11 @@ package cmds
 import (
 	"encoding/json"
 	"fmt"
+	sql2 "github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/middlewares/row"
 	"github.com/go-go-golems/glazed/pkg/types"
-	"github.com/go-go-golems/sqleton/pkg"
 	"github.com/jmoiron/sqlx"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -27,31 +27,31 @@ var DbCmd = &cobra.Command{
 	Short: "Manage databases",
 }
 
-func createConfigFromCobra(cmd *cobra.Command) *pkg.DatabaseConfig {
-	connectionLayer, err := pkg.NewSqlConnectionParameterLayer()
+func createConfigFromCobra(cmd *cobra.Command) *sql2.DatabaseConfig {
+	connectionLayer, err := sql2.NewSqlConnectionParameterLayer()
 	cobra.CheckErr(err)
 
 	ps, err := connectionLayer.ParseFlagsFromCobraCommand(cmd)
 	cobra.CheckErr(err)
 
-	dbtLayer, err := pkg.NewDbtParameterLayer()
+	dbtLayer, err := sql2.NewDbtParameterLayer()
 	cobra.CheckErr(err)
 
 	ps2, err := dbtLayer.ParseFlagsFromCobraCommand(cmd)
 	cobra.CheckErr(err)
 
-	parsedLayers := map[string]*layers.ParsedParameterLayer{
-		"sqleton-connection": {
+	parsedLayers := []*layers.ParsedParameterLayer{
+		{
 			Layer:      connectionLayer,
 			Parameters: ps,
 		},
-		"dbt": {
+		{
 			Layer:      dbtLayer,
 			Parameters: ps2,
 		},
 	}
 
-	config, err := pkg.NewConfigFromParsedLayers(parsedLayers)
+	config, err := sql2.NewConfigFromParsedLayers(parsedLayers...)
 	cobra.CheckErr(err)
 
 	return config
@@ -295,7 +295,7 @@ var dbLsCmd = &cobra.Command{
 
 		dbtProfilesPath := viper.GetString("dbt-profiles-path")
 
-		sources, err := pkg.ParseDbtProfiles(dbtProfilesPath)
+		sources, err := sql2.ParseDbtProfiles(dbtProfilesPath)
 		cobra.CheckErr(err)
 
 		gp, _, err := cli.CreateGlazedProcessorFromCobra(cmd)
@@ -328,9 +328,9 @@ func init() {
 	cobra.CheckErr(err)
 	DbCmd.AddCommand(dbLsCmd)
 
-	connectionLayer, err := pkg.NewSqlConnectionParameterLayer()
+	connectionLayer, err := sql2.NewSqlConnectionParameterLayer()
 	cobra.CheckErr(err)
-	dbtParameterLayer, err := pkg.NewDbtParameterLayer()
+	dbtParameterLayer, err := sql2.NewDbtParameterLayer()
 	cobra.CheckErr(err)
 
 	err = connectionLayer.AddFlagsToCobraCommand(dbTestConnectionCmd)
@@ -360,7 +360,7 @@ func init() {
 	cobra.CheckErr(err)
 	DbCmd.AddCommand(dbPrintSettingsCmd)
 
-	connectionLayer, err = pkg.NewSqlConnectionParameterLayer(
+	connectionLayer, err = sql2.NewSqlConnectionParameterLayer(
 		layers.WithPrefix("test-"),
 	)
 	cobra.CheckErr(err)

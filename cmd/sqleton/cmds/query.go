@@ -2,6 +2,7 @@ package cmds
 
 import (
 	"context"
+	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
@@ -13,7 +14,7 @@ import (
 
 type QueryCommand struct {
 	dbConnectionFactory pkg.DBConnectionFactory
-	description         *cmds.CommandDescription
+	*cmds.CommandDescription
 }
 
 func NewQueryCommand(
@@ -38,12 +39,8 @@ func NewQueryCommand(
 
 	return &QueryCommand{
 		dbConnectionFactory: dbConnectionFactory,
-		description:         cmds.NewCommandDescription("query", options_...),
+		CommandDescription:  cmds.NewCommandDescription("query", options_...),
 	}, nil
-}
-
-func (q *QueryCommand) Description() *cmds.CommandDescription {
-	return q.description
 }
 
 func (q *QueryCommand) Run(
@@ -67,7 +64,7 @@ func (q *QueryCommand) Run(
 		return err
 	}
 
-	err = pkg.RunNamedQueryIntoGlaze(ctx, db, query, map[string]interface{}{}, gp)
+	err = sql.RunNamedQueryIntoGlaze(ctx, db, query, map[string]interface{}{}, gp)
 	if err != nil {
 		return err
 	}

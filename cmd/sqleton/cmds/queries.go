@@ -14,13 +14,9 @@ import (
 )
 
 type QueriesCommand struct {
-	description *glazed_cmds.CommandDescription
-	queries     []*sqleton.SqlCommand
-	aliases     []*alias.CommandAlias
-}
-
-func (q *QueriesCommand) Description() *glazed_cmds.CommandDescription {
-	return q.description
+	*glazed_cmds.CommandDescription
+	queries []*sqleton.SqlCommand
+	aliases []*alias.CommandAlias
 }
 
 func (q *QueriesCommand) Run(
@@ -95,7 +91,7 @@ func NewQueriesCommand(
 	return &QueriesCommand{
 		queries: allQueries,
 		aliases: aliases,
-		description: glazed_cmds.NewCommandDescription(
+		CommandDescription: glazed_cmds.NewCommandDescription(
 			"queries",
 			options_...,
 		),

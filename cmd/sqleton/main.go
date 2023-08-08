@@ -5,6 +5,7 @@ import (
 	"fmt"
 	clay "github.com/go-go-golems/clay/pkg"
 	clay_cmds "github.com/go-go-golems/clay/pkg/cmds"
+	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cli"
 	glazed_cmds "github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
@@ -68,7 +69,7 @@ func main() {
 	if len(os.Args) >= 3 && os.Args[1] == "run-command" && os.Args[2] != "--help" {
 		// load the command
 		loader := &pkg.SqlCommandLoader{
-			DBConnectionFactory: pkg.OpenDatabaseFromSqletonConnectionLayer,
+			DBConnectionFactory: sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 		}
 		f, err := os.Open(os.Args[2])
 		if err != nil {
@@ -148,16 +149,16 @@ func initRootCmd() (*help.HelpSystem, error) {
 func initAllCommands(helpSystem *help.HelpSystem) error {
 	rootCmd.AddCommand(cmds.DbCmd)
 
-	dbtParameterLayer, err := pkg.NewDbtParameterLayer()
+	dbtParameterLayer, err := sql.NewDbtParameterLayer()
 	if err != nil {
 		return err
 	}
-	sqlConnectionParameterLayer, err := pkg.NewSqlConnectionParameterLayer()
+	sqlConnectionParameterLayer, err := sql.NewSqlConnectionParameterLayer()
 	if err != nil {
 		return err
 	}
 
-	runCommand, err := cmds.NewRunCommand(pkg.OpenDatabaseFromSqletonConnectionLayer,
+	runCommand, err := cmds.NewRunCommand(sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 		glazed_cmds.WithLayers(
 			dbtParameterLayer,
 			sqlConnectionParameterLayer,
@@ -171,7 +172,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	}
 	rootCmd.AddCommand(cobraRunCommand)
 
-	selectCommand, err := cmds.NewSelectCommand(pkg.OpenDatabaseFromSqletonConnectionLayer,
+	selectCommand, err := cmds.NewSelectCommand(sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 		glazed_cmds.WithLayers(
 			dbtParameterLayer,
 			sqlConnectionParameterLayer,
@@ -186,7 +187,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	rootCmd.AddCommand(cobraSelectCommand)
 
 	queryCommand, err := cmds.NewQueryCommand(
-		pkg.OpenDatabaseFromSqletonConnectionLayer,
+		sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 		glazed_cmds.WithLayers(
 			dbtParameterLayer,
 			sqlConnectionParameterLayer,
@@ -223,7 +224,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	}
 
 	yamlLoader := loaders.NewYAMLFSCommandLoader(&pkg.SqlCommandLoader{
-		DBConnectionFactory: pkg.OpenDatabaseFromSqletonConnectionLayer,
+		DBConnectionFactory: sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 	})
 	commandLoader := clay_cmds.NewCommandLoader[glazed_cmds.Command](&locations)
 	commands, aliases, err := commandLoader.LoadCommands(yamlLoader, helpSystem)
@@ -245,7 +246,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	}
 
 	serveCommand := cmds.NewServeCommand(
-		pkg.OpenDatabaseFromSqletonConnectionLayer,
+		sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 		repositories, commands, aliases,
 		glazed_cmds.WithLayers(
 			dbtParameterLayer,

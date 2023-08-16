@@ -1,0 +1,56 @@
+name: schema
+short: Output the schema of a table in MySQL.
+flags:
+  - name: tables
+    type: stringList
+    help: List of table names
+  - name: tables_like
+    type: stringList
+    help: List of table name patterns to match
+  - name: columns
+    type: stringList
+    help: List of column names
+  - name: columns_like
+    type: stringList
+    help: List of column name patterns to match
+  - name: type
+    type: string
+    help: Column data type
+query: |
+  SELECT
+    TABLE_NAME AS table_name,
+    COLUMN_NAME AS column_name,
+    COLUMN_TYPE AS column_type,
+    IS_NULLABLE AS is_nullable,
+    COLUMN_KEY AS column_key,
+    COLUMN_DEFAULT AS column_default,
+    EXTRA AS extra
+  FROM
+    INFORMATION_SCHEMA.COLUMNS
+  WHERE 1=1
+  {{ if .tables }}
+    AND TABLE_NAME IN ({{ .tables | sqlStringIn }})
+  {{ end }}
+  {{ if .tables_like }}
+    AND (
+      {{ range $index, $table := .tables_like }}
+        {{ if $index }}OR{{end}}
+        TABLE_NAME LIKE '{{ $table }}'
+      {{ end }}
+    )
+  {{ end }}
+  {{ if .columns }}
+    AND COLUMN_NAME IN ({{ .columns | sqlStringIn }})
+  {{ end }}
+  {{ if .columns_like }}
+    AND (
+      {{ range $index, $column := .columns_like }}
+        {{ if $index }}OR{{end}}
+        COLUMN_NAME LIKE '{{ $column }}'
+      {{ end }}
+    )
+  {{ end }}
+  {{ if .type }}
+    AND COLUMN_TYPE = '{{ .type }}'
+  {{ end }}
+  ORDER BY table_name

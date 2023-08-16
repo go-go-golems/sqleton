@@ -218,7 +218,14 @@ func (s *SqlCommand) RenderQuery(
 		return "", errors.Wrap(err, "Could not parse query template")
 	}
 
-	return templating.RenderTemplate(t, ps)
+	ret, err := templating.RenderTemplate(t, ps)
+	if err != nil {
+		return "", errors.Wrap(err, "Could not render query template")
+	}
+
+	ret = sql2.CleanQuery(ret)
+
+	return ret, nil
 }
 
 func (s *SqlCommand) RunQueryIntoGlaze(

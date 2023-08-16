@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"context"
+	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	assert2 "github.com/go-go-golems/glazed/pkg/helpers/assert"
@@ -164,12 +165,12 @@ func TestSimpleSubQuery(t *testing.T) {
 	ctx := context.Background()
 	s_, err := s.RenderQuery(ctx, ps, db)
 	require.NoError(t, err)
-	assert.Equal(t, `
+	assert.Equal(t, sql.CleanQuery(`
 	SELECT * FROM test
 	WHERE id IN (
 	    2
 	)
-`, s_)
+`), s_)
 
 	gp := middlewares.NewTableProcessor()
 	gp.AddTableMiddleware(&table.NullTableMiddleware{})
@@ -209,10 +210,10 @@ func TestSimpleSubQuerySingle(t *testing.T) {
 
 	s_, err := s.RenderQuery(context.Background(), ps, db)
 	require.NoError(t, err)
-	assert.Equal(t, `
+	assert.Equal(t, sql.CleanQuery(`
 	SELECT * FROM test
 	WHERE id = 1
-`, s_)
+`), s_)
 
 	// fail if we return more than 1
 	s, err = NewSqlCommand(
@@ -271,12 +272,12 @@ func TestSimpleSubQueryWithArguments(t *testing.T) {
 	ctx := context.Background()
 	s_, err := s.RenderQuery(ctx, ps, db)
 	require.NoError(t, err)
-	assert.Equal(t, `
+	assert.Equal(t, sql.CleanQuery(`
 	SELECT * FROM test
 	WHERE id IN (
 	    1
 	)
-`, s_)
+`), s_)
 
 	gp := middlewares.NewTableProcessor()
 	gp.AddTableMiddleware(&table.NullTableMiddleware{})
@@ -337,12 +338,12 @@ func TestSliceSubQueryWithArguments(t *testing.T) {
 
 	s_, err := s.RenderQuery(context.Background(), ps, db)
 	require.NoError(t, err)
-	assert.Equal(t, `
+	assert.Equal(t, sql.CleanQuery(`
 	SELECT * FROM test
 	WHERE id IN (
 	    1+1+2+0
 	)
-`, s_)
+`), s_)
 
 }
 func TestMapSubQueryWithArguments(t *testing.T) {
@@ -370,12 +371,12 @@ func TestMapSubQueryWithArguments(t *testing.T) {
 
 	s_, err := s.RenderQuery(context.Background(), ps, db)
 	require.NoError(t, err)
-	assert.Equal(t, `
+	assert.Equal(t, sql.CleanQuery(`
 	SELECT * FROM test
 	WHERE id IN (
 	    1+2+3+0
 	)
-`, s_)
+`), s_)
 
 }
 
@@ -408,12 +409,12 @@ func TestMapSubQuery(t *testing.T) {
 	ctx := context.Background()
 	s_, err := s.RenderQuery(ctx, ps, db)
 	require.NoError(t, err)
-	assert.Equal(t, `
+	assert.Equal(t, sql.CleanQuery(`
 	SELECT * FROM test
 	WHERE id IN (
 	    1
 	)
-`, s_)
+`), s_)
 
 	gp := middlewares.NewTableProcessor()
 	gp.AddTableMiddleware(&table.NullTableMiddleware{})

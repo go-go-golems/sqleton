@@ -1,0 +1,59 @@
+name: index
+short: Output the index information of a table in MySQL.
+flags:
+  - name: tables
+    type: stringList
+    help: List of table names
+  - name: tables_like
+    type: stringList
+    help: List of table name patterns to match
+  - name: index_name
+    type: string
+    help: Index name
+  - name: index_name_like
+    type: stringList
+    help: List of index name patterns to match
+  - name: order_by
+    type: string
+    default: table_name ASC
+    help: Order by
+query: |
+  SELECT
+    TABLE_NAME AS table_name,
+    INDEX_NAME AS index_name,
+    NON_UNIQUE AS non_unique,
+    COLUMN_NAME AS column_name,
+    SEQ_IN_INDEX AS seq_in_index,
+    COLLATION AS collation,
+    CARDINALITY AS cardinality,
+    SUB_PART AS sub_part,
+    PACKED AS packed,
+    NULLABLE AS nullable,
+    INDEX_TYPE AS index_type,
+    COMMENT AS comment
+  FROM
+    INFORMATION_SCHEMA.STATISTICS
+  WHERE 1=1
+  {{ if .tables }}
+    AND TABLE_NAME IN ({{ .tables | sqlStringIn }})
+  {{ end }}
+  {{ if .tables_like }}
+    AND (
+      {{ range $index, $table := .tables_like }}
+        {{ if $index }}OR{{end}}
+        TABLE_NAME LIKE '{{ $table }}'
+      {{ end }}
+    )
+  {{ end }}
+  {{ if .index_name }}
+    AND INDEX_NAME = '{{ .index_name }}'
+  {{ end }}
+  {{ if .index_name_like }}
+    AND (
+      {{ range $index, $index_name := .index_name_like }}
+        {{ if $index }}OR{{end}}
+        INDEX_NAME LIKE '{{ $index_name }}'
+      {{ end }}
+    )
+  {{ end }}
+  ORDER BY {{ .order_by }}

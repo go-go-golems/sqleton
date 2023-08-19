@@ -1,0 +1,67 @@
+name: table_info
+short: Display information about tables in a sqlite database.
+flags:
+  - name: table_name
+    type: stringList
+    help: List of table names
+  - name: column_name
+    type: stringList
+    help: List of column names
+  - name: column_type
+    type: stringList
+    help: List of column types
+  - name: column_like
+    type: stringList
+    help: List of column names to match using LIKE
+  - name: type_like
+    type: stringList
+    help: List of column types to match using LIKE
+  - name: limit
+    help: Limit the number of results
+    type: int
+    default: 0
+  - name: offset
+    type: int
+    help: Offset
+    default: 0
+  - name: order_by
+    type: string
+    default: name ASC
+    help: Order by
+query: |
+  {{ if .explain }}
+    EXPLAIN
+  {{ end }}
+  SELECT
+    name,
+    sql
+  FROM sqlite_master
+  WHERE type='table'
+  {{ if .table_name }}
+    AND name IN ({{ .table_name | sqlStringIn }})
+  {{ end }}
+  {{ if .column_name }}
+    AND sql LIKE '%{{ .column_name | sqlStringIn }}%'
+  {{ end }}
+  {{ if .column_type }}
+    AND sql LIKE '%{{ .column_type | sqlStringIn }}%'
+  {{ end }}
+  {{ if .column_like }}
+    {{ range $index, $value := .column_like }}
+      {{ if gt $index 0 }} OR {{ end }}
+      AND sql LIKE '%{{ $value }}%'
+    {{ end }}
+  {{ end }}
+  {{ if .type_like }}
+    {{ range $index, $value := .type_like }}
+      {{ if gt $index 0 }} OR {{ end }}
+      AND sql LIKE '%{{ $value }}%'
+    {{ end }}
+  {{ end }}
+  ORDER BY {{ .order_by }}
+  {{ if .limit }}
+    LIMIT {{ .limit }}
+  {{ if .offset }}
+    OFFSET {{ .offset }}
+  {{ end }}
+  {{ end }}

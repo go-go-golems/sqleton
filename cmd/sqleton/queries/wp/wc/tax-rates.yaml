@@ -1,0 +1,75 @@
+name: tax-rates
+short: Get all tax rates from the WooCommerce database.
+flags:
+  - name: id
+    type: intList
+    help: List of tax rate ids
+  - name: name
+    type: string
+    help: Tax rate name
+  - name: name_like
+    type: stringList
+    help: Tax rate name patterns
+  - name: class
+    type: stringList
+    help: Tax rate classes
+  - name: country
+    type: stringList
+    help: Tax rate countries
+  - name: state
+    type: stringList
+    help: Tax rate states
+  - name: limit
+    help: Limit the number of results
+    type: int
+    default: 0
+  - name: offset
+    type: int
+    help: Offset
+    default: 0
+  - name: order_by
+    type: string
+    default: tax_rate_id DESC
+    help: Order by
+query: |
+  {{ if .explain }}
+    EXPLAIN
+  {{ end }}
+  SELECT
+    tax_rate_id,
+    tax_rate,
+    tax_rate_class,
+    tax_rate_compound,
+    tax_rate_country,
+    tax_rate_name,
+    tax_rate_order,
+    tax_rate_priority,
+    tax_rate_shipping,
+    tax_rate_state
+  FROM wp_woocommerce_tax_rates
+  WHERE 1=1
+  {{ if .id }}
+    AND tax_rate_id IN ({{ .id | sqlIntIn }})
+  {{ end }}
+  {{ if .name }}
+    AND tax_rate_name = '{{ .name }}'
+  {{ end }}
+  {{ if .name_like }}
+    AND ({{ range $index, $element := .name_like }}{{ if gt $index 0 }} OR {{ end }}tax_rate_name LIKE '{{ $element }}'{{ end }})
+  {{ end }}
+  {{ if .class }}
+    AND tax_rate_class IN ({{ .class | sqlStringIn }})
+  {{ end }}
+  {{ if .country }}
+    AND tax_rate_country IN ({{ .country | sqlStringIn }})
+  {{ end }}
+  {{ if .state }}
+    AND tax_rate_state IN ({{ .state | sqlStringIn }})
+  {{ end }}
+  ORDER BY {{ .order_by }}
+  {{ if .limit }}
+    LIMIT {{ .limit }}
+  {{ if .offset }}
+    OFFSET {{ .offset }}
+  {{ end }}
+  {{ end }}

@@ -144,6 +144,8 @@ prompt: |
   The `flags` stored in the YAML can be of different types: {{ .types | join ", " }}. These are then passed to the go 
   template.
   
+  Instead of "x > 10", the template language uses "gt x 10".
+  
   Here is an example that queries the {{ .example_name }}.
   
   ```yaml

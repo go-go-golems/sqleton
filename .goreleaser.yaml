@@ -41,6 +41,7 @@ dockers:
     dockerfile: Dockerfile
     use: buildx
     build_flag_templates:
+      - "--pull"
       - --platform=linux/amd64
       - --label=org.opencontainers.image.title={{ .ProjectName }}
       - --label=org.opencontainers.image.description={{ .ProjectName }}
@@ -55,6 +56,7 @@ dockers:
     dockerfile: Dockerfile
     use: buildx
     build_flag_templates:
+      - "--pull"
       - --platform=linux/arm64/v8
       - --label=org.opencontainers.image.title={{ .ProjectName }}
       - --label=org.opencontainers.image.description={{ .ProjectName }}

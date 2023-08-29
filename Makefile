@@ -1,5 +1,10 @@
 .PHONY: gifs
 
+VERSION ?= $(shell git describe --tags --always --dirty)
+COMMIT ?= $(shell git rev-parse --short HEAD)
+DIRTY ?= $(shell git diff --quiet || echo "dirty")
+LDFLAGS=-ldflags "-X main.version=$(VERSION)-$(COMMIT)-$(DIRTY)"
+
 all: gifs
 
 VERSION=v0.1.14
@@ -22,15 +27,15 @@ test:
 
 build:
 	go generate ./...
-	go build ./...
+	go build $(LDFLAGS) ./...
 
 sqleton:
-	go build -o sqleton ./cmd/sqleton 
+	go build $(LDFLAGS) -o sqleton ./cmd/sqleton
 
 build-docker: sqleton
 #	GOOS=linux GOARCH=amd64 go build -o sqleton ./cmd/sqleton
 #	docker buildx build -t go-go-golems/sqleton:amd64 . --platform=linux/amd64
-	GOOS=linux GOARCH=arm64 go build -o sqleton ./cmd/sqleton
+	GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o sqleton ./cmd/sqleton
 	docker buildx build -t go-go-golems/sqleton:arm64v8 . --platform=linux/arm64/v8
 
 up:

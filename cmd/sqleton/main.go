@@ -24,6 +24,7 @@ import (
 
 import _ "net/http/pprof"
 
+var version = "dev"
 var profiler interface {
 	Stop()
 }
@@ -60,6 +61,7 @@ var rootCmd = &cobra.Command{
 			profiler.Stop()
 		}
 	},
+	Version: version,
 }
 
 func main() {

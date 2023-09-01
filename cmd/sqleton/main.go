@@ -12,7 +12,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/help"
 	"github.com/go-go-golems/glazed/pkg/helpers/cast"
 	"github.com/go-go-golems/sqleton/cmd/sqleton/cmds"
-	"github.com/go-go-golems/sqleton/pkg"
+	cmds2 "github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/pkg/profile"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -70,7 +70,7 @@ func main() {
 	// we need to do this before cobra, because we don't know which flags to load yet
 	if len(os.Args) >= 3 && os.Args[1] == "run-command" && os.Args[2] != "--help" {
 		// load the command
-		loader := &pkg.SqlCommandLoader{
+		loader := &cmds2.SqlCommandLoader{
 			DBConnectionFactory: sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 		}
 		f, err := os.Open(os.Args[2])
@@ -225,7 +225,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		Repositories: repositories,
 	}
 
-	yamlLoader := loaders.NewYAMLFSCommandLoader(&pkg.SqlCommandLoader{
+	yamlLoader := loaders.NewYAMLFSCommandLoader(&cmds2.SqlCommandLoader{
 		DBConnectionFactory: sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 	})
 	commandLoader := clay_cmds.NewCommandLoader[glazed_cmds.Command](&locations)
@@ -235,7 +235,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		os.Exit(1)
 	}
 
-	sqlCommands, ok := cast.CastList[*pkg.SqlCommand](commands)
+	sqlCommands, ok := cast.CastList[*cmds2.SqlCommand](commands)
 	if !ok {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
 		os.Exit(1)

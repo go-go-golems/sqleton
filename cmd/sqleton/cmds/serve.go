@@ -17,7 +17,7 @@ import (
 	"github.com/go-go-golems/parka/pkg/handlers/template-dir"
 	"github.com/go-go-golems/parka/pkg/server"
 	"github.com/go-go-golems/parka/pkg/utils/fs"
-	"github.com/go-go-golems/sqleton/pkg"
+	cmds2 "github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	"net/http"
@@ -27,7 +27,7 @@ import (
 
 type ServeCommand struct {
 	*cmds.CommandDescription
-	dbConnectionFactory pkg.DBConnectionFactory
+	dbConnectionFactory cmds2.DBConnectionFactory
 	repositories        []string
 }
 
@@ -132,7 +132,7 @@ func (s *ServeCommand) runWithConfigFile(
 		handlers.WithAppendCommandDirHandlerOptions(commandDirHandlerOptions...),
 		handlers.WithAppendTemplateDirHandlerOptions(templateDirHandlerOptions...),
 		handlers.WithAppendTemplateHandlerOptions(templateHandlerOptions...),
-		handlers.WithRepositoryFactory(pkg.NewRepositoryFactory()),
+		handlers.WithRepositoryFactory(cmds2.NewRepositoryFactory()),
 		handlers.WithDevMode(devMode),
 	)
 
@@ -269,7 +269,7 @@ func (s *ServeCommand) Run(
 		configFile,
 		handlers.WithAppendCommandDirHandlerOptions(commandDirHandlerOptions...),
 		handlers.WithAppendTemplateDirHandlerOptions(templateDirHandlerOptions...),
-		handlers.WithRepositoryFactory(pkg.NewRepositoryFactory()),
+		handlers.WithRepositoryFactory(cmds2.NewRepositoryFactory()),
 		handlers.WithDevMode(dev),
 	)
 
@@ -312,7 +312,7 @@ func runConfigFileHandler(ctx context.Context, server_ *server.Server, cfh *hand
 }
 
 func NewServeCommand(
-	dbConnectionFactory pkg.DBConnectionFactory,
+	dbConnectionFactory cmds2.DBConnectionFactory,
 	repositories []string, commands []cmds.Command, aliases []*alias.CommandAlias,
 	options ...cmds.CommandDescriptionOption,
 ) *ServeCommand {

@@ -1,4 +1,4 @@
-package pkg
+package cmds
 
 import (
 	"github.com/go-go-golems/clay/pkg/sql"

@@ -9,10 +9,11 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	cli "github.com/go-go-golems/glazed/pkg/settings"
+	cmds2 "github.com/go-go-golems/sqleton/pkg/cmds"
+	"github.com/go-go-golems/sqleton/pkg/flags"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 
-	"github.com/go-go-golems/sqleton/pkg"
 	"github.com/spf13/cobra"
 	"io"
 	"os"
@@ -20,7 +21,7 @@ import (
 
 type RunCommand struct {
 	*cmds.CommandDescription
-	dbConnectionFactory pkg.DBConnectionFactory
+	dbConnectionFactory cmds2.DBConnectionFactory
 }
 
 func (c *RunCommand) Run(
@@ -77,14 +78,14 @@ func (c *RunCommand) Run(
 }
 
 func NewRunCommand(
-	dbConnectionFactory pkg.DBConnectionFactory,
+	dbConnectionFactory cmds2.DBConnectionFactory,
 	options ...cmds.CommandDescriptionOption,
 ) (*RunCommand, error) {
 	glazedParameterLayer, err := cli.NewGlazedParameterLayers()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create Glazed parameter layer")
 	}
-	sqlHelpersParameterLayer, err := pkg.NewSqlHelpersParameterLayer()
+	sqlHelpersParameterLayer, err := flags.NewSqlHelpersParameterLayer()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create SQL helpers parameter layer")
 	}

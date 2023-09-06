@@ -10,7 +10,8 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
-	"github.com/go-go-golems/sqleton/pkg"
+	cmds2 "github.com/go-go-golems/sqleton/pkg/cmds"
+	"github.com/go-go-golems/sqleton/pkg/flags"
 	"github.com/huandu/go-sqlbuilder"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
@@ -32,7 +33,7 @@ func NewSelectParameterLayer() (*layers.ParameterLayerImpl, error) {
 
 type SelectCommand struct {
 	*cmds.CommandDescription
-	dbConnectionFactory pkg.DBConnectionFactory
+	dbConnectionFactory cmds2.DBConnectionFactory
 }
 
 type SelectCommandSettings struct {
@@ -162,13 +163,13 @@ func (sc *SelectCommand) Run(
 		_, _ = fmt.Fprintf(sb, "\nOFFSET {{ .offset }}")
 
 		query := sb.String()
-		sqlCommand, err := pkg.NewSqlCommand(&cmds.CommandDescription{
+		sqlCommand, err := cmds2.NewSqlCommand(&cmds.CommandDescription{
 			Name:  createQuery,
 			Short: short,
 			Flags: flags,
 		},
-			pkg.WithDbConnectionFactory(sql2.OpenDatabaseFromDefaultSqlConnectionLayer),
-			pkg.WithQuery(query),
+			cmds2.WithDbConnectionFactory(sql2.OpenDatabaseFromDefaultSqlConnectionLayer),
+			cmds2.WithQuery(query),
 		)
 		if err != nil {
 			return err
@@ -215,14 +216,14 @@ func (sc *SelectCommand) Run(
 }
 
 func NewSelectCommand(
-	dbConnectionFactory pkg.DBConnectionFactory,
+	dbConnectionFactory cmds2.DBConnectionFactory,
 	options ...cmds.CommandDescriptionOption,
 ) (*SelectCommand, error) {
 	glazedParameterLayer, err := settings.NewGlazedParameterLayers()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create Glazed parameter layer")
 	}
-	sqlHelpersParameterLayer, err := pkg.NewSqlHelpersParameterLayer()
+	sqlHelpersParameterLayer, err := flags.NewSqlHelpersParameterLayer()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create SQL helpers parameter layer")
 	}

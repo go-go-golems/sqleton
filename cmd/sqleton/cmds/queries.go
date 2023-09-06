@@ -9,7 +9,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/middlewares/row"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
-	sqleton "github.com/go-go-golems/sqleton/pkg"
+	sqleton "github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/pkg/errors"
 )
 

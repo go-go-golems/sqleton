@@ -8,17 +8,17 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
-	"github.com/go-go-golems/sqleton/pkg"
+	cmds2 "github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/jmoiron/sqlx"
 )
 
 type QueryCommand struct {
-	dbConnectionFactory pkg.DBConnectionFactory
+	dbConnectionFactory cmds2.DBConnectionFactory
 	*cmds.CommandDescription
 }
 
 func NewQueryCommand(
-	dbConnectionFactory pkg.DBConnectionFactory,
+	dbConnectionFactory cmds2.DBConnectionFactory,
 	options ...cmds.CommandDescriptionOption,
 ) (*QueryCommand, error) {
 	glazeParameterLayer, err := settings.NewGlazedParameterLayers()

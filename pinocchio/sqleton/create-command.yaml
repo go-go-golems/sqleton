@@ -12,7 +12,7 @@ factories:
       stream: true
 flags:
   - name: ddl
-    type: stringFromFile
+    type: stringFromFiles
     help: DDL for the table
     required: false
   - name: types
@@ -36,11 +36,11 @@ flags:
     help: Topic of the query
     required: false
   - name: instructions_file
-    type: stringFromFile
+    type: stringFromFiles
     help: Additional language specific instructions
     required: false
   - name: topic_file
-    type: stringFromFile
+    type: stringFromFiles
     help: Topic of the query
     required: false
   - name: example_name
@@ -48,7 +48,7 @@ flags:
     help: Name of the example
     default: get all items from WooCommerce orders
   - name: example
-    type: stringFromFile
+    type: stringFromFiles
     help: Example of the table
     default: |
       name: animals

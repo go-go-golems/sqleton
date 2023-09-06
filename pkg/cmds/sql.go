@@ -1,4 +1,4 @@
-package pkg
+package cmds
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/helpers/templating"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
+	"github.com/go-go-golems/sqleton/pkg/flags"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -103,7 +104,7 @@ func NewSqlCommand(
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create dbt parameter layer")
 	}
-	sqlHelpersParameterLayer, err := NewSqlHelpersParameterLayer()
+	sqlHelpersParameterLayer, err := flags.NewSqlHelpersParameterLayer()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create SQL helpers parameter layer")
 	}

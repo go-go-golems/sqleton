@@ -1,4 +1,4 @@
-package pkg
+package flags
 
 import (
 	_ "embed"
@@ -6,7 +6,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-//go:embed "flags/helpers.yaml"
+//go:embed "helpers.yaml"
 var helpersFlagsYaml []byte
 
 func NewSqlHelpersParameterLayer(

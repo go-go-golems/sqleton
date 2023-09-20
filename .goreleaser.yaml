@@ -30,7 +30,7 @@ brews:
   - name: sqleton
     description: "Sqleton is a tool for querying databases"
     homepage: "https://github.com/go-go-golems/sqleton"
-    tap:
+    repository:
       owner: go-go-golems
       name: homebrew-go-go-go
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"

@@ -1,0 +1,51 @@
+name: tables
+short: Get all tables from the database.
+flags:
+  - name: schema
+    type: stringList
+    help: List of schemas
+  - name: table
+    type: stringList
+    help: List of tables
+  - name: engine
+    type: choiceList
+    choices: ['InnoDB', 'MyISAM', 'MEMORY', 'MERGE', 'ARCHIVE', 'FEDERATED', 'BLACKHOLE', 'CSV', 'NDB', 'PERFORMANCE_SCHEMA', 'TokuDB', 'RocksDB', 'Aria']
+    help: Engine type
+  - name: order_by
+    type: string
+    default: TABLE_NAME ASC
+    help: Order by
+  - name: limit
+    help: Limit the number of results
+    type: int
+    default: 0
+  - name: offset
+    type: int
+    help: Offset
+    default: 0
+query: |
+  {{ if .explain }}
+    EXPLAIN
+  {{ end }}
+  SELECT
+    TABLE_SCHEMA,
+    TABLE_NAME,
+    ENGINE
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE 1=1
+  {{ if .schema }}
+    AND TABLE_SCHEMA IN ({{ .schema | sqlStringIn }})
+  {{ end }}
+  {{ if .table }}
+    AND TABLE_NAME IN ({{ .table | sqlStringIn }})
+  {{ end }}
+  {{ if .engine }}
+    AND ENGINE IN ({{ .engine | sqlStringIn }})
+  {{ end }}
+  ORDER BY {{ .order_by }}
+  {{ if .limit }}
+    LIMIT {{ .limit }}
+  {{ if .offset }}
+    OFFSET {{ .offset }}
+  {{ end }}
+  {{ end }}

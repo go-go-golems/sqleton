@@ -1,4 +1,4 @@
-name: table_info
+name: tables
 short: Display information about tables in a sqlite database.
 flags:
   - name: table_name

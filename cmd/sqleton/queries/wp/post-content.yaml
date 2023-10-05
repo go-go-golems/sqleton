@@ -1,0 +1,104 @@
+name: post-content
+short: Get all posts from the WordPress database.
+flags:
+  - name: id
+    type: intList
+    help: List of post ids
+  - name: title
+    type: string
+    help: Post title
+  - name: content
+    type: string
+    help: Post content
+  - name: excerpt
+    type: string
+    help: Post excerpt
+  - name: status
+    type: string
+    help: Post status
+  - name: author
+    type: string
+    help: Post author
+  - name: template_name
+    type: string
+    help: Template name
+  - name: categories
+    type: stringList
+    help: Post categories
+  - name: tags
+    type: stringList
+    help: Post tags
+  - name: limit
+    help: Limit the number of results
+    type: int
+    default: 0
+  - name: offset
+    type: int
+    help: Offset
+    default: 0
+  - name: order_by
+    type: string
+    default: post_date DESC
+    help: Order by
+query: |
+  {{ if .explain }}
+    EXPLAIN
+  {{ end }}
+  SELECT
+    p.ID,
+    p.post_title,
+    p.post_content,
+    p.post_excerpt,
+    p.post_status,
+    u.display_name AS author,
+    pm.meta_value AS template_name,
+    GROUP_CONCAT(DISTINCT cat.name ORDER BY cat.name ASC) AS categories,
+    GROUP_CONCAT(DISTINCT tag.name ORDER BY tag.name ASC) AS tags
+  FROM
+    wp_posts p
+  LEFT JOIN wp_users u ON p.post_author = u.ID
+  LEFT JOIN wp_postmeta pm ON p.ID = pm.post_id AND pm.meta_key = '_wp_page_template'
+  LEFT JOIN wp_term_relationships cat_rel ON p.ID = cat_rel.object_id
+  LEFT JOIN wp_term_taxonomy cat_tax ON cat_rel.term_taxonomy_id = cat_tax.term_taxonomy_id AND cat_tax.taxonomy = 'category'
+  LEFT JOIN wp_terms cat ON cat_tax.term_id = cat.term_id
+  LEFT JOIN wp_term_relationships tag_rel ON p.ID = tag_rel.object_id
+  LEFT JOIN wp_term_taxonomy tag_tax ON tag_rel.term_taxonomy_id = tag_tax.term_taxonomy_id AND tag_tax.taxonomy = 'post_tag'
+  LEFT JOIN wp_terms tag ON tag_tax.term_id = tag.term_id
+  WHERE
+    p.post_status = 'publish' AND p.post_type = 'post'
+  {{ if .id }}
+    AND p.ID IN ({{ .id | sqlIntIn }})
+  {{ end }}
+  {{ if .title }}
+    AND p.post_title LIKE '%{{ .title }}%'
+  {{ end }}
+  {{ if .content }}
+    AND p.post_content LIKE '%{{ .content }}%'
+  {{ end }}
+  {{ if .excerpt }}
+    AND p.post_excerpt LIKE '%{{ .excerpt }}%'
+  {{ end }}
+  {{ if .status }}
+    AND p.post_status = '{{ .status }}'
+  {{ end }}
+  {{ if .author }}
+    AND u.display_name = '{{ .author }}'
+  {{ end }}
+  {{ if .template_name }}
+    AND pm.meta_value = '{{ .template_name }}'
+  {{ end }}
+  {{ if .categories }}
+    AND cat.name IN ({{ range $index, $element := .categories }}{{ if $index }}, {{ end }}'{{ $element }}'{{ end }})
+  {{ end }}
+  {{ if .tags }}
+    AND tag.name IN ({{ range $index, $element := .tags }}{{ if $index }}, {{ end }}'{{ $element }}'{{ end }})
+  {{ end }}
+  GROUP BY
+    p.ID
+  ORDER BY {{ .order_by }}
+  {{ if .limit }}
+    LIMIT {{ .limit }}
+  {{ if .offset }}
+    OFFSET {{ .offset }}
+  {{ end }}
+  {{ end }}

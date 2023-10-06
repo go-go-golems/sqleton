@@ -32,6 +32,9 @@ type SqletonCommand interface {
 	RenderQuery(parameters map[string]interface{}) (string, error)
 }
 
+var _ cmds.GlazeCommand = (*SqlCommand)(nil)
+var _ cmds.CommandWithMetadata = (*SqlCommand)(nil)
+
 type SqlCommandDescription struct {
 	Name      string                            `yaml:"name"`
 	Short     string                            `yaml:"short"`
@@ -53,6 +56,31 @@ type SqlCommand struct {
 	Query               string              `yaml:"query"`
 	SubQueries          map[string]string   `yaml:"subqueries,omitempty"`
 	dbConnectionFactory DBConnectionFactory `yaml:"-"`
+	renderedQuery       string
+}
+
+func (s *SqlCommand) Metadata(ctx context.Context, parsedLayers map[string]*layers.ParsedParameterLayer, ps map[string]interface{}) (map[string]interface{}, error) {
+	db, err := s.dbConnectionFactory(parsedLayers)
+	if err != nil {
+		return nil, err
+	}
+	defer func(db *sqlx.DB) {
+		_ = db.Close()
+	}(db)
+
+	err = db.PingContext(ctx)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Could not ping database")
+	}
+
+	query, err := s.RenderQuery(ctx, ps, db)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Could not generate query")
+	}
+
+	return map[string]interface{}{
+		"query": query,
+	}, nil
 }
 
 func (s *SqlCommand) String() string {
@@ -151,13 +179,14 @@ func (s *SqlCommand) Run(
 		return errors.Wrapf(err, "Could not ping database")
 	}
 
+	s.renderedQuery, err = s.RenderQuery(ctx, ps, db)
+	if err != nil {
+		return errors.Wrapf(err, "Could not generate query")
+	}
+
 	printQuery, _ := ps["print-query"].(bool)
 	if printQuery {
-		query, err := s.RenderQuery(ctx, ps, db)
-		if err != nil {
-			return errors.Wrapf(err, "Could not generate query")
-		}
-		fmt.Println(query)
+		fmt.Println(s.renderedQuery)
 		return &cmds.ExitWithoutGlazeError{}
 	}
 
@@ -235,11 +264,7 @@ func (s *SqlCommand) RunQueryIntoGlaze(
 	ps map[string]interface{},
 	gp middlewares.Processor) error {
 
-	query, err := s.RenderQuery(ctx, ps, db)
-	if err != nil {
-		return err
-	}
-	return sql2.RunQueryIntoGlaze(ctx, db, query, []interface{}{}, gp)
+	return sql2.RunQueryIntoGlaze(ctx, db, s.renderedQuery, []interface{}{}, gp)
 }
 
 type SqlCommandLoader struct {

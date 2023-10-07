@@ -1,7 +1,7 @@
 name: tables
 short: Get all tables from the database.
 flags:
-  - name: schema
+  - name: db_schema
     type: stringList
     help: List of schemas
   - name: table
@@ -33,8 +33,8 @@ query: |
     ENGINE
   FROM INFORMATION_SCHEMA.TABLES
   WHERE 1=1
-  {{ if .schema }}
-    AND TABLE_SCHEMA IN ({{ .schema | sqlStringIn }})
+  {{ if .db_schema }}
+    AND TABLE_SCHEMA IN ({{ .db_schema | sqlStringIn }})
   {{ end }}
   {{ if .table }}
     AND TABLE_NAME IN ({{ .table | sqlStringIn }})

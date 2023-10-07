@@ -1,15 +1,14 @@
 name: create-command
 short: Generate a Sqleton query
 factories:
-  openai:
-    client:
-      timeout: 120
-    completion:
-      engine: gpt-4
-      temperature: 0.2
-      max_response_tokens: 2048
-      stop: []
-      stream: true
+  client:
+    timeout: 120
+  chat:
+    engine: gpt-4
+    temperature: 0.2
+    max_response_tokens: 2048
+    stop: []
+    stream: true
 flags:
   - name: ddl
     type: stringFromFiles
@@ -146,11 +145,13 @@ prompt: |
   
   Instead of "x > 10", the template language uses "gt x 10".
   
+  {{ if .example }}
   Here is an example that queries the {{ .example_name }}.
   
   ```yaml
   {{ .example }}
   ```
+  {{- end }}
   
   {{ if .topic_file }}{{ .topic_file }} {{ end }}
   {{ if .topic }} {{ .topic }} {{ end }}

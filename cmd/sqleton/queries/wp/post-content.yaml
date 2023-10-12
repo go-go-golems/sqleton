@@ -13,6 +13,11 @@ flags:
   - name: excerpt
     type: string
     help: Post excerpt
+  - name: post_type
+    type: stringList
+    help: Post type
+    default:
+      - post
   - name: status
     type: string
     help: Post status
@@ -31,7 +36,7 @@ flags:
   - name: limit
     help: Limit the number of results
     type: int
-    default: 0
+    default: 5
   - name: offset
     type: int
     help: Offset
@@ -42,63 +47,82 @@ flags:
     help: Order by
 query: |
   {{ if .explain }}
-    EXPLAIN
+      EXPLAIN
   {{ end }}
+  WITH CategorySubquery AS (
+      SELECT
+          cat_rel.object_id AS post_id,
+          GROUP_CONCAT(DISTINCT cat.name ORDER BY cat.name ASC) AS categories
+      FROM
+          wp_term_relationships cat_rel
+      LEFT JOIN wp_term_taxonomy cat_tax ON cat_rel.term_taxonomy_id = cat_tax.term_taxonomy_id AND cat_tax.taxonomy = 'category'
+      LEFT JOIN wp_terms cat ON cat_tax.term_id = cat.term_id
+      GROUP BY
+          cat_rel.object_id
+  ),
+  TagSubquery AS (
+      SELECT
+          tag_rel.object_id AS post_id,
+          GROUP_CONCAT(DISTINCT tag.name ORDER BY tag.name ASC) AS tags
+      FROM
+          wp_term_relationships tag_rel
+      LEFT JOIN wp_term_taxonomy tag_tax ON tag_rel.term_taxonomy_id = tag_tax.term_taxonomy_id AND tag_tax.taxonomy = 'post_tag'
+      LEFT JOIN wp_terms tag ON tag_tax.term_id = tag.term_id
+      GROUP BY
+          tag_rel.object_id
+  )
   SELECT
-    p.ID,
-    p.post_title,
-    p.post_content,
-    p.post_excerpt,
-    p.post_status,
-    u.display_name AS author,
-    pm.meta_value AS template_name,
-    GROUP_CONCAT(DISTINCT cat.name ORDER BY cat.name ASC) AS categories,
-    GROUP_CONCAT(DISTINCT tag.name ORDER BY tag.name ASC) AS tags
+      p.ID,
+      p.post_title,
+      p.post_content,
+      p.post_excerpt,
+      p.post_status,
+      u.display_name AS author,
+      pm.meta_value AS template_name,
+      cat_sub.categories,
+      tag_sub.tags
   FROM
-    wp_posts p
+      wp_posts p
   LEFT JOIN wp_users u ON p.post_author = u.ID
   LEFT JOIN wp_postmeta pm ON p.ID = pm.post_id AND pm.meta_key = '_wp_page_template'
-  LEFT JOIN wp_term_relationships cat_rel ON p.ID = cat_rel.object_id
-  LEFT JOIN wp_term_taxonomy cat_tax ON cat_rel.term_taxonomy_id = cat_tax.term_taxonomy_id AND cat_tax.taxonomy = 'category'
-  LEFT JOIN wp_terms cat ON cat_tax.term_id = cat.term_id
-  LEFT JOIN wp_term_relationships tag_rel ON p.ID = tag_rel.object_id
-  LEFT JOIN wp_term_taxonomy tag_tax ON tag_rel.term_taxonomy_id = tag_tax.term_taxonomy_id AND tag_tax.taxonomy = 'post_tag'
-  LEFT JOIN wp_terms tag ON tag_tax.term_id = tag.term_id
+  LEFT JOIN CategorySubquery cat_sub ON p.ID = cat_sub.post_id
+  LEFT JOIN TagSubquery tag_sub ON p.ID = tag_sub.post_id
   WHERE
-    p.post_status = 'publish' AND p.post_type = 'post'
+      p.post_status = 'publish' 
+  {{ if .post_type }}
+      AND p.post_type IN ({{ .post_type | sqlStringIn }})
+  {{ end }}
   {{ if .id }}
-    AND p.ID IN ({{ .id | sqlIntIn }})
+      AND p.ID IN ({{ .id | sqlIntIn }})
   {{ end }}
   {{ if .title }}
-    AND p.post_title LIKE '%{{ .title }}%'
+      AND p.post_title LIKE '%{{ .title }}%'
   {{ end }}
   {{ if .content }}
-    AND p.post_content LIKE '%{{ .content }}%'
+      AND p.post_content LIKE '%{{ .content }}%'
   {{ end }}
   {{ if .excerpt }}
-    AND p.post_excerpt LIKE '%{{ .excerpt }}%'
+      AND p.post_excerpt LIKE '%{{ .excerpt }}%'
   {{ end }}
   {{ if .status }}
-    AND p.post_status = '{{ .status }}'
+      AND p.post_status = '{{ .status }}'
   {{ end }}
   {{ if .author }}
-    AND u.display_name = '{{ .author }}'
+      AND u.display_name = '{{ .author }}'
   {{ end }}
   {{ if .template_name }}
-    AND pm.meta_value = '{{ .template_name }}'
+      AND pm.meta_value = '{{ .template_name }}'
   {{ end }}
   {{ if .categories }}
-    AND cat.name IN ({{ range $index, $element := .categories }}{{ if $index }}, {{ end }}'{{ $element }}'{{ end }})
+      AND cat_sub.categories LIKE CONCAT('%', {{ range $index, $element := .categories }}{{ if $index }}, {{ end }}'{{ $element }}', '%'){{ end }}
   {{ end }}
   {{ if .tags }}
-    AND tag.name IN ({{ range $index, $element := .tags }}{{ if $index }}, {{ end }}'{{ $element }}'{{ end }})
+      AND tag_sub.tags LIKE CONCAT('%', {{ range $index, $element := .tags }}{{ if $index }}, {{ end }}'{{ $element }}', '%'){{ end }}
   {{ end }}
-  GROUP BY
-    p.ID
   ORDER BY {{ .order_by }}
   {{ if .limit }}
-    LIMIT {{ .limit }}
+      LIMIT {{ .limit }}
   {{ if .offset }}
-    OFFSET {{ .offset }}
+      OFFSET {{ .offset }}
   {{ end }}
   {{ end }}

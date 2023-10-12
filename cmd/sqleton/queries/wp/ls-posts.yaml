@@ -18,6 +18,10 @@ flags:
   - name: order_by
     type: string
     help: Order by column
+  - name: ids
+    type: intList
+    help: Select posts by id
+    required: false
   - name: types
     type: stringList
     default:
@@ -117,6 +121,8 @@ query: |
   {{ if .slugs -}} AND post_name IN ({{ .slugs | sqlStringIn }}) {{- end -}}
   
   {{ if .templates -}} AND wpm.meta_value IN ({{ .templates | sqlStringIn }}) {{- end -}}
+  
+  {{ if .ids -}} AND ID IN ({{ .ids | sqlIntIn }}) {{- end -}}
   
   {{ if .group_by -}} 
   GROUP BY {{ .group_by | join ", " }} 

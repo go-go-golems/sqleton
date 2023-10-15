@@ -1,0 +1,85 @@
+name: categories
+short: Get product categories from the database.
+flags:
+  - name: slug
+    type: stringList
+    help: Category slug
+  - name: slug_like
+    type: stringList
+    help: List of slugs to match with LIKE
+  - name: name
+    type: stringList
+    help: Category name
+  - name: name_like
+    type: stringList
+    help: List of names to match with LIKE
+  - name: limit
+    help: Limit the number of results
+    type: int
+    default: 0
+  - name: offset
+    type: int
+    help: Offset
+    default: 0
+  - name: order_by
+    type: string
+    default: tt.description DESC
+    help: Order by
+  - name: with_content
+    type: bool
+    help: Include content
+query: |
+  {{ if .explain }}
+    EXPLAIN
+  {{ end }}
+  SELECT
+    tt.term_id AS id
+  , tt.count AS count
+  , tt.parent AS parent_id
+  , tt.taxonomy AS taxonomy
+  , t.name AS name
+  {{ if .with_content }}
+    , tt.description AS description
+  {{ end }}
+  FROM wp_terms AS t
+  INNER JOIN wp_term_taxonomy AS tt ON t.term_id = tt.term_id
+  WHERE tt.taxonomy = 'product_cat'
+  {{ if .slug }}
+    AND t.slug IN ({{ .slug | sqlStringIn }})
+  {{ end }}
+  {{ if .name }}
+    AND t.name IN ({{ .name | sqlStringIn }})
+  {{ end }}
+  {{ if .name_like }}
+    AND (
+    {{ range $index, $value := .name_like }}
+      {{ if $index }}
+        OR
+      {{ end }}
+      t.name LIKE '%{{ $value }}%'
+    {{ end }}
+    )
+  {{ end }}
+  {{ if .from }} 
+    AND p.post_date >= {{ .from | sqlDate }}
+  {{ end }}
+  {{ if .to }}
+    AND p.post_date <= {{ .to | sqlDate }}
+  {{ end }}
+  {{ if .slug_like }}
+    AND (
+    {{ range $index, $value := .slug_like }}
+      {{ if $index }}
+        OR
+      {{ end }}
+      t.slug LIKE '%{{ $value }}%'
+    {{ end }}
+    )
+  {{ end }}
+  ORDER BY {{ .order_by }}
+  {{ if .limit }}
+    LIMIT {{ .limit }}
+  {{ if .offset }}
+    OFFSET {{ .offset }}
+  {{ end }}
+  {{ end }}

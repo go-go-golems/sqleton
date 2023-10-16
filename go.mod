@@ -3,9 +3,9 @@ module github.com/go-go-golems/sqleton
 go 1.19
 
 require (
-	github.com/go-go-golems/clay v0.0.25
-	github.com/go-go-golems/glazed v0.4.16
-	github.com/go-go-golems/parka v0.4.14
+	github.com/go-go-golems/clay v0.0.27
+	github.com/go-go-golems/glazed v0.4.20
+	github.com/go-go-golems/parka v0.4.15
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/huandu/go-sqlbuilder v1.20.0
 	github.com/jmoiron/sqlx v1.3.5
@@ -28,7 +28,6 @@ require (
 	github.com/adrg/frontmatter v0.2.0 // indirect
 	github.com/alecthomas/chroma v0.10.0 // indirect
 	github.com/alecthomas/chroma/v2 v2.2.0 // indirect
-	github.com/alecthomas/repr v0.2.0 // indirect
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.21.0 // indirect
@@ -103,7 +102,6 @@ require (
 	github.com/richardlehane/mscfb v1.0.4 // indirect
 	github.com/richardlehane/msoleps v1.0.3 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
-	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/spf13/afero v1.9.5 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
@@ -122,7 +120,6 @@ require (
 	go.mongodb.org/mongo-driver v1.11.3 // indirect
 	golang.org/x/arch v0.3.0 // indirect
 	golang.org/x/crypto v0.13.0 // indirect
-	golang.org/x/image v0.9.0 // indirect
 	golang.org/x/net v0.15.0 // indirect
 	golang.org/x/sys v0.12.0 // indirect
 	golang.org/x/text v0.13.0 // indirect

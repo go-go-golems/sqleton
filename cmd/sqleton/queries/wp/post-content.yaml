@@ -76,6 +76,7 @@ query: |
       p.post_title,
       p.post_content,
       p.post_excerpt,
+      p.post_type,
       p.post_status,
       u.display_name AS author,
       pm.meta_value AS template_name,

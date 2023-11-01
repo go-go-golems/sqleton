@@ -1,0 +1,84 @@
+name: ls
+short: Get all history entries from the database.
+flags:
+  - name: local_username
+    type: stringList
+    help: List of local usernames
+  - name: hostname
+    type: stringList
+    help: List of hostnames
+  - name: command
+    type: stringList
+    help: List of commands
+  - name: command_like
+    type: stringList
+    help: List of commands to match using LIKE
+  - name: cwd
+    type: stringList
+    help: List of current working directories
+  - name: cwd_like
+    type: stringList
+    help: List of current working directories to match using LIKE
+  - name: home
+    type: stringList
+    help: List of home directories
+  - name: home_like
+    type: stringList
+    help: List of home directories to match using LIKE
+  - name: exit_code
+    type: intList
+    help: List of exit codes
+  - name: start_time
+    type: date
+    help: Start time
+  - name: end_time
+    type: date
+    help: End time
+  - name: device_id
+    type: stringList
+    help: List of device ids
+  - name: entry_id
+    type: stringList
+    help: List of entry ids
+  - name: limit
+    help: Limit the number of results
+    type: int
+    default: 0
+  - name: offset
+    type: int
+    help: Offset
+    default: 0
+  - name: order_by
+    type: string
+    default: start_time DESC
+    help: Order by
+query: |
+  {{ if .explain }}EXPLAIN{{ end }}
+  SELECT
+    local_username,
+    hostname,
+    command,
+    current_working_directory AS cwd,
+    home_directory AS home,
+    exit_code,
+    start_time,
+    end_time,
+    device_id,
+    entry_id
+  FROM history_entries
+  WHERE 1=1
+  {{ if .local_username }}AND local_username IN ({{ .local_username | sqlStringIn }}){{ end }}
+  {{ if .hostname }}AND hostname IN ({{ .hostname | sqlStringIn }}){{ end }}
+  {{ if .command }}AND command IN ({{ .command | sqlStringIn }}){{ end }}
+  {{ if .command_like }}AND ({{ range $index, $element := .command_like }}{{ if $index }} OR {{ end }}command LIKE {{ $element | sqlLike }}{{ end }}){{ end }}
+  {{ if .cwd }}AND current_working_directory IN ({{ .cwd | sqlStringIn }}){{ end }}
+  {{ if .cwd_like }}AND ({{ range $index, $element := .cwd_like }}{{ if $index }} OR {{ end }}current_working_directory LIKE {{ $element | sqlLike }}{{ end }}){{ end }}
+  {{ if .home }}AND home_directory IN ({{ .home | sqlStringIn }}){{ end }}
+  {{ if .home_like }}AND ({{ range $index, $element := .home_like }}{{ if $index }} OR {{ end }}home_directory LIKE {{ $element | sqlLike }}{{ end }}){{ end }}
+  {{ if .exit_code }}AND exit_code IN ({{ .exit_code | sqlIntIn }}){{ end }}
+  {{ if .start_time }}AND start_time >= {{ .start_time | sqlDate }}{{ end }}
+  {{ if .end_time }}AND end_time <= {{ .end_time | sqlDate }}{{ end }}
+  {{ if .device_id }}AND device_id IN ({{ .device_id | sqlStringIn }}){{ end }}
+  {{ if .entry_id }}AND entry_id IN ({{ .entry_id | sqlStringIn }}){{ end }}
+  ORDER BY {{ .order_by }}
+  {{ if .limit }}LIMIT {{ .limit }}{{ if .offset }} OFFSET {{ .offset }}{{ end }}{{ end }}

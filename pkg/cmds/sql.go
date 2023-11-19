@@ -3,14 +3,13 @@ package cmds
 import (
 	"context"
 	"fmt"
-	sql2 "github.com/go-go-golems/clay/pkg/sql"
+	clay_sql "github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/layout"
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
-	"github.com/go-go-golems/glazed/pkg/helpers/templating"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/sqleton/pkg/flags"
@@ -22,7 +21,6 @@ import (
 )
 
 type SqletonCommand interface {
-	cmds.GlazeCommand
 	RunQueryIntoGlaze(
 		ctx context.Context,
 		db *sqlx.DB,
@@ -124,11 +122,11 @@ func NewSqlCommand(
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create Glazed parameter layer")
 	}
-	sqlConnectionParameterLayer, err := sql2.NewSqlConnectionParameterLayer()
+	sqlConnectionParameterLayer, err := clay_sql.NewSqlConnectionParameterLayer()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create SQL connection parameter layer")
 	}
-	dbtParameterLayer, err := sql2.NewDbtParameterLayer()
+	dbtParameterLayer, err := clay_sql.NewDbtParameterLayer()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create dbt parameter layer")
 	}
@@ -241,19 +239,10 @@ func (s *SqlCommand) RenderQuery(
 	ps map[string]interface{},
 	db *sqlx.DB,
 ) (string, error) {
-	t2 := sql2.CreateTemplate(ctx, s.SubQueries, ps, db)
-
-	t, err := t2.Parse(s.Query)
+	ret, err := clay_sql.RenderQuery(ctx, db, s.Query, s.SubQueries, ps)
 	if err != nil {
-		return "", errors.Wrap(err, "Could not parse query template")
+		return "", errors.Wrap(err, "Could not render query")
 	}
-
-	ret, err := templating.RenderTemplate(t, ps)
-	if err != nil {
-		return "", errors.Wrap(err, "Could not render query template")
-	}
-
-	ret = sql2.CleanQuery(ret)
 
 	return ret, nil
 }
@@ -264,7 +253,7 @@ func (s *SqlCommand) RunQueryIntoGlaze(
 	ps map[string]interface{},
 	gp middlewares.Processor) error {
 
-	return sql2.RunQueryIntoGlaze(ctx, db, s.renderedQuery, []interface{}{}, gp)
+	return clay_sql.RunQueryIntoGlaze(ctx, db, s.renderedQuery, []interface{}{}, gp)
 }
 
 type SqlCommandLoader struct {

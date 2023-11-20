@@ -51,6 +51,15 @@ func (s *SqlCommandCodeGenerator) defineNewFunction(f *jen.File, cmdName string,
 
 	description := cmd.Description()
 
+	var dicts []jen.Code
+	for _, flag := range cmd.Flags {
+		dict, err := ParameterDefinitionToDict(flag)
+		if err != nil {
+			return err
+		}
+		dicts = append(dicts, dict)
+	}
+
 	var err_ error
 	f.Func().Id(funcName).Params().
 		Params(jen.Op("*").Id(commandStruct), jen.Error()).
@@ -59,17 +68,14 @@ func (s *SqlCommandCodeGenerator) defineNewFunction(f *jen.File, cmdName string,
 				Index().Op("*").
 				Qual(GlazedParametersPath, "ParameterDefinition").
 				ValuesFunc(func(g *jen.Group) {
-					var dicts []jen.Code
 					for _, flag := range cmd.Flags {
 						dict, err := ParameterDefinitionToDict(flag)
 						if err != nil {
 							err_ = err
 							return
 						}
-						dicts = append(dicts, dict)
+						g.Values(dict)
 					}
-
-					g.Values(dicts...)
 				}),
 			jen.Id("cmdDescription").Op(":=").Qual(GlazedCommandsPath, "NewCommandDescription").
 				Call(
@@ -121,7 +127,7 @@ func (s *SqlCommandCodeGenerator) defineParametersStruct(f *jen.File, cmdName st
 	})
 }
 
-func (s *SqlCommandCodeGenerator) GenerateCommandCode(cmd *cmds.SqlCommand) *jen.File {
+func (s *SqlCommandCodeGenerator) GenerateCommandCode(cmd *cmds.SqlCommand) (*jen.File, error) {
 	f := jen.NewFile(s.PackageName)
 	cmdName := strcase.ToLowerCamel(cmd.Name)
 
@@ -130,7 +136,10 @@ func (s *SqlCommandCodeGenerator) GenerateCommandCode(cmd *cmds.SqlCommand) *jen
 	s.defineStruct(f, cmdName)
 	s.defineParametersStruct(f, cmdName, cmd.Flags)
 	s.defineRunMethod(f, cmdName)
-	s.defineNewFunction(f, cmdName, cmd)
+	err := s.defineNewFunction(f, cmdName, cmd)
+	if err != nil {
+		return nil, err
+	}
 
-	return f
+	return f, nil
 }

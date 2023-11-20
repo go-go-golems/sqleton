@@ -45,7 +45,10 @@ func NewCodegenCommand() *cobra.Command {
 				}
 				cmd := cmds_[0].(*cmds2.SqlCommand)
 
-				f := s.GenerateCommandCode(cmd)
+				f, err := s.GenerateCommandCode(cmd)
+				if err != nil {
+					return err
+				}
 
 				s := f.GoString()
 				// store in path.go after removing .yaml

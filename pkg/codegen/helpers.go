@@ -46,6 +46,7 @@ func StructTypeToJen(typ reflect.Type) (jen.Code, error) {
 
 // TypeToJen converts a reflect.Type to jen.Code
 func TypeToJen(t reflect.Type) (jen.Code, error) {
+	//nolint: exhaustive
 	switch t.Kind() {
 	case reflect.String:
 		return jen.String(), nil
@@ -130,6 +131,8 @@ func StructValueToJen(structName string, s interface{}) (jen.Code, error) {
 }
 
 func LiteralToJen(v reflect.Value) (jen.Code, error) {
+
+	//nolint:exhaustive
 	switch v.Kind() {
 	case reflect.String:
 		return jen.Lit(v.String()), nil

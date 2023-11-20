@@ -51,15 +51,6 @@ func (s *SqlCommandCodeGenerator) defineNewFunction(f *jen.File, cmdName string,
 
 	description := cmd.Description()
 
-	var dicts []jen.Code
-	for _, flag := range cmd.Flags {
-		dict, err := ParameterDefinitionToDict(flag)
-		if err != nil {
-			return err
-		}
-		dicts = append(dicts, dict)
-	}
-
 	var err_ error
 	f.Func().Id(funcName).Params().
 		Params(jen.Op("*").Id(commandStruct), jen.Error()).

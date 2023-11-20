@@ -3,11 +3,13 @@ module github.com/go-go-golems/sqleton
 go 1.19
 
 require (
+	github.com/dave/jennifer v1.7.0
 	github.com/go-go-golems/clay v0.0.30
 	github.com/go-go-golems/glazed v0.4.30
 	github.com/go-go-golems/parka v0.4.16
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/huandu/go-sqlbuilder v1.20.0
+	github.com/iancoleman/strcase v0.3.0
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/mattn/go-sqlite3 v1.14.17
 	github.com/pkg/errors v0.9.1

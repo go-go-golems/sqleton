@@ -28,10 +28,10 @@ flags:
   - name: exit_code
     type: intList
     help: List of exit codes
-  - name: start_time
+  - name: from
     type: date
     help: Start time
-  - name: end_time
+  - name: to
     type: date
     help: End time
   - name: device_id
@@ -43,7 +43,7 @@ flags:
   - name: limit
     help: Limit the number of results
     type: int
-    default: 0
+    default: 10
   - name: offset
     type: int
     help: Offset
@@ -52,19 +52,25 @@ flags:
     type: string
     default: start_time DESC
     help: Order by
+  - name: verbose
+    type: bool
+    default: false
+    help: Display all columns
 query: |
   {{ if .explain }}EXPLAIN{{ end }}
   SELECT
-    local_username,
-    hostname,
-    command,
+    local_username AS user,
+    hostname AS host,
+    command AS cmd,
     current_working_directory AS cwd,
-    home_directory AS home,
     exit_code,
-    start_time,
-    end_time,
-    device_id,
-    entry_id
+    strftime('%Y-%m-%d %H:%M:%S', start_time) AS start_time,
+    strftime('%Y-%m-%d %H:%M:%S', end_time) AS end_time
+    {{ if .verbose -}}
+    , home_directory AS home
+    , device_id
+    , entry_id
+    {{- end }}
   FROM history_entries
   WHERE 1=1
   {{ if .local_username }}AND local_username IN ({{ .local_username | sqlStringIn }}){{ end }}
@@ -76,8 +82,8 @@ query: |
   {{ if .home }}AND home_directory IN ({{ .home | sqlStringIn }}){{ end }}
   {{ if .home_like }}AND ({{ range $index, $element := .home_like }}{{ if $index }} OR {{ end }}home_directory LIKE {{ $element | sqlLike }}{{ end }}){{ end }}
   {{ if .exit_code }}AND exit_code IN ({{ .exit_code | sqlIntIn }}){{ end }}
-  {{ if .start_time }}AND start_time >= {{ .start_time | sqlDate }}{{ end }}
-  {{ if .end_time }}AND end_time <= {{ .end_time | sqlDate }}{{ end }}
+  {{ if .from }}AND start_time >= {{ .from | sqlDateTime }}{{ end }}
+  {{ if .to }}AND end_time <= {{ .to | sqlDateTime }}{{ end }}
   {{ if .device_id }}AND device_id IN ({{ .device_id | sqlStringIn }}){{ end }}
   {{ if .entry_id }}AND entry_id IN ({{ .entry_id | sqlStringIn }}){{ end }}
   ORDER BY {{ .order_by }}

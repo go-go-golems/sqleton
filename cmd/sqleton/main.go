@@ -145,6 +145,8 @@ func initRootCmd() (*help.HelpSystem, error) {
 	cobra.CheckErr(err)
 
 	rootCmd.AddCommand(runCommandCmd)
+
+	rootCmd.AddCommand(cmds.NewCodegenCommand())
 	return helpSystem, nil
 }
 

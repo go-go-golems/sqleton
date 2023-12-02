@@ -32,6 +32,10 @@ flags:
   - name: full_info
     type: bool
     help: Show the full info
+  - name: foobar
+    type: intList
+    help: Filter by foobar
+    default: [1,2,3]
 query: |
   SELECT 
   Id,User,Host,db,Command,Time,State

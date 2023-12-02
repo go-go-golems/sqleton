@@ -82,8 +82,8 @@ query: |
   {{ if .home }}AND home_directory IN ({{ .home | sqlStringIn }}){{ end }}
   {{ if .home_like }}AND ({{ range $index, $element := .home_like }}{{ if $index }} OR {{ end }}home_directory LIKE {{ $element | sqlLike }}{{ end }}){{ end }}
   {{ if .exit_code }}AND exit_code IN ({{ .exit_code | sqlIntIn }}){{ end }}
-  {{ if .from }}AND start_time >= {{ .from | sqlDateTime }}{{ end }}
-  {{ if .to }}AND end_time <= {{ .to | sqlDateTime }}{{ end }}
+  {{ if .from }}AND start_time >= {{ .from | sqliteDateTime }}{{ end }}
+  {{ if .to }}AND start_time <= {{ .to | sqliteDateTime }}{{ end }}
   {{ if .device_id }}AND device_id IN ({{ .device_id | sqlStringIn }}){{ end }}
   {{ if .entry_id }}AND entry_id IN ({{ .entry_id | sqlStringIn }}){{ end }}
   ORDER BY {{ .order_by }}

@@ -3,6 +3,7 @@ package codegen
 import (
 	"github.com/dave/jennifer/jen"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
+	"github.com/go-go-golems/glazed/pkg/codegen"
 	"github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/iancoleman/strcase"
 )
@@ -12,11 +13,6 @@ type SqlCommandCodeGenerator struct {
 }
 
 const SqletonCmdsPath = "github.com/go-go-golems/sqleton/pkg/cmds"
-const GlazedCommandsPath = "github.com/go-go-golems/glazed/pkg/cmds"
-const GlazedMiddlewaresPath = "github.com/go-go-golems/glazed/pkg/middlewares"
-const GlazedParametersPath = "github.com/go-go-golems/glazed/pkg/cmds/parameters"
-const ClaySqlPath = "github.com/go-go-golems/clay/pkg/sql"
-const MapsHelpersPath = "github.com/go-go-golems/glazed/pkg/helpers/maps"
 
 func (s *SqlCommandCodeGenerator) defineConstants(f *jen.File, cmdName string, cmd *cmds.SqlCommand) {
 	// Define the constant for the main query.
@@ -34,7 +30,7 @@ func (s *SqlCommandCodeGenerator) defineConstants(f *jen.File, cmdName string, c
 func (s *SqlCommandCodeGenerator) defineStruct(f *jen.File, cmdName string) {
 	structName := strcase.ToCamel(cmdName) + "Command"
 	f.Type().Id(structName).Struct(
-		jen.Op("*").Qual(GlazedCommandsPath, "CommandDescription"),
+		jen.Op("*").Qual(codegen.GlazedCommandsPath, "CommandDescription"),
 		jen.Id("Query").String().Tag(map[string]string{"yaml": "query"}),
 		jen.Id("SubQueries").Map(jen.String()).String().Tag(map[string]string{"yaml": "subqueries,omitempty"}),
 	)
@@ -45,7 +41,7 @@ func (s *SqlCommandCodeGenerator) defineParametersStruct(f *jen.File, cmdName st
 	f.Type().Id(structName).StructFunc(func(g *jen.Group) {
 		for _, flag := range flags {
 			s := g.Id(strcase.ToCamel(flag.Name))
-			s = FlagTypeToGoType(s, flag.Type)
+			s = codegen.FlagTypeToGoType(s, flag.Type)
 			s.Tag(map[string]string{"glazed.parameter": strcase.ToSnake(flag.Name)})
 		}
 	})
@@ -53,8 +49,8 @@ func (s *SqlCommandCodeGenerator) defineParametersStruct(f *jen.File, cmdName st
 
 func (s *SqlCommandCodeGenerator) renderQuery() []jen.Code {
 	return []jen.Code{
-		jen.Id("ps").Op(":=").Qual(MapsHelpersPath, "StructToMap").Call(jen.Id("params"), jen.Lit(false)),
-		jen.List(jen.Id("renderedQuery"), jen.Err()).Op(":=").Qual(ClaySqlPath, "RenderQuery").Call(
+		jen.Id("ps").Op(":=").Qual(codegen.MapsHelpersPath, "StructToMap").Call(jen.Id("params"), jen.Lit(false)),
+		jen.List(jen.Id("renderedQuery"), jen.Err()).Op(":=").Qual(codegen.ClaySqlPath, "RenderQuery").Call(
 			jen.Id("ctx"), jen.Id("db"), jen.Id("p").Dot("Query"), jen.Id("p").Dot("SubQueries"), jen.Id("ps"),
 		),
 		jen.If(jen.Err().Op("!=").Nil()).Block(jen.Return(jen.Err())),
@@ -72,13 +68,13 @@ func (s *SqlCommandCodeGenerator) defineRunIntoGlazedMethod(f *jen.File, cmdName
 			jen.Id("ctx").Qual("context", "Context"),
 			jen.Id("db").Op("*").Qual("github.com/jmoiron/sqlx", "DB"),
 			jen.Id("params").Op("*").Id(parametersStruct),
-			jen.Id("gp").Qual(GlazedMiddlewaresPath, "Processor"),
+			jen.Id("gp").Qual(codegen.GlazedMiddlewaresPath, "Processor"),
 		).Error().
 		BlockFunc(func(g *jen.Group) {
 			for _, c := range s.renderQuery() {
 				g.Add(c)
 			}
-			g.Err().Op("=").Qual(ClaySqlPath, "RunQueryIntoGlaze").Call(
+			g.Err().Op("=").Qual(codegen.ClaySqlPath, "RunQueryIntoGlaze").Call(
 				jen.Id("ctx"), jen.Id("db"), jen.Id("renderedQuery"), jen.Index().Interface().Values(), jen.Id("gp"),
 			)
 			g.If(jen.Err().Op("!=").Nil()).Block(jen.Return(jen.Err()))
@@ -99,10 +95,10 @@ func (s *SqlCommandCodeGenerator) defineNewFunction(f *jen.File, cmdName string,
 		Block(
 			jen.Var().Id("flagDefs").Op("=").
 				Index().Op("*").
-				Qual(GlazedParametersPath, "ParameterDefinition").
+				Qual(codegen.GlazedParametersPath, "ParameterDefinition").
 				ValuesFunc(func(g *jen.Group) {
 					for _, flag := range cmd.Flags {
-						dict, err := ParameterDefinitionToDict(flag)
+						dict, err := codegen.ParameterDefinitionToDict(flag)
 						if err != nil {
 							err_ = err
 							return
@@ -111,12 +107,12 @@ func (s *SqlCommandCodeGenerator) defineNewFunction(f *jen.File, cmdName string,
 					}
 				}),
 			jen.Line(),
-			jen.Id("cmdDescription").Op(":=").Qual(GlazedCommandsPath, "NewCommandDescription").
+			jen.Id("cmdDescription").Op(":=").Qual(codegen.GlazedCommandsPath, "NewCommandDescription").
 				Call(
 					jen.Lit(description.Name),
-					jen.Qual(GlazedCommandsPath, "WithShort").Call(jen.Lit(description.Short)),
-					jen.Qual(GlazedCommandsPath, "WithLong").Call(jen.Lit(description.Long)),
-					jen.Qual(GlazedCommandsPath, "WithFlags").Call(jen.Id("flagDefs").Op("...")),
+					jen.Qual(codegen.GlazedCommandsPath, "WithShort").Call(jen.Lit(description.Short)),
+					jen.Qual(codegen.GlazedCommandsPath, "WithLong").Call(jen.Lit(description.Long)),
+					jen.Qual(codegen.GlazedCommandsPath, "WithFlags").Call(jen.Id("flagDefs").Op("...")),
 				),
 			jen.Line(),
 			jen.Return(jen.Op("&").Id(commandStruct).Values(jen.Dict{

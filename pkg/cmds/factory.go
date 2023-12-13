@@ -7,14 +7,10 @@ import (
 )
 
 func NewRepositoryFactory() handlers.RepositoryFactory {
-	yamlFSLoader := loaders.NewYAMLFSCommandLoader(&SqlCommandLoader{
+	loader := &SqlCommandLoader{
 		DBConnectionFactory: sql.OpenDatabaseFromDefaultSqlConnectionLayer,
-	})
-	yamlLoader := &loaders.YAMLReaderCommandLoader{
-		YAMLCommandLoader: &SqlCommandLoader{
-			DBConnectionFactory: sql.OpenDatabaseFromDefaultSqlConnectionLayer,
-		},
 	}
+	yamlFSLoader := loaders.NewFSFileCommandLoader(loader)
 
-	return handlers.NewRepositoryFactoryFromLoaders(yamlLoader, yamlFSLoader)
+	return handlers.NewRepositoryFactoryFromReaderLoaders(loader, yamlFSLoader)
 }

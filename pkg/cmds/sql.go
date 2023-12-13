@@ -17,6 +17,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 	"io"
+	"io/fs"
 	"strings"
 )
 
@@ -260,13 +261,28 @@ type SqlCommandLoader struct {
 	DBConnectionFactory DBConnectionFactory
 }
 
-func (scl *SqlCommandLoader) LoadCommandAliasFromYAML(s io.Reader, options ...alias.Option) ([]*alias.CommandAlias, error) {
-	return loaders.LoadCommandAliasFromYAML(s, options...)
+var _ loaders.FileCommandLoader = (*SqlCommandLoader)(nil)
+
+func (scl *SqlCommandLoader) LoadCommandsFromReader(
+	r io.Reader,
+	options []cmds.CommandDescriptionOption,
+	aliasOptions []alias.Option,
+) ([]cmds.Command, error) {
+	return loaders.LoadCommandOrAliasFromReader(
+		r,
+		scl.loadSqlCommandFromReader,
+		options,
+		aliasOptions)
 }
 
-func (scl *SqlCommandLoader) LoadCommandFromYAML(
+func (scl *SqlCommandLoader) IsFileSupported(f fs.FS, fileName string) bool {
+	return strings.HasSuffix(fileName, ".yaml") || strings.HasSuffix(fileName, ".yml")
+}
+
+func (scl *SqlCommandLoader) loadSqlCommandFromReader(
 	s io.Reader,
-	options ...cmds.CommandDescriptionOption,
+	options []cmds.CommandDescriptionOption,
+	_ []alias.Option,
 ) ([]cmds.Command, error) {
 	scd := &SqlCommandDescription{}
 	err := yaml.NewDecoder(s).Decode(scd)

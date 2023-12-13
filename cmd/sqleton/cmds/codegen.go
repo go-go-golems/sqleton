@@ -3,6 +3,8 @@ package cmds
 import (
 	"bytes"
 	"fmt"
+	"github.com/go-go-golems/glazed/pkg/cmds"
+	"github.com/go-go-golems/glazed/pkg/cmds/alias"
 	cmds2 "github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/go-go-golems/sqleton/pkg/codegen"
 	"github.com/spf13/cobra"
@@ -36,7 +38,7 @@ func NewCodegenCommand() *cobra.Command {
 
 				// create reader from psYaml
 				r := bytes.NewReader(psYaml)
-				cmds_, err := loader.LoadCommandFromYAML(r)
+				cmds_, err := loader.LoadCommandsFromReader(r, []cmds.CommandDescriptionOption{}, []alias.Option{})
 				if err != nil {
 					return err
 				}

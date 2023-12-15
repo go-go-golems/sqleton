@@ -1,5 +1,6 @@
 name: ps
 short: Show full MySQL processlist
+
 flags:
   - name: mysql_user
     type: stringList

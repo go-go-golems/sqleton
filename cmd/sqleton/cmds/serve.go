@@ -8,7 +8,6 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
-	"github.com/go-go-golems/glazed/pkg/helpers"
 	"github.com/go-go-golems/parka/pkg/glazed/handlers/datatables"
 	"github.com/go-go-golems/parka/pkg/handlers"
 	"github.com/go-go-golems/parka/pkg/handlers/command-dir"
@@ -22,6 +21,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 )
 
@@ -31,6 +31,8 @@ type ServeCommand struct {
 	repositories        []string
 }
 
+// NOTE(manuel, 2023-12-13) Why do we embed the favicon.ico here?
+//
 //go:embed static
 var staticFiles embed.FS
 
@@ -76,6 +78,8 @@ func (s *ServeCommand) runWithConfigFile(
 	// TODO(manuel, 2023-06-20): These should be able to be set from the config file itself.
 	// See: https://github.com/go-go-golems/parka/issues/51
 	devMode := ps["dev"].(bool)
+
+	// NOTE(manuel, 2023-12-13) Why do we append these to the config file?
 	commandDirHandlerOptions = append(
 		commandDirHandlerOptions,
 		command_dir.WithOverridesAndDefaultsOptions(
@@ -195,7 +199,8 @@ func (s *ServeCommand) Run(
 		})
 	}
 
-	// static paths
+	// NOTE(manuel, 2023-12-13) Unsure why we really need the static paths here instead of dealing with this
+	// in the package maybe?
 	if dev {
 		configFile.Routes = append(configFile.Routes, &config.Route{
 			Path: "/static",
@@ -291,6 +296,8 @@ func runConfigFileHandler(ctx context.Context, server_ *server.Server, cfh *hand
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
+	defer stop()
 
 	errGroup, ctx := errgroup.WithContext(ctx)
 	errGroup.Go(func() error {
@@ -298,9 +305,6 @@ func runConfigFileHandler(ctx context.Context, server_ *server.Server, cfh *hand
 	})
 	errGroup.Go(func() error {
 		return server_.Run(ctx)
-	})
-	errGroup.Go(func() error {
-		return helpers.CancelOnSignal(ctx, os.Interrupt, cancel)
 	})
 
 	err = errGroup.Wait()

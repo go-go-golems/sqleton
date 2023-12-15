@@ -36,13 +36,23 @@ func (s *SqlCommandCodeGenerator) defineStruct(f *jen.File, cmdName string) {
 	)
 }
 
-func (s *SqlCommandCodeGenerator) defineParametersStruct(f *jen.File, cmdName string, flags []*parameters.ParameterDefinition) {
+func (s *SqlCommandCodeGenerator) defineParametersStruct(
+	f *jen.File,
+	cmdName string,
+	flags []*parameters.ParameterDefinition,
+	args []*parameters.ParameterDefinition,
+) {
 	structName := strcase.ToCamel(cmdName) + "CommandParameters"
 	f.Type().Id(structName).StructFunc(func(g *jen.Group) {
 		for _, flag := range flags {
 			s := g.Id(strcase.ToCamel(flag.Name))
 			s = codegen.FlagTypeToGoType(s, flag.Type)
 			s.Tag(map[string]string{"glazed.parameter": strcase.ToSnake(flag.Name)})
+		}
+		for _, arg := range args {
+			s := g.Id(strcase.ToCamel(arg.Name))
+			s = codegen.FlagTypeToGoType(s, arg.Type)
+			s.Tag(map[string]string{"glazed.parameter": strcase.ToSnake(arg.Name)})
 		}
 	})
 }
@@ -63,7 +73,8 @@ func (s *SqlCommandCodeGenerator) defineRunIntoGlazedMethod(f *jen.File, cmdName
 	receiver := strcase.ToCamel(cmdName) + "Command"
 	parametersStruct := strcase.ToCamel(cmdName) + "CommandParameters"
 
-	f.Func().Params(jen.Id("p").Op("*").Id(receiver)).Id(methodName).
+	f.Func().
+		Params(jen.Id("p").Op("*").Id(receiver)).Id(methodName).
 		Params(
 			jen.Id("ctx").Qual("context", "Context"),
 			jen.Id("db").Op("*").Qual("github.com/jmoiron/sqlx", "DB"),
@@ -93,6 +104,7 @@ func (s *SqlCommandCodeGenerator) defineNewFunction(f *jen.File, cmdName string,
 	f.Func().Id(funcName).Params().
 		Params(jen.Op("*").Id(commandStruct), jen.Error()).
 		Block(
+			// TODO(manuel, 2023-12-07) Can be refactored since this is duplicated in geppetto/codegen.go
 			jen.Var().Id("flagDefs").Op("=").
 				Index().Op("*").
 				Qual(codegen.GlazedParametersPath, "ParameterDefinition").
@@ -107,14 +119,30 @@ func (s *SqlCommandCodeGenerator) defineNewFunction(f *jen.File, cmdName string,
 					}
 				}),
 			jen.Line(),
+			jen.Var().Id("argDefs").Op("=").
+				Index().Op("*").
+				Qual(codegen.GlazedParametersPath, "ParameterDefinition").
+				ValuesFunc(func(g *jen.Group) {
+					for _, arg := range cmd.Arguments {
+						dict, err := codegen.ParameterDefinitionToDict(arg)
+						if err != nil {
+							err_ = err
+							return
+						}
+						g.Values(dict)
+					}
+				}),
+			jen.Line(),
 			jen.Id("cmdDescription").Op(":=").Qual(codegen.GlazedCommandsPath, "NewCommandDescription").
 				Call(
 					jen.Lit(description.Name),
-					jen.Qual(codegen.GlazedCommandsPath, "WithShort").Call(jen.Lit(description.Short)),
-					jen.Qual(codegen.GlazedCommandsPath, "WithLong").Call(jen.Lit(description.Long)),
-					jen.Qual(codegen.GlazedCommandsPath, "WithFlags").Call(jen.Id("flagDefs").Op("...")),
+					jen.Line().Qual(codegen.GlazedCommandsPath, "WithShort").Call(jen.Lit(description.Short)),
+					jen.Line().Qual(codegen.GlazedCommandsPath, "WithLong").Call(jen.Lit(description.Long)),
+					jen.Line().Qual(codegen.GlazedCommandsPath, "WithFlags").Call(jen.Id("flagDefs").Op("...")),
+					jen.Line().Qual(codegen.GlazedCommandsPath, "WithArguments").Call(jen.Id("argDefs").Op("...")),
 				),
 			jen.Line(),
+
 			jen.Return(jen.Op("&").Id(commandStruct).Values(jen.Dict{
 				jen.Id("CommandDescription"): jen.Id("cmdDescription"),
 				jen.Id("Query"):              jen.Id(queryConstName),
@@ -140,7 +168,7 @@ func (s *SqlCommandCodeGenerator) GenerateCommandCode(cmd *cmds.SqlCommand) (*je
 	s.defineConstants(f, cmdName, cmd)
 	s.defineStruct(f, cmdName)
 	f.Line()
-	s.defineParametersStruct(f, cmdName, cmd.Flags)
+	s.defineParametersStruct(f, cmdName, cmd.Flags, cmd.Arguments)
 	s.defineRunIntoGlazedMethod(f, cmdName)
 	f.Line()
 	err := s.defineNewFunction(f, cmdName, cmd)

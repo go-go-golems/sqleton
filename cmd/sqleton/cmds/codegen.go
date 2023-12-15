@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
+	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
 	cmds2 "github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/go-go-golems/sqleton/pkg/codegen"
 	"github.com/spf13/cobra"
@@ -24,14 +25,15 @@ func NewCodegenCommand() *cobra.Command {
 			s := &codegen.SqlCommandCodeGenerator{
 				PackageName: packageName,
 			}
-			fs_ := os.DirFS("/")
-
 			for _, fileName := range args {
 				loader := &cmds2.SqlCommandLoader{
 					DBConnectionFactory: nil,
 				}
 
-				// create reader from psYaml
+				fs_, fileName, err := loaders.FileNameToFsFilePath(fileName)
+				if err != nil {
+					return err
+				}
 				cmds_, err := loader.LoadCommands(fs_, fileName, []cmds.CommandDescriptionOption{}, []alias.Option{})
 				if err != nil {
 					return err

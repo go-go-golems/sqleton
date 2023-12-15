@@ -9,6 +9,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cli"
 	glazed_cmds "github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
+	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
 	"github.com/go-go-golems/glazed/pkg/help"
 	"github.com/go-go-golems/glazed/pkg/helpers/cast"
 	"github.com/go-go-golems/sqleton/cmd/sqleton/cmds"
@@ -73,8 +74,12 @@ func main() {
 		loader := &cmds2.SqlCommandLoader{
 			DBConnectionFactory: sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 		}
-		fs_ := os.DirFS("/")
-		cmds, err := loader.LoadCommands(fs_, os.Args[2], []glazed_cmds.CommandDescriptionOption{}, []alias.Option{})
+		fs_, filePath, err := loaders.FileNameToFsFilePath(os.Args[2])
+		if err != nil {
+			fmt.Printf("Could not get absolute path: %v\n", err)
+			os.Exit(1)
+		}
+		cmds, err := loader.LoadCommands(fs_, filePath, []glazed_cmds.CommandDescriptionOption{}, []alias.Option{})
 		if err != nil {
 			fmt.Printf("Could not load command: %v\n", err)
 			os.Exit(1)

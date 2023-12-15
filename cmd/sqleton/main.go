@@ -9,7 +9,6 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cli"
 	glazed_cmds "github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
-	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
 	"github.com/go-go-golems/glazed/pkg/help"
 	"github.com/go-go-golems/glazed/pkg/helpers/cast"
 	"github.com/go-go-golems/sqleton/cmd/sqleton/cmds"
@@ -74,12 +73,8 @@ func main() {
 		loader := &cmds2.SqlCommandLoader{
 			DBConnectionFactory: sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 		}
-		f, err := os.Open(os.Args[2])
-		if err != nil {
-			fmt.Printf("Could not open file: %v\n", err)
-			os.Exit(1)
-		}
-		cmds, err := loader.LoadCommandsFromReader(f, []glazed_cmds.CommandDescriptionOption{}, []alias.Option{})
+		fs_ := os.DirFS("/")
+		cmds, err := loader.LoadCommands(fs_, os.Args[2], []glazed_cmds.CommandDescriptionOption{}, []alias.Option{})
 		if err != nil {
 			fmt.Printf("Could not load command: %v\n", err)
 			os.Exit(1)
@@ -228,11 +223,11 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		Repositories: repositories,
 	}
 
-	yamlLoader := loaders.NewFSFileCommandLoader(&cmds2.SqlCommandLoader{
+	loader := &cmds2.SqlCommandLoader{
 		DBConnectionFactory: sql.OpenDatabaseFromDefaultSqlConnectionLayer,
-	})
+	}
 	commandLoader := clay_cmds.NewCommandLoader[*cmds2.SqlCommand](&locations)
-	sqlCommands, aliases, err := commandLoader.LoadCommands(yamlLoader, helpSystem)
+	sqlCommands, aliases, err := commandLoader.LoadCommands(loader, helpSystem)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
 		os.Exit(1)

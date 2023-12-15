@@ -16,13 +16,21 @@ type SqlCommandLoader struct {
 	DBConnectionFactory DBConnectionFactory
 }
 
-var _ loaders.FileCommandLoader = (*SqlCommandLoader)(nil)
+var _ loaders.CommandLoader = (*SqlCommandLoader)(nil)
 
-func (scl *SqlCommandLoader) LoadCommandsFromReader(
-	r io.Reader,
+func (scl *SqlCommandLoader) LoadCommands(
+	f fs.FS, entryName string,
 	options []cmds.CommandDescriptionOption,
 	aliasOptions []alias.Option,
 ) ([]cmds.Command, error) {
+	r, err := f.Open(entryName)
+	if err != nil {
+		return nil, err
+	}
+	defer func(r fs.File) {
+		_ = r.Close()
+	}(r)
+
 	return loaders.LoadCommandOrAliasFromReader(
 		r,
 		scl.loadSqlCommandFromReader,

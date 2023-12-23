@@ -1,6 +1,7 @@
 package cmds
 
 import (
+	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
 	"github.com/go-go-golems/glazed/pkg/cmds/layout"
@@ -13,7 +14,7 @@ import (
 )
 
 type SqlCommandLoader struct {
-	DBConnectionFactory DBConnectionFactory
+	DBConnectionFactory sql.DBConnectionFactory
 }
 
 var _ loaders.CommandLoader = (*SqlCommandLoader)(nil)

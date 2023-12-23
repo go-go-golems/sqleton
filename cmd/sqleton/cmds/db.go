@@ -40,7 +40,7 @@ func createConfigFromCobra(cmd *cobra.Command) *sql2.DatabaseConfig {
 	ps2, err := dbtLayer.ParseFlagsFromCobraCommand(cmd)
 	cobra.CheckErr(err)
 
-	parsedLayers := []*layers.ParsedParameterLayer{
+	parsedLayers := []*layers.ParsedLayer{
 		{
 			Layer:      connectionLayer,
 			Parameters: ps,
@@ -333,25 +333,25 @@ func init() {
 	dbtParameterLayer, err := sql2.NewDbtParameterLayer()
 	cobra.CheckErr(err)
 
-	err = connectionLayer.AddFlagsToCobraCommand(dbTestConnectionCmd)
+	err = connectionLayer.AddLayerToCobraCommand(dbTestConnectionCmd)
 	cobra.CheckErr(err)
 	DbCmd.AddCommand(dbTestConnectionCmd)
 
-	err = dbtParameterLayer.AddFlagsToCobraCommand(dbTestConnectionCmd)
+	err = dbtParameterLayer.AddLayerToCobraCommand(dbTestConnectionCmd)
 	cobra.CheckErr(err)
 
-	err = connectionLayer.AddFlagsToCobraCommand(dbPrintEvidenceSettingsCmd)
+	err = connectionLayer.AddLayerToCobraCommand(dbPrintEvidenceSettingsCmd)
 	cobra.CheckErr(err)
 	dbPrintEvidenceSettingsCmd.Flags().String("git-repo", "", "Git repo to use for evidence.dev")
 	DbCmd.AddCommand(dbPrintEvidenceSettingsCmd)
 
-	err = connectionLayer.AddFlagsToCobraCommand(dbPrintEnvCmd)
+	err = connectionLayer.AddLayerToCobraCommand(dbPrintEnvCmd)
 	cobra.CheckErr(err)
 	dbPrintEnvCmd.Flags().Bool("envrc", false, "Output as an .envrc file")
 	dbPrintEnvCmd.Flags().String("env-prefix", "SQLETON_", "Prefix for environment variables")
 	DbCmd.AddCommand(dbPrintEnvCmd)
 
-	err = connectionLayer.AddFlagsToCobraCommand(dbPrintSettingsCmd)
+	err = connectionLayer.AddLayerToCobraCommand(dbPrintSettingsCmd)
 	cobra.CheckErr(err)
 	dbPrintSettingsCmd.Flags().Bool("individual-rows", false, "Output as individual rows")
 	dbPrintSettingsCmd.Flags().String("with-env-prefix", "", "Output as environment variables with a prefix")
@@ -364,7 +364,7 @@ func init() {
 		layers.WithPrefix("test-"),
 	)
 	cobra.CheckErr(err)
-	err = connectionLayer.AddFlagsToCobraCommand(dbTestConnectionCmdWithPrefix)
+	err = connectionLayer.AddLayerToCobraCommand(dbTestConnectionCmdWithPrefix)
 	cobra.CheckErr(err)
 	DbCmd.AddCommand(dbTestConnectionCmdWithPrefix)
 }

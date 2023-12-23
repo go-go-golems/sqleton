@@ -252,7 +252,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 
 	serveCommand := cmds.NewServeCommand(
 		sql.OpenDatabaseFromDefaultSqlConnectionLayer,
-		repositories, commands, aliases,
+		repositories,
 		glazed_cmds.WithLayers(
 			dbtParameterLayer,
 			sqlConnectionParameterLayer,

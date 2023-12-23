@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"github.com/dave/jennifer/jen"
+	cmds2 "github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/codegen"
 	"github.com/go-go-golems/sqleton/pkg/cmds"
@@ -39,21 +40,20 @@ func (s *SqlCommandCodeGenerator) defineStruct(f *jen.File, cmdName string) {
 func (s *SqlCommandCodeGenerator) defineParametersStruct(
 	f *jen.File,
 	cmdName string,
-	flags []*parameters.ParameterDefinition,
-	args []*parameters.ParameterDefinition,
+	cmd *cmds2.CommandDescription,
 ) {
 	structName := strcase.ToCamel(cmdName) + "CommandParameters"
 	f.Type().Id(structName).StructFunc(func(g *jen.Group) {
-		for _, flag := range flags {
+		cmd.GetDefaultFlags().ForEach(func(flag *parameters.ParameterDefinition) {
 			s := g.Id(strcase.ToCamel(flag.Name))
 			s = codegen.FlagTypeToGoType(s, flag.Type)
 			s.Tag(map[string]string{"glazed.parameter": strcase.ToSnake(flag.Name)})
-		}
-		for _, arg := range args {
+		})
+		cmd.GetDefaultArguments().ForEach(func(arg *parameters.ParameterDefinition) {
 			s := g.Id(strcase.ToCamel(arg.Name))
 			s = codegen.FlagTypeToGoType(s, arg.Type)
 			s.Tag(map[string]string{"glazed.parameter": strcase.ToSnake(arg.Name)})
-		}
+		})
 	})
 }
 
@@ -109,28 +109,28 @@ func (s *SqlCommandCodeGenerator) defineNewFunction(f *jen.File, cmdName string,
 				Index().Op("*").
 				Qual(codegen.GlazedParametersPath, "ParameterDefinition").
 				ValuesFunc(func(g *jen.Group) {
-					for _, flag := range cmd.Flags {
+					err_ = cmd.GetDefaultFlags().ForEachE(func(flag *parameters.ParameterDefinition) error {
 						dict, err := codegen.ParameterDefinitionToDict(flag)
 						if err != nil {
-							err_ = err
-							return
+							return err
 						}
 						g.Values(dict)
-					}
+						return nil
+					})
 				}),
 			jen.Line(),
 			jen.Var().Id("argDefs").Op("=").
 				Index().Op("*").
 				Qual(codegen.GlazedParametersPath, "ParameterDefinition").
 				ValuesFunc(func(g *jen.Group) {
-					for _, arg := range cmd.Arguments {
+					err_ = cmd.GetDefaultArguments().ForEachE(func(arg *parameters.ParameterDefinition) error {
 						dict, err := codegen.ParameterDefinitionToDict(arg)
 						if err != nil {
-							err_ = err
-							return
+							return err
 						}
 						g.Values(dict)
-					}
+						return nil
+					})
 				}),
 			jen.Line(),
 			jen.Id("cmdDescription").Op(":=").Qual(codegen.GlazedCommandsPath, "NewCommandDescription").
@@ -168,7 +168,7 @@ func (s *SqlCommandCodeGenerator) GenerateCommandCode(cmd *cmds.SqlCommand) (*je
 	s.defineConstants(f, cmdName, cmd)
 	s.defineStruct(f, cmdName)
 	f.Line()
-	s.defineParametersStruct(f, cmdName, cmd.Flags, cmd.Arguments)
+	s.defineParametersStruct(f, cmdName, cmd.Description())
 	s.defineRunIntoGlazedMethod(f, cmdName)
 	f.Line()
 	err := s.defineNewFunction(f, cmdName, cmd)

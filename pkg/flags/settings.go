@@ -9,6 +9,13 @@ import (
 //go:embed "helpers.yaml"
 var helpersFlagsYaml []byte
 
+const SqlHelpersSlug = "sql-helpers"
+
+type SqlHelpersSettings struct {
+	Explain    bool `glazed.parameter:"explain"`
+	PrintQuery bool `glazed.parameter:"print-query"`
+}
+
 func NewSqlHelpersParameterLayer(
 	options ...layers.ParameterLayerOptions,
 ) (*layers.ParameterLayerImpl, error) {

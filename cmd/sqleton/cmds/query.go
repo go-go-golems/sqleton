@@ -8,17 +8,18 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
-	cmds2 "github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/jmoiron/sqlx"
 )
 
 type QueryCommand struct {
-	dbConnectionFactory cmds2.DBConnectionFactory
+	dbConnectionFactory sql.DBConnectionFactory
 	*cmds.CommandDescription
 }
 
+var _ cmds.GlazeCommand = (*QueryCommand)(nil)
+
 func NewQueryCommand(
-	dbConnectionFactory cmds2.DBConnectionFactory,
+	dbConnectionFactory sql.DBConnectionFactory,
 	options ...cmds.CommandDescriptionOption,
 ) (*QueryCommand, error) {
 	glazeParameterLayer, err := settings.NewGlazedParameterLayers()
@@ -43,13 +44,21 @@ func NewQueryCommand(
 	}, nil
 }
 
-func (q *QueryCommand) Run(
+type QuerySettings struct {
+	Query string `glazed.parameter:"query"`
+}
+
+func (q *QueryCommand) RunIntoGlazeProcessor(
 	ctx context.Context,
-	parsedLayers map[string]*layers.ParsedParameterLayer,
-	ps map[string]interface{},
+	parsedLayers *layers.ParsedLayers,
 	gp middlewares.Processor,
 ) error {
-	query := ps["query"].(string)
+	d := parsedLayers.GetDefaultParameterLayer()
+	s := &QuerySettings{}
+	err := d.InitializeStruct(s)
+	if err != nil {
+		return err
+	}
 
 	db, err := q.dbConnectionFactory(parsedLayers)
 	if err != nil {
@@ -64,7 +73,7 @@ func (q *QueryCommand) Run(
 		return err
 	}
 
-	err = sql.RunNamedQueryIntoGlaze(ctx, db, query, map[string]interface{}{}, gp)
+	err = sql.RunNamedQueryIntoGlaze(ctx, db, s.Query, map[string]interface{}{}, gp)
 	if err != nil {
 		return err
 	}

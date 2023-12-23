@@ -44,18 +44,18 @@ type SqlCommandDescription struct {
 	Query      string            `yaml:"query"`
 }
 
-type DBConnectionFactory func(parsedLayers map[string]*layers.ParsedParameterLayer) (*sqlx.DB, error)
-
 // SqlCommand describes a command line command that runs a query
 type SqlCommand struct {
 	*cmds.CommandDescription
-	Query               string              `yaml:"query"`
-	SubQueries          map[string]string   `yaml:"subqueries,omitempty"`
-	dbConnectionFactory DBConnectionFactory `yaml:"-"`
+	Query               string                       `yaml:"query"`
+	SubQueries          map[string]string            `yaml:"subqueries,omitempty"`
+	dbConnectionFactory clay_sql.DBConnectionFactory `yaml:"-"`
 	renderedQuery       string
 }
 
-func (s *SqlCommand) Metadata(ctx context.Context, parsedLayers map[string]*layers.ParsedParameterLayer, ps map[string]interface{}) (map[string]interface{}, error) {
+func (s *SqlCommand) Metadata(
+	ctx context.Context,
+	parsedLayers *layers.ParsedLayers) (map[string]interface{}, error) {
 	db, err := s.dbConnectionFactory(parsedLayers)
 	if err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func (s *SqlCommand) Metadata(ctx context.Context, parsedLayers map[string]*laye
 		return nil, errors.Wrapf(err, "Could not ping database")
 	}
 
-	query, err := s.RenderQuery(ctx, ps, db)
+	query, err := s.RenderQuery(ctx, parsedLayers.GetDataMap(), db)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Could not generate query")
 	}
@@ -94,7 +94,7 @@ func (s *SqlCommand) ToYAML(w io.Writer) error {
 
 type SqlCommandOption func(*SqlCommand)
 
-func WithDbConnectionFactory(factory DBConnectionFactory) SqlCommandOption {
+func WithDbConnectionFactory(factory clay_sql.DBConnectionFactory) SqlCommandOption {
 	return func(s *SqlCommand) {
 		s.dbConnectionFactory = factory
 	}
@@ -151,10 +151,9 @@ func NewSqlCommand(
 	return ret, nil
 }
 
-func (s *SqlCommand) Run(
+func (s *SqlCommand) RunIntoGlazeProcessor(
 	ctx context.Context,
-	parsedLayers map[string]*layers.ParsedParameterLayer,
-	ps map[string]interface{},
+	parsedLayers *layers.ParsedLayers,
 	gp middlewares.Processor,
 ) error {
 	if s.dbConnectionFactory == nil {
@@ -175,18 +174,22 @@ func (s *SqlCommand) Run(
 		return errors.Wrapf(err, "Could not ping database")
 	}
 
-	s.renderedQuery, err = s.RenderQuery(ctx, ps, db)
+	s.renderedQuery, err = s.RenderQuery(ctx, parsedLayers.GetDataMap(), db)
 	if err != nil {
 		return errors.Wrapf(err, "Could not generate query")
 	}
 
-	printQuery, _ := ps["print-query"].(bool)
+	printQuery := false
+	if printQuery_, ok := parsedLayers.GetParameter("sql-helpers", "print-query"); ok {
+		printQuery = printQuery_.Value.(bool)
+	}
+
 	if printQuery {
 		fmt.Println(s.renderedQuery)
 		return &cmds.ExitWithoutGlazeError{}
 	}
 
-	err = s.RunQueryIntoGlaze(ctx, db, ps, gp)
+	err = s.RunQueryIntoGlaze(ctx, db, gp)
 	if err != nil {
 		return errors.Wrapf(err, "Could not run query")
 	}
@@ -196,8 +199,7 @@ func (s *SqlCommand) Run(
 
 func (s *SqlCommand) RenderQueryFull(
 	ctx context.Context,
-	parsedLayers map[string]*layers.ParsedParameterLayer,
-	ps map[string]interface{},
+	parsedLayers *layers.ParsedLayers,
 ) (string, error) {
 	if s.dbConnectionFactory == nil {
 		return "", fmt.Errorf("dbConnectionFactory is not set")
@@ -217,7 +219,7 @@ func (s *SqlCommand) RenderQueryFull(
 		return "", errors.Wrapf(err, "Could not ping database")
 	}
 
-	query, err := s.RenderQuery(ctx, ps, db)
+	query, err := s.RenderQuery(ctx, parsedLayers.GetDataMap(), db)
 	if err != nil {
 		return "", errors.Wrapf(err, "Could not generate query")
 	}
@@ -248,7 +250,6 @@ func (s *SqlCommand) RenderQuery(
 func (s *SqlCommand) RunQueryIntoGlaze(
 	ctx context.Context,
 	db *sqlx.DB,
-	ps map[string]interface{},
 	gp middlewares.Processor) error {
 
 	return clay_sql.RunQueryIntoGlaze(ctx, db, s.renderedQuery, []interface{}{}, gp)

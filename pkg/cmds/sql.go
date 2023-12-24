@@ -132,7 +132,7 @@ func NewSqlCommand(
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create SQL helpers parameter layer")
 	}
-	description.Layers = append(description.Layers,
+	description.Layers.AppendLayers(
 		sqlHelpersParameterLayer,
 		glazedParameterLayer,
 		sqlConnectionParameterLayer,

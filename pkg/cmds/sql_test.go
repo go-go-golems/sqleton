@@ -151,8 +151,10 @@ func makeSimpleDefaultLayer(options ...layers.ParsedLayerOption) (*layers.Parsed
 	if err != nil {
 		return nil, err
 	}
-	parsedDefaultLayer, err := layers.NewParsedLayer(
-		defaultLayer, options...)
+	parsedDefaultLayer, err := layers.NewParsedLayer(defaultLayer, options...)
+	if err != nil {
+		return nil, err
+	}
 	parsedLayers := layers.NewParsedLayers(layers.WithParsedLayer(layers.DefaultSlug, parsedDefaultLayer))
 	return parsedLayers, nil
 
@@ -321,7 +323,7 @@ func TestSimpleSubQueryWithArguments(t *testing.T) {
 		),
 	}, table_.Rows)
 
-	s, err = NewSqlCommand(
+	_, err = NewSqlCommand(
 		cmds.NewCommandDescription("test"),
 		WithDbConnectionFactory(createDB),
 		WithQuery(`

@@ -146,6 +146,10 @@ func makeSimpleDefaultLayer(options ...layers.ParsedLayerOption) (*layers.Parsed
 			parameters.NewParameterDefinition(
 				"name",
 				parameters.ParameterTypeString,
+			),
+			parameters.NewParameterDefinition(
+				"test",
+				parameters.ParameterTypeString,
 			)),
 	)
 	if err != nil {
@@ -193,7 +197,7 @@ func TestSimpleSubQuery(t *testing.T) {
 `), s_)
 
 	parsedLayers, err := makeSimpleDefaultLayer(
-		layers.WithParsedParameterValue("test", "test2_3"),
+		layers.WithParsedParameterValue("name", "test2_3"),
 	)
 	require.NoError(t, err)
 
@@ -230,7 +234,7 @@ func TestSimpleSubQuerySingle(t *testing.T) {
 	}(db)
 
 	parsedLayers, err := makeSimpleDefaultLayer(
-		layers.WithParsedParameterValue("test", "test1_1"),
+		layers.WithParsedParameterValue("name", "test1_1"),
 	)
 	require.NoError(t, err)
 
@@ -292,7 +296,7 @@ func TestSimpleSubQueryWithArguments(t *testing.T) {
 	}(db)
 
 	parsedLayers, err := makeSimpleDefaultLayer(
-		layers.WithParsedParameterValue("test", "test1_2"),
+		layers.WithParsedParameterValue("name", "test1_2"),
 	)
 	require.NoError(t, err)
 
@@ -391,7 +395,7 @@ func TestMapSubQueryWithArguments(t *testing.T) {
 	}(db)
 
 	parsedLayers, err := makeSimpleDefaultLayer(
-		layers.WithParsedParameterValue("test", "test1_2"),
+		layers.WithParsedParameterValue("name", "test1_2"),
 	)
 	require.NoError(t, err)
 
@@ -429,7 +433,7 @@ func TestMapSubQuery(t *testing.T) {
 	}(db)
 
 	parsedLayers, err := makeSimpleDefaultLayer(
-		layers.WithParsedParameterValue("test", "test1_2"),
+		layers.WithParsedParameterValue("name", "test1_2"),
 	)
 	require.NoError(t, err)
 

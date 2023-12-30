@@ -5,6 +5,7 @@ import (
 	"fmt"
 	sql2 "github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cli"
+	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/middlewares/row"
 	"github.com/go-go-golems/glazed/pkg/types"
@@ -31,27 +32,23 @@ func createConfigFromCobra(cmd *cobra.Command) *sql2.DatabaseConfig {
 	connectionLayer, err := sql2.NewSqlConnectionParameterLayer()
 	cobra.CheckErr(err)
 
-	ps, err := connectionLayer.ParseFlagsFromCobraCommand(cmd)
-	cobra.CheckErr(err)
-
 	dbtLayer, err := sql2.NewDbtParameterLayer()
 	cobra.CheckErr(err)
 
-	ps2, err := dbtLayer.ParseFlagsFromCobraCommand(cmd)
+	description := cmds.NewCommandDescription(cmd.Name(),
+		cmds.WithLayers(connectionLayer, dbtLayer))
+
+	parser, err := cli.NewCobraParserFromCommandDescription(description,
+		cli.WithCobraMiddlewaresFunc(sql2.GetCobraCommandSqletonMiddlewares),
+	)
 	cobra.CheckErr(err)
 
-	parsedLayers := []*layers.ParsedLayer{
-		{
-			Layer:      connectionLayer,
-			Parameters: ps,
-		},
-		{
-			Layer:      dbtLayer,
-			Parameters: ps2,
-		},
-	}
+	parsedLayers, err := parser.Parse(cmd, nil)
+	cobra.CheckErr(err)
 
-	config, err := sql2.NewConfigFromParsedLayers(parsedLayers...)
+	sqlParsedLayer := parsedLayers.GetOrCreate(connectionLayer)
+	dbtParsedLayer := parsedLayers.GetOrCreate(dbtLayer)
+	config, err := sql2.NewConfigFromParsedLayers(dbtParsedLayer, sqlParsedLayer)
 	cobra.CheckErr(err)
 
 	return config
@@ -353,6 +350,9 @@ func init() {
 
 	err = connectionLayer.AddLayerToCobraCommand(dbPrintSettingsCmd)
 	cobra.CheckErr(err)
+	err = dbtParameterLayer.AddLayerToCobraCommand(dbPrintSettingsCmd)
+	cobra.CheckErr(err)
+
 	dbPrintSettingsCmd.Flags().Bool("individual-rows", false, "Output as individual rows")
 	dbPrintSettingsCmd.Flags().String("with-env-prefix", "", "Output as environment variables with a prefix")
 	dbPrintSettingsCmd.Flags().Bool("use-env-names", false, "Output as SQLETON_ environment variables with a prefix")

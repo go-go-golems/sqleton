@@ -8,6 +8,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
+	"github.com/go-go-golems/glazed/pkg/helpers/cast"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	cmds2 "github.com/go-go-golems/sqleton/pkg/cmds"
@@ -123,19 +124,19 @@ func (sc *SelectCommand) RunIntoGlazeProcessor(
 				Name:    "limit",
 				Type:    parameters.ParameterTypeInteger,
 				Help:    fmt.Sprintf("Limit the number of rows (default: %d), set to 0 to disable", s.Limit),
-				Default: s.Limit,
+				Default: cast.InterfaceAddr(s.Limit),
 			})
 			flags = append(flags, &parameters.ParameterDefinition{
 				Name:    "offset",
 				Type:    parameters.ParameterTypeInteger,
 				Help:    fmt.Sprintf("Offset the number of rows (default: %d)", s.Offset),
-				Default: s.Offset,
+				Default: cast.InterfaceAddr(s.Offset),
 			})
 			flags = append(flags, &parameters.ParameterDefinition{
 				Name:    "distinct",
 				Type:    parameters.ParameterTypeBool,
 				Help:    fmt.Sprintf("Whether to select distinct rows (default: %t)", s.Distinct),
-				Default: s.Distinct,
+				Default: cast.InterfaceAddr(s.Distinct),
 			})
 
 			orderByHelp := "Order by"
@@ -148,7 +149,7 @@ func (sc *SelectCommand) RunIntoGlazeProcessor(
 				Name:    "order_by",
 				Type:    parameters.ParameterTypeString,
 				Help:    orderByHelp,
-				Default: orderDefault,
+				Default: cast.InterfaceAddr(orderDefault),
 			})
 		}
 

@@ -94,7 +94,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		cobraCommand, err := cli.BuildCobraCommandFromGlazeCommand(glazeCommand)
+		cobraCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(glazeCommand)
 		if err != nil {
 			fmt.Printf("Could not build cobra command: %v\n", err)
 			os.Exit(1)
@@ -171,7 +171,8 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	if err != nil {
 		return err
 	}
-	cobraRunCommand, err := cli.BuildCobraCommandFromGlazeCommand(runCommand)
+
+	cobraRunCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(runCommand)
 	if err != nil {
 		return err
 	}
@@ -185,7 +186,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	if err != nil {
 		return err
 	}
-	cobraSelectCommand, err := cli.BuildCobraCommandFromGlazeCommand(selectCommand)
+	cobraSelectCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(selectCommand)
 	if err != nil {
 		return err
 	}
@@ -200,7 +201,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	if err != nil {
 		return err
 	}
-	cobraQueryCommand, err := cli.BuildCobraCommandFromGlazeCommand(queryCommand)
+	cobraQueryCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(queryCommand)
 	if err != nil {
 		return err
 	}
@@ -267,7 +268,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	if err != nil {
 		return err
 	}
-	cobraQueriesCommand, err := cli.BuildCobraCommandFromGlazeCommand(queriesCommand)
+	cobraQueriesCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(queriesCommand)
 	if err != nil {
 		return err
 	}

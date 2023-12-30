@@ -245,7 +245,10 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		os.Exit(1)
 	}
 
-	err = cli.AddCommandsToRootCommand(rootCmd, commands, aliases)
+	err = cli.AddCommandsToRootCommand(
+		rootCmd, commands, aliases,
+		cli.WithCobraMiddlewaresFunc(sql.GetCobraCommandSqletonMiddlewares),
+	)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
 		os.Exit(1)

@@ -36,7 +36,7 @@ func createConfigFromCobra(cmd *cobra.Command) *sql2.DatabaseConfig {
 	cobra.CheckErr(err)
 
 	description := cmds.NewCommandDescription(cmd.Name(),
-		cmds.WithLayers(connectionLayer, dbtLayer))
+		cmds.WithLayersList(connectionLayer, dbtLayer))
 
 	parser, err := cli.NewCobraParserFromCommandDescription(description,
 		cli.WithCobraMiddlewaresFunc(sql2.GetCobraCommandSqletonMiddlewares),

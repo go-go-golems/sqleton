@@ -245,7 +245,7 @@ func NewSelectCommand(
 				parameters.WithRequired(true),
 			),
 		),
-		cmds.WithLayers(
+		cmds.WithLayersList(
 			selectParameterLayer,
 			glazedParameterLayer,
 			sqlHelpersParameterLayer,

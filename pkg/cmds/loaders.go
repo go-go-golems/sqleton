@@ -59,7 +59,7 @@ func (scl *SqlCommandLoader) loadSqlCommandFromReader(
 		cmds.WithLong(scd.Long),
 		cmds.WithFlags(scd.Flags...),
 		cmds.WithArguments(scd.Arguments...),
-		cmds.WithLayers(scd.Layers...),
+		cmds.WithLayersList(scd.Layers...),
 		cmds.WithLayout(&layout.Layout{
 			Sections: scd.Layout,
 		}),

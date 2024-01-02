@@ -107,7 +107,7 @@ func NewRunCommand(
 				parameters.WithRequired(true),
 			),
 		),
-		cmds.WithLayers(
+		cmds.WithLayersList(
 			glazedParameterLayer,
 			sqlHelpersParameterLayer,
 		),

@@ -164,7 +164,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	}
 
 	runCommand, err := cmds.NewRunCommand(sql.OpenDatabaseFromDefaultSqlConnectionLayer,
-		glazed_cmds.WithLayers(
+		glazed_cmds.WithLayersList(
 			dbtParameterLayer,
 			sqlConnectionParameterLayer,
 		))
@@ -179,7 +179,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	rootCmd.AddCommand(cobraRunCommand)
 
 	selectCommand, err := cmds.NewSelectCommand(sql.OpenDatabaseFromDefaultSqlConnectionLayer,
-		glazed_cmds.WithLayers(
+		glazed_cmds.WithLayersList(
 			dbtParameterLayer,
 			sqlConnectionParameterLayer,
 		))
@@ -194,7 +194,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 
 	queryCommand, err := cmds.NewQueryCommand(
 		sql.OpenDatabaseFromDefaultSqlConnectionLayer,
-		glazed_cmds.WithLayers(
+		glazed_cmds.WithLayersList(
 			dbtParameterLayer,
 			sqlConnectionParameterLayer,
 		))
@@ -257,7 +257,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	serveCommand := cmds.NewServeCommand(
 		sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 		repositories,
-		glazed_cmds.WithLayers(
+		glazed_cmds.WithLayersList(
 			dbtParameterLayer,
 			sqlConnectionParameterLayer,
 		))

@@ -35,7 +35,7 @@ func NewQueryCommand(
 			parameters.WithRequired(true),
 		),
 		),
-		cmds.WithLayers(glazeParameterLayer),
+		cmds.WithLayersList(glazeParameterLayer),
 	}, options...)
 
 	return &QueryCommand{

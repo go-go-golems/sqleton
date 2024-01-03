@@ -2,14 +2,12 @@ package cmds
 
 import (
 	"context"
-	"fmt"
 	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	cli "github.com/go-go-golems/glazed/pkg/settings"
-	cmds2 "github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/go-go-golems/sqleton/pkg/flags"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
@@ -21,17 +19,29 @@ import (
 
 type RunCommand struct {
 	*cmds.CommandDescription
-	dbConnectionFactory cmds2.DBConnectionFactory
+	dbConnectionFactory sql.DBConnectionFactory
 }
 
-func (c *RunCommand) Run(
+var _ cmds.GlazeCommand = (*RunCommand)(nil)
+
+type RunSettings struct {
+	InputFiles []string `glazed.parameter:"input-files"`
+}
+
+func (c *RunCommand) RunIntoGlazeProcessor(
 	ctx context.Context,
-	parsedLayers map[string]*layers.ParsedParameterLayer,
-	ps map[string]interface{},
+	parsedLayers *layers.ParsedLayers,
 	gp middlewares.Processor) error {
-	inputFiles, ok := ps["input-files"].([]string)
-	if !ok {
-		return fmt.Errorf("input-files is not a string list")
+
+	s := &RunSettings{}
+	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
+	if err != nil {
+		return err
+	}
+	ss := &flags.SqlHelpersSettings{}
+	err = parsedLayers.InitializeStruct(flags.SqlHelpersSlug, ss)
+	if err != nil {
+		return errors.Wrap(err, "could not initialize sql-helpers settings")
 	}
 
 	db, err := c.dbConnectionFactory(parsedLayers)
@@ -47,9 +57,7 @@ func (c *RunCommand) Run(
 		return errors.Wrapf(err, "Could not ping database")
 	}
 
-	explain, _ := ps["explain"].(bool)
-
-	for _, arg := range inputFiles {
+	for _, arg := range s.InputFiles {
 		query := ""
 
 		if arg == "-" {
@@ -64,7 +72,7 @@ func (c *RunCommand) Run(
 			query = string(queryBytes)
 		}
 
-		if explain {
+		if ss.Explain {
 			query = "EXPLAIN " + query
 		}
 
@@ -78,7 +86,7 @@ func (c *RunCommand) Run(
 }
 
 func NewRunCommand(
-	dbConnectionFactory cmds2.DBConnectionFactory,
+	dbConnectionFactory sql.DBConnectionFactory,
 	options ...cmds.CommandDescriptionOption,
 ) (*RunCommand, error) {
 	glazedParameterLayer, err := cli.NewGlazedParameterLayers()
@@ -99,7 +107,7 @@ func NewRunCommand(
 				parameters.WithRequired(true),
 			),
 		),
-		cmds.WithLayers(
+		cmds.WithLayersList(
 			glazedParameterLayer,
 			sqlHelpersParameterLayer,
 		),

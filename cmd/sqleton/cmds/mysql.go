@@ -2,7 +2,6 @@ package cmds
 
 import (
 	"github.com/go-go-golems/clay/pkg/sql"
-	"github.com/go-go-golems/glazed/pkg/cli"
 	glazed_cmds "github.com/go-go-golems/glazed/pkg/cmds"
 	sqleton "github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/spf13/cobra"
@@ -25,7 +24,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	cobraPsCommand, err := cli.BuildCobraCommandFromGlazeCommand(psCommand)
+	cobraPsCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(psCommand)
 	if err != nil {
 		panic(err)
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	sql2 "github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cli"
+	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/middlewares/row"
 	"github.com/go-go-golems/glazed/pkg/types"
@@ -31,27 +32,23 @@ func createConfigFromCobra(cmd *cobra.Command) *sql2.DatabaseConfig {
 	connectionLayer, err := sql2.NewSqlConnectionParameterLayer()
 	cobra.CheckErr(err)
 
-	ps, err := connectionLayer.ParseFlagsFromCobraCommand(cmd)
-	cobra.CheckErr(err)
-
 	dbtLayer, err := sql2.NewDbtParameterLayer()
 	cobra.CheckErr(err)
 
-	ps2, err := dbtLayer.ParseFlagsFromCobraCommand(cmd)
+	description := cmds.NewCommandDescription(cmd.Name(),
+		cmds.WithLayersList(connectionLayer, dbtLayer))
+
+	parser, err := cli.NewCobraParserFromCommandDescription(description,
+		cli.WithCobraMiddlewaresFunc(sql2.GetCobraCommandSqletonMiddlewares),
+	)
 	cobra.CheckErr(err)
 
-	parsedLayers := []*layers.ParsedParameterLayer{
-		{
-			Layer:      connectionLayer,
-			Parameters: ps,
-		},
-		{
-			Layer:      dbtLayer,
-			Parameters: ps2,
-		},
-	}
+	parsedLayers, err := parser.Parse(cmd, nil)
+	cobra.CheckErr(err)
 
-	config, err := sql2.NewConfigFromParsedLayers(parsedLayers...)
+	sqlParsedLayer := parsedLayers.GetOrCreate(connectionLayer)
+	dbtParsedLayer := parsedLayers.GetOrCreate(dbtLayer)
+	config, err := sql2.NewConfigFromParsedLayers(dbtParsedLayer, sqlParsedLayer)
 	cobra.CheckErr(err)
 
 	return config
@@ -333,26 +330,29 @@ func init() {
 	dbtParameterLayer, err := sql2.NewDbtParameterLayer()
 	cobra.CheckErr(err)
 
-	err = connectionLayer.AddFlagsToCobraCommand(dbTestConnectionCmd)
+	err = connectionLayer.AddLayerToCobraCommand(dbTestConnectionCmd)
 	cobra.CheckErr(err)
 	DbCmd.AddCommand(dbTestConnectionCmd)
 
-	err = dbtParameterLayer.AddFlagsToCobraCommand(dbTestConnectionCmd)
+	err = dbtParameterLayer.AddLayerToCobraCommand(dbTestConnectionCmd)
 	cobra.CheckErr(err)
 
-	err = connectionLayer.AddFlagsToCobraCommand(dbPrintEvidenceSettingsCmd)
+	err = connectionLayer.AddLayerToCobraCommand(dbPrintEvidenceSettingsCmd)
 	cobra.CheckErr(err)
 	dbPrintEvidenceSettingsCmd.Flags().String("git-repo", "", "Git repo to use for evidence.dev")
 	DbCmd.AddCommand(dbPrintEvidenceSettingsCmd)
 
-	err = connectionLayer.AddFlagsToCobraCommand(dbPrintEnvCmd)
+	err = connectionLayer.AddLayerToCobraCommand(dbPrintEnvCmd)
 	cobra.CheckErr(err)
 	dbPrintEnvCmd.Flags().Bool("envrc", false, "Output as an .envrc file")
 	dbPrintEnvCmd.Flags().String("env-prefix", "SQLETON_", "Prefix for environment variables")
 	DbCmd.AddCommand(dbPrintEnvCmd)
 
-	err = connectionLayer.AddFlagsToCobraCommand(dbPrintSettingsCmd)
+	err = connectionLayer.AddLayerToCobraCommand(dbPrintSettingsCmd)
 	cobra.CheckErr(err)
+	err = dbtParameterLayer.AddLayerToCobraCommand(dbPrintSettingsCmd)
+	cobra.CheckErr(err)
+
 	dbPrintSettingsCmd.Flags().Bool("individual-rows", false, "Output as individual rows")
 	dbPrintSettingsCmd.Flags().String("with-env-prefix", "", "Output as environment variables with a prefix")
 	dbPrintSettingsCmd.Flags().Bool("use-env-names", false, "Output as SQLETON_ environment variables with a prefix")
@@ -364,7 +364,7 @@ func init() {
 		layers.WithPrefix("test-"),
 	)
 	cobra.CheckErr(err)
-	err = connectionLayer.AddFlagsToCobraCommand(dbTestConnectionCmdWithPrefix)
+	err = connectionLayer.AddLayerToCobraCommand(dbTestConnectionCmdWithPrefix)
 	cobra.CheckErr(err)
 	DbCmd.AddCommand(dbTestConnectionCmdWithPrefix)
 }

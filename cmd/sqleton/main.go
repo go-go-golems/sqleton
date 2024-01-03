@@ -94,7 +94,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		cobraCommand, err := cli.BuildCobraCommandFromGlazeCommand(glazeCommand)
+		cobraCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(glazeCommand)
 		if err != nil {
 			fmt.Printf("Could not build cobra command: %v\n", err)
 			os.Exit(1)
@@ -164,28 +164,29 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	}
 
 	runCommand, err := cmds.NewRunCommand(sql.OpenDatabaseFromDefaultSqlConnectionLayer,
-		glazed_cmds.WithLayers(
+		glazed_cmds.WithLayersList(
 			dbtParameterLayer,
 			sqlConnectionParameterLayer,
 		))
 	if err != nil {
 		return err
 	}
-	cobraRunCommand, err := cli.BuildCobraCommandFromGlazeCommand(runCommand)
+
+	cobraRunCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(runCommand)
 	if err != nil {
 		return err
 	}
 	rootCmd.AddCommand(cobraRunCommand)
 
 	selectCommand, err := cmds.NewSelectCommand(sql.OpenDatabaseFromDefaultSqlConnectionLayer,
-		glazed_cmds.WithLayers(
+		glazed_cmds.WithLayersList(
 			dbtParameterLayer,
 			sqlConnectionParameterLayer,
 		))
 	if err != nil {
 		return err
 	}
-	cobraSelectCommand, err := cli.BuildCobraCommandFromGlazeCommand(selectCommand)
+	cobraSelectCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(selectCommand)
 	if err != nil {
 		return err
 	}
@@ -193,14 +194,14 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 
 	queryCommand, err := cmds.NewQueryCommand(
 		sql.OpenDatabaseFromDefaultSqlConnectionLayer,
-		glazed_cmds.WithLayers(
+		glazed_cmds.WithLayersList(
 			dbtParameterLayer,
 			sqlConnectionParameterLayer,
 		))
 	if err != nil {
 		return err
 	}
-	cobraQueryCommand, err := cli.BuildCobraCommandFromGlazeCommand(queryCommand)
+	cobraQueryCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(queryCommand)
 	if err != nil {
 		return err
 	}
@@ -244,7 +245,10 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		os.Exit(1)
 	}
 
-	err = cli.AddCommandsToRootCommand(rootCmd, commands, aliases)
+	err = cli.AddCommandsToRootCommand(
+		rootCmd, commands, aliases,
+		cli.WithCobraMiddlewaresFunc(sql.GetCobraCommandSqletonMiddlewares),
+	)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
 		os.Exit(1)
@@ -252,8 +256,8 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 
 	serveCommand := cmds.NewServeCommand(
 		sql.OpenDatabaseFromDefaultSqlConnectionLayer,
-		repositories, commands, aliases,
-		glazed_cmds.WithLayers(
+		repositories,
+		glazed_cmds.WithLayersList(
 			dbtParameterLayer,
 			sqlConnectionParameterLayer,
 		))
@@ -267,7 +271,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	if err != nil {
 		return err
 	}
-	cobraQueriesCommand, err := cli.BuildCobraCommandFromGlazeCommand(queriesCommand)
+	cobraQueriesCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(queriesCommand)
 	if err != nil {
 		return err
 	}

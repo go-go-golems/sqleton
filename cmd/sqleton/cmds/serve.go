@@ -4,8 +4,8 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
-	"github.com/go-go-golems/glazed/pkg/cmds/alias"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/parka/pkg/glazed/handlers/datatables"
@@ -27,8 +27,76 @@ import (
 
 type ServeCommand struct {
 	*cmds.CommandDescription
-	dbConnectionFactory cmds2.DBConnectionFactory
+	dbConnectionFactory sql.DBConnectionFactory
 	repositories        []string
+}
+
+var _ cmds.BareCommand = (*ServeCommand)(nil)
+
+type ServeSettings struct {
+	Dev         bool     `glazed.parameter:"dev"`
+	Debug       bool     `glazed.parameter:"debug"`
+	ServePort   int      `glazed.parameter:"serve-port"`
+	ServeHost   string   `glazed.parameter:"serve-host"`
+	ContentDirs []string `glazed.parameter:"content-dirs"`
+	ConfigFile  string   `glazed.parameter:"config-file"`
+}
+
+func NewServeCommand(
+	dbConnectionFactory sql.DBConnectionFactory,
+	repositories []string,
+	options ...cmds.CommandDescriptionOption,
+) *ServeCommand {
+	options_ := append(options,
+		cmds.WithShort("Serve the API"),
+		cmds.WithArguments(),
+		cmds.WithFlags(
+			parameters.NewParameterDefinition(
+				"serve-port",
+				parameters.ParameterTypeInteger,
+				parameters.WithShortFlag("p"),
+				parameters.WithHelp("Port to serve the API on"),
+				parameters.WithDefault(8080),
+			),
+			parameters.NewParameterDefinition(
+				"serve-host",
+				parameters.ParameterTypeString,
+				parameters.WithHelp("Host to serve the API on"),
+				parameters.WithDefault("localhost"),
+			),
+			parameters.NewParameterDefinition(
+				"dev",
+				parameters.ParameterTypeBool,
+				parameters.WithHelp("Run in development mode"),
+				parameters.WithDefault(false),
+			),
+			parameters.NewParameterDefinition(
+				"debug",
+				parameters.ParameterTypeBool,
+				parameters.WithHelp("Run in debug mode (expose /debug/pprof routes)"),
+				parameters.WithDefault(false),
+			),
+			parameters.NewParameterDefinition(
+				"content-dirs",
+				parameters.ParameterTypeStringList,
+				parameters.WithHelp("Serve static and templated files from these directories"),
+				parameters.WithDefault([]string{}),
+			),
+			parameters.NewParameterDefinition(
+				"config-file",
+				parameters.ParameterTypeString,
+				parameters.WithHelp("Config file to configure the serve functionality"),
+			),
+		),
+	)
+	return &ServeCommand{
+		dbConnectionFactory: dbConnectionFactory,
+		CommandDescription: cmds.NewCommandDescription(
+			"serve",
+			options_...,
+		),
+		repositories: repositories,
+	}
 }
 
 // NOTE(manuel, 2023-12-13) Why do we embed the favicon.ico here?
@@ -38,11 +106,28 @@ var staticFiles embed.FS
 
 func (s *ServeCommand) runWithConfigFile(
 	ctx context.Context,
-	parsedLayers map[string]*layers.ParsedParameterLayer,
-	ps map[string]interface{},
+	parsedLayers *layers.ParsedLayers,
 	configFilePath string,
 	serverOptions []server.ServerOption,
 ) error {
+	ss := &ServeSettings{}
+	err := parsedLayers.InitializeStruct(layers.DefaultSlug, ss)
+	if err != nil {
+		return err
+	}
+
+	sqlConnectionSettings := &sql.SqlConnectionSettings{}
+	dbtSettings := &sql.DbtSettings{}
+
+	err = parsedLayers.InitializeStruct(sql.SqlConnectionSlug, sqlConnectionSettings)
+	if err != nil {
+		return err
+	}
+	err = parsedLayers.InitializeStruct(sql.DbtSlug, dbtSettings)
+	if err != nil {
+		return err
+	}
+
 	configData, err := os.ReadFile(configFilePath)
 	if err != nil {
 		return err
@@ -58,38 +143,37 @@ func (s *ServeCommand) runWithConfigFile(
 		return err
 	}
 
-	debug := ps["debug"].(bool)
-	if debug {
+	if ss.Debug {
 		server_.RegisterDebugRoutes()
 	}
 
 	commandDirHandlerOptions := []command_dir.CommandDirHandlerOption{}
 	templateDirHandlerOptions := []template_dir.TemplateDirHandlerOption{}
 
-	sqlConnectionLayer := parsedLayers["sql-connection"]
-	if sqlConnectionLayer == nil {
+	sqlConnectionLayer, ok := parsedLayers.Get("sql-connection")
+	if !ok || sqlConnectionLayer == nil {
 		return errors.New("sql-connection layer not found")
 	}
-	dbtConnectionLayer := parsedLayers["dbt"]
-	if dbtConnectionLayer == nil {
+	dbtConnectionLayer, ok := parsedLayers.Get("dbt")
+	if !ok || dbtConnectionLayer == nil {
 		return errors.New("dbt layer not found")
 	}
 
 	// TODO(manuel, 2023-06-20): These should be able to be set from the config file itself.
 	// See: https://github.com/go-go-golems/parka/issues/51
-	devMode := ps["dev"].(bool)
+	devMode := ss.Dev
 
 	// NOTE(manuel, 2023-12-13) Why do we append these to the config file?
 	commandDirHandlerOptions = append(
 		commandDirHandlerOptions,
-		command_dir.WithOverridesAndDefaultsOptions(
+		command_dir.WithParameterFilterOptions(
 			config.WithLayerDefaults(
 				sqlConnectionLayer.Layer.GetSlug(),
-				sqlConnectionLayer.Parameters,
+				sqlConnectionLayer.Parameters.ToMap(),
 			),
 			config.WithLayerDefaults(
 				dbtConnectionLayer.Layer.GetSlug(),
-				dbtConnectionLayer.Parameters,
+				dbtConnectionLayer.Parameters.ToMap(),
 			),
 		),
 		command_dir.WithDefaultTemplateName("data-tables.tmpl.html"),
@@ -149,23 +233,21 @@ func (s *ServeCommand) runWithConfigFile(
 
 func (s *ServeCommand) Run(
 	ctx context.Context,
-	parsedLayers map[string]*layers.ParsedParameterLayer,
-	ps map[string]interface{},
+	parsedLayers *layers.ParsedLayers,
 ) error {
-	// now set up parka server
-	port := ps["serve-port"].(int)
-	host := ps["serve-host"].(string)
-	debug := ps["debug"].(bool)
-	dev, _ := ps["dev"].(bool)
-
+	ss := &ServeSettings{}
+	err := parsedLayers.InitializeStruct(layers.DefaultSlug, ss)
+	if err != nil {
+		return err
+	}
 	serverOptions := []server.ServerOption{
-		server.WithPort(uint16(port)),
-		server.WithAddress(host),
+		server.WithPort(uint16(ss.ServePort)),
+		server.WithAddress(ss.ServeHost),
 		server.WithGzip(),
 	}
 
-	if configFilePath, ok := ps["config-file"]; ok {
-		return s.runWithConfigFile(ctx, parsedLayers, ps, configFilePath.(string), serverOptions)
+	if ss.ConfigFile != "" {
+		return s.runWithConfigFile(ctx, parsedLayers, ss.ConfigFile, serverOptions)
 	}
 
 	configFile := &config.Config{
@@ -179,7 +261,7 @@ func (s *ServeCommand) Run(
 		},
 	}
 
-	contentDirs := ps["content-dirs"].([]string)
+	contentDirs := ss.ContentDirs
 
 	if len(contentDirs) > 1 {
 		return fmt.Errorf("only one content directory is supported at the moment")
@@ -201,7 +283,7 @@ func (s *ServeCommand) Run(
 
 	// NOTE(manuel, 2023-12-13) Unsure why we really need the static paths here instead of dealing with this
 	// in the package maybe?
-	if dev {
+	if ss.Dev {
 		configFile.Routes = append(configFile.Routes, &config.Route{
 			Path: "/static",
 			Static: &config.Static{
@@ -222,7 +304,7 @@ func (s *ServeCommand) Run(
 		return err
 	}
 
-	if debug {
+	if ss.Debug {
 		server_.RegisterDebugRoutes()
 	}
 
@@ -233,36 +315,36 @@ func (s *ServeCommand) Run(
 	)
 
 	// This section configures the command directory default setting specific to sqleton
-	sqlConnectionLayer := parsedLayers["sql-connection"]
-	if sqlConnectionLayer == nil {
+	sqlConnectionLayer, ok := parsedLayers.Get("sql-connection")
+	if !ok || sqlConnectionLayer == nil {
 		return fmt.Errorf("sql-connection layer is required")
 	}
-	dbtConnectionLayer := parsedLayers["dbt"]
-	if dbtConnectionLayer == nil {
+	dbtConnectionLayer, ok := parsedLayers.Get("dbt")
+	if !ok || dbtConnectionLayer == nil {
 		return fmt.Errorf("dbt layer is required")
 	}
 
 	// commandDirHandlerOptions will apply to all command dirs loaded by the server
 	commandDirHandlerOptions := []command_dir.CommandDirHandlerOption{
 		command_dir.WithTemplateLookup(datatables.NewDataTablesLookupTemplate()),
-		command_dir.WithOverridesAndDefaultsOptions(
+		command_dir.WithParameterFilterOptions(
 			config.WithReplaceOverrideLayer(
 				dbtConnectionLayer.Layer.GetSlug(),
-				dbtConnectionLayer.Parameters,
+				dbtConnectionLayer.Parameters.ToMap(),
 			),
 			config.WithReplaceOverrideLayer(
 				sqlConnectionLayer.Layer.GetSlug(),
-				sqlConnectionLayer.Parameters,
+				sqlConnectionLayer.Parameters.ToMap(),
 			),
 		),
 		command_dir.WithDefaultTemplateName("data-tables.tmpl.html"),
 		command_dir.WithDefaultIndexTemplateName(""),
-		command_dir.WithDevMode(dev),
+		command_dir.WithDevMode(ss.Dev),
 	}
 
 	templateDirHandlerOptions := []template_dir.TemplateDirHandlerOption{
 		// add lookup functions for data-tables.tmpl.html and others
-		template_dir.WithAlwaysReload(dev),
+		template_dir.WithAlwaysReload(ss.Dev),
 	}
 
 	err = configFile.Initialize()
@@ -275,7 +357,7 @@ func (s *ServeCommand) Run(
 		handlers.WithAppendCommandDirHandlerOptions(commandDirHandlerOptions...),
 		handlers.WithAppendTemplateDirHandlerOptions(templateDirHandlerOptions...),
 		handlers.WithRepositoryFactory(cmds2.NewRepositoryFactory()),
-		handlers.WithDevMode(dev),
+		handlers.WithDevMode(ss.Dev),
 	)
 
 	err = runConfigFileHandler(ctx, server_, cfh)
@@ -313,61 +395,4 @@ func runConfigFileHandler(ctx context.Context, server_ *server.Server, cfh *hand
 	}
 
 	return nil
-}
-
-func NewServeCommand(
-	dbConnectionFactory cmds2.DBConnectionFactory,
-	repositories []string, commands []cmds.Command, aliases []*alias.CommandAlias,
-	options ...cmds.CommandDescriptionOption,
-) *ServeCommand {
-	options_ := append(options,
-		cmds.WithShort("Serve the API"),
-		cmds.WithArguments(),
-		cmds.WithFlags(
-			parameters.NewParameterDefinition(
-				"serve-port",
-				parameters.ParameterTypeInteger,
-				parameters.WithShortFlag("p"),
-				parameters.WithHelp("Port to serve the API on"),
-				parameters.WithDefault(8080),
-			),
-			parameters.NewParameterDefinition(
-				"serve-host",
-				parameters.ParameterTypeString,
-				parameters.WithHelp("Host to serve the API on"),
-				parameters.WithDefault("localhost"),
-			),
-			parameters.NewParameterDefinition(
-				"dev",
-				parameters.ParameterTypeBool,
-				parameters.WithHelp("Run in development mode"),
-				parameters.WithDefault(false),
-			),
-			parameters.NewParameterDefinition(
-				"debug",
-				parameters.ParameterTypeBool,
-				parameters.WithHelp("Run in debug mode (expose /debug/pprof routes)"),
-				parameters.WithDefault(false),
-			),
-			parameters.NewParameterDefinition(
-				"content-dirs",
-				parameters.ParameterTypeStringList,
-				parameters.WithHelp("Serve static and templated files from these directories"),
-				parameters.WithDefault([]string{}),
-			),
-			parameters.NewParameterDefinition(
-				"config-file",
-				parameters.ParameterTypeString,
-				parameters.WithHelp("Config file to configure the serve functionality"),
-			),
-		),
-	)
-	return &ServeCommand{
-		dbConnectionFactory: dbConnectionFactory,
-		CommandDescription: cmds.NewCommandDescription(
-			"serve",
-			options_...,
-		),
-		repositories: repositories,
-	}
 }

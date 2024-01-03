@@ -8,6 +8,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
+	"github.com/go-go-golems/glazed/pkg/helpers/cast"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	cmds2 "github.com/go-go-golems/sqleton/pkg/cmds"
@@ -31,34 +32,42 @@ func NewSelectParameterLayer() (*layers.ParameterLayerImpl, error) {
 	return ret, nil
 }
 
+const SelectSlug = "select"
+
 type SelectCommand struct {
 	*cmds.CommandDescription
-	dbConnectionFactory cmds2.DBConnectionFactory
+	dbConnectionFactory sql2.DBConnectionFactory
 }
 
 type SelectCommandSettings struct {
-	Columns  []string `glazed.parameter:"columns"`
-	Limit    int      `glazed.parameter:"limit"`
-	Offset   int      `glazed.parameter:"offset"`
-	Count    bool     `glazed.parameter:"count"`
-	Where    string   `glazed.parameter:"where"`
-	OrderBy  string   `glazed.parameter:"order-by"`
-	Distinct bool     `glazed.parameter:"distinct"`
-	Table    string   `glazed.parameter:"table"`
+	Columns     []string `glazed.parameter:"columns"`
+	Limit       int      `glazed.parameter:"limit"`
+	Offset      int      `glazed.parameter:"offset"`
+	Count       bool     `glazed.parameter:"count"`
+	Where       string   `glazed.parameter:"where"`
+	OrderBy     string   `glazed.parameter:"order-by"`
+	Distinct    bool     `glazed.parameter:"distinct"`
+	Table       string   `glazed.parameter:"table"`
+	CreateQuery string   `glazed.parameter:"create-query"`
 }
 
-func (sc *SelectCommand) Run(
+var _ cmds.GlazeCommand = (*SelectCommand)(nil)
+
+func (sc *SelectCommand) RunIntoGlazeProcessor(
 	ctx context.Context,
-	parsedLayers map[string]*layers.ParsedParameterLayer,
-	ps map[string]interface{},
+	parsedLayers *layers.ParsedLayers,
 	gp middlewares.Processor,
 ) error {
 	s := &SelectCommandSettings{}
-
-	// pass in ps so we also get the `table` arguments
-	err := parameters.InitializeStructFromParameters(s, ps)
+	err := parsedLayers.InitializeStruct(SelectSlug, s)
 	if err != nil {
-		return errors.Wrap(err, "Failed to initialize select command settings")
+		return err
+	}
+
+	ss := &flags.SqlHelpersSettings{}
+	err = parsedLayers.InitializeStruct(flags.SqlHelpersSlug, ss)
+	if err != nil {
+		return errors.Wrap(err, "could not initialize sql-helpers settings")
 	}
 
 	sb := sqlbuilder.NewSelectBuilder()
@@ -94,9 +103,7 @@ func (sc *SelectCommand) Run(
 		sb = sb.OrderBy(s.OrderBy)
 	}
 
-	createQuery, _ := ps["create-query"].(string)
-
-	if createQuery != "" {
+	if s.CreateQuery != "" {
 		short := fmt.Sprintf("Select"+" columns from %s", s.Table)
 		if s.Count {
 			short = fmt.Sprintf("Count all rows from %s", s.Table)
@@ -117,19 +124,19 @@ func (sc *SelectCommand) Run(
 				Name:    "limit",
 				Type:    parameters.ParameterTypeInteger,
 				Help:    fmt.Sprintf("Limit the number of rows (default: %d), set to 0 to disable", s.Limit),
-				Default: s.Limit,
+				Default: cast.InterfaceAddr(s.Limit),
 			})
 			flags = append(flags, &parameters.ParameterDefinition{
 				Name:    "offset",
 				Type:    parameters.ParameterTypeInteger,
 				Help:    fmt.Sprintf("Offset the number of rows (default: %d)", s.Offset),
-				Default: s.Offset,
+				Default: cast.InterfaceAddr(s.Offset),
 			})
 			flags = append(flags, &parameters.ParameterDefinition{
 				Name:    "distinct",
 				Type:    parameters.ParameterTypeBool,
 				Help:    fmt.Sprintf("Whether to select distinct rows (default: %t)", s.Distinct),
-				Default: s.Distinct,
+				Default: cast.InterfaceAddr(s.Distinct),
 			})
 
 			orderByHelp := "Order by"
@@ -142,7 +149,7 @@ func (sc *SelectCommand) Run(
 				Name:    "order_by",
 				Type:    parameters.ParameterTypeString,
 				Help:    orderByHelp,
-				Default: orderDefault,
+				Default: cast.InterfaceAddr(orderDefault),
 			})
 		}
 
@@ -163,11 +170,9 @@ func (sc *SelectCommand) Run(
 		_, _ = fmt.Fprintf(sb, "\nOFFSET {{ .offset }}")
 
 		query := sb.String()
-		sqlCommand, err := cmds2.NewSqlCommand(&cmds.CommandDescription{
-			Name:  createQuery,
-			Short: short,
-			Flags: flags,
-		},
+		sqlCommand, err := cmds2.NewSqlCommand(
+			cmds.NewCommandDescription(s.CreateQuery,
+				cmds.WithShort(short), cmds.WithFlags(flags...)),
 			cmds2.WithDbConnectionFactory(sql2.OpenDatabaseFromDefaultSqlConnectionLayer),
 			cmds2.WithQuery(query),
 		)
@@ -187,9 +192,7 @@ func (sc *SelectCommand) Run(
 
 	query, queryArgs := sb.Build()
 
-	printQuery, _ := ps["print-query"].(bool)
-
-	if printQuery {
+	if ss.PrintQuery {
 		fmt.Println(query)
 		fmt.Println(queryArgs)
 		return nil
@@ -216,7 +219,7 @@ func (sc *SelectCommand) Run(
 }
 
 func NewSelectCommand(
-	dbConnectionFactory cmds2.DBConnectionFactory,
+	dbConnectionFactory sql2.DBConnectionFactory,
 	options ...cmds.CommandDescriptionOption,
 ) (*SelectCommand, error) {
 	glazedParameterLayer, err := settings.NewGlazedParameterLayers()
@@ -242,7 +245,7 @@ func NewSelectCommand(
 				parameters.WithRequired(true),
 			),
 		),
-		cmds.WithLayers(
+		cmds.WithLayersList(
 			selectParameterLayer,
 			glazedParameterLayer,
 			sqlHelpersParameterLayer,

@@ -166,7 +166,7 @@ func (s *ServeCommand) runWithConfigFile(
 	// NOTE(manuel, 2023-12-13) Why do we append these to the config file?
 	commandDirHandlerOptions = append(
 		commandDirHandlerOptions,
-		command_dir.WithOverridesAndDefaultsOptions(
+		command_dir.WithParameterFilterOptions(
 			config.WithLayerDefaults(
 				sqlConnectionLayer.Layer.GetSlug(),
 				sqlConnectionLayer.Parameters.ToMap(),
@@ -327,7 +327,7 @@ func (s *ServeCommand) Run(
 	// commandDirHandlerOptions will apply to all command dirs loaded by the server
 	commandDirHandlerOptions := []command_dir.CommandDirHandlerOption{
 		command_dir.WithTemplateLookup(datatables.NewDataTablesLookupTemplate()),
-		command_dir.WithOverridesAndDefaultsOptions(
+		command_dir.WithParameterFilterOptions(
 			config.WithReplaceOverrideLayer(
 				dbtConnectionLayer.Layer.GetSlug(),
 				dbtConnectionLayer.Parameters.ToMap(),

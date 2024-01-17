@@ -35,10 +35,13 @@ func createConfigFromCobra(cmd *cobra.Command) *sql2.DatabaseConfig {
 	dbtLayer, err := sql2.NewDbtParameterLayer()
 	cobra.CheckErr(err)
 
-	description := cmds.NewCommandDescription(cmd.Name(),
-		cmds.WithLayersList(connectionLayer, dbtLayer))
+	description := cmds.NewCommandDescription(
+		cmd.Name(),
+		cmds.WithLayersList(connectionLayer, dbtLayer),
+	)
 
-	parser, err := cli.NewCobraParserFromCommandDescription(description,
+	parser, err := cli.NewCobraParserFromLayers(
+		description.Layers,
 		cli.WithCobraMiddlewaresFunc(sql2.GetCobraCommandSqletonMiddlewares),
 	)
 	cobra.CheckErr(err)

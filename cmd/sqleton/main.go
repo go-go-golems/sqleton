@@ -9,11 +9,13 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cli"
 	glazed_cmds "github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
+	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
 	"github.com/go-go-golems/glazed/pkg/help"
 	"github.com/go-go-golems/glazed/pkg/helpers/cast"
 	"github.com/go-go-golems/sqleton/cmd/sqleton/cmds"
-	cmds2 "github.com/go-go-golems/sqleton/pkg/cmds"
+	sqleton_cmds "github.com/go-go-golems/sqleton/pkg/cmds"
+	"github.com/go-go-golems/sqleton/pkg/flags"
 	"github.com/pkg/profile"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -71,7 +73,7 @@ func main() {
 	// we need to do this before cobra, because we don't know which flags to load yet
 	if len(os.Args) >= 3 && os.Args[1] == "run-command" && os.Args[2] != "--help" {
 		// load the command
-		loader := &cmds2.SqlCommandLoader{
+		loader := &sqleton_cmds.SqlCommandLoader{
 			DBConnectionFactory: sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 		}
 		fs_, filePath, err := loaders.FileNameToFsFilePath(os.Args[2])
@@ -229,10 +231,10 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		Repositories: repositories,
 	}
 
-	loader := &cmds2.SqlCommandLoader{
+	loader := &sqleton_cmds.SqlCommandLoader{
 		DBConnectionFactory: sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 	}
-	commandLoader := clay_cmds.NewCommandLoader[*cmds2.SqlCommand](&locations)
+	commandLoader := clay_cmds.NewCommandLoader[*sqleton_cmds.SqlCommand](&locations)
 	sqlCommands, aliases, err := commandLoader.LoadCommands(loader, helpSystem)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
@@ -248,6 +250,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	err = cli.AddCommandsToRootCommand(
 		rootCmd, commands, aliases,
 		cli.WithCobraMiddlewaresFunc(sql.GetCobraCommandSqletonMiddlewares),
+		cli.WithCobraShortHelpLayers(layers.DefaultSlug, sql.DbtSlug, sql.SqlConnectionSlug, flags.SqlHelpersSlug),
 	)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
@@ -257,11 +260,8 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	serveCommand := cmds.NewServeCommand(
 		sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 		repositories,
-		glazed_cmds.WithLayersList(
-			dbtParameterLayer,
-			sqlConnectionParameterLayer,
-		))
-	cobraServeCommand, err := cli.BuildCobraCommandFromBareCommand(serveCommand)
+	)
+	cobraServeCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(serveCommand)
 	if err != nil {
 		return err
 	}

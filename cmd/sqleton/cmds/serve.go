@@ -16,7 +16,7 @@ import (
 	"github.com/go-go-golems/parka/pkg/handlers/template-dir"
 	"github.com/go-go-golems/parka/pkg/server"
 	"github.com/go-go-golems/parka/pkg/utils/fs"
-	cmds2 "github.com/go-go-golems/sqleton/pkg/cmds"
+	sqleton_cmds "github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	"net/http"
@@ -116,18 +116,6 @@ func (s *ServeCommand) runWithConfigFile(
 		return err
 	}
 
-	sqlConnectionSettings := &sql.SqlConnectionSettings{}
-	dbtSettings := &sql.DbtSettings{}
-
-	err = parsedLayers.InitializeStruct(sql.SqlConnectionSlug, sqlConnectionSettings)
-	if err != nil {
-		return err
-	}
-	err = parsedLayers.InitializeStruct(sql.DbtSlug, dbtSettings)
-	if err != nil {
-		return err
-	}
-
 	configData, err := os.ReadFile(configFilePath)
 	if err != nil {
 		return err
@@ -150,11 +138,11 @@ func (s *ServeCommand) runWithConfigFile(
 	commandDirHandlerOptions := []command_dir.CommandDirHandlerOption{}
 	templateDirHandlerOptions := []template_dir.TemplateDirHandlerOption{}
 
-	sqlConnectionLayer, ok := parsedLayers.Get("sql-connection")
+	sqlConnectionLayer, ok := parsedLayers.Get(sql.SqlConnectionSlug)
 	if !ok || sqlConnectionLayer == nil {
 		return errors.New("sql-connection layer not found")
 	}
-	dbtConnectionLayer, ok := parsedLayers.Get("dbt")
+	dbtConnectionLayer, ok := parsedLayers.Get(sql.DbtSlug)
 	if !ok || dbtConnectionLayer == nil {
 		return errors.New("dbt layer not found")
 	}
@@ -191,36 +179,12 @@ func (s *ServeCommand) runWithConfigFile(
 		template.WithAlwaysReload(devMode),
 	}
 
-	// TODO(manuel, 2023-06-17): we need to
-	//
-	// create the server
-	// - gather server options
-	//   - [x] port, address, gzip (passed in through the call)
-	//   - [x] static paths (from embedFS static/) -> can be done through normal option
-	//   - default parka static paths: /dist from GetParkaStaticHttpFS
-	//   - favicon.ico from embeddedFiles templates/favicon.ico
-	//
-	// for the config file handler:
-	// - [x] gather commandDirHandlerOptions
-	//   - [x] templateLookup from cmd/templates/
-	//      - should be handled by the templateDirectoryHandler creation function
-	//   - [x] override dbt-connection and sql-connection layer from parsedLayers
-	//   - [x] defaultTemplateName data-tables.tmpl.html
-	//     - should be set from the config file, but setting it in the code will do for the first revision
-	//   - [x] defaultIndexTemplateName
-	//     - see comment for defaultTemplateName, and also https://github.com/go-go-golems/parka/issues/51
-	//   - [x] devMode
-	// - [x] gather templateDirHandlerOptions
-	//   - [x] default renderer options
-	//   - [x] sqletonRendererOptions (seems to be the templateLookup, so done through the config file?)
-	// - [x] get repository factory
-
 	cfh := handlers.NewConfigFileHandler(
 		configFile,
 		handlers.WithAppendCommandDirHandlerOptions(commandDirHandlerOptions...),
 		handlers.WithAppendTemplateDirHandlerOptions(templateDirHandlerOptions...),
 		handlers.WithAppendTemplateHandlerOptions(templateHandlerOptions...),
-		handlers.WithRepositoryFactory(cmds2.NewRepositoryFactory()),
+		handlers.WithRepositoryFactory(sqleton_cmds.NewRepositoryFactory()),
 		handlers.WithDevMode(devMode),
 	)
 
@@ -356,7 +320,7 @@ func (s *ServeCommand) Run(
 		configFile,
 		handlers.WithAppendCommandDirHandlerOptions(commandDirHandlerOptions...),
 		handlers.WithAppendTemplateDirHandlerOptions(templateDirHandlerOptions...),
-		handlers.WithRepositoryFactory(cmds2.NewRepositoryFactory()),
+		handlers.WithRepositoryFactory(sqleton_cmds.NewRepositoryFactory()),
 		handlers.WithDevMode(ss.Dev),
 	)
 

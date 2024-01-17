@@ -46,11 +46,11 @@ type SqlCommandDescription struct {
 
 // SqlCommand describes a command line command that runs a query
 type SqlCommand struct {
-	*cmds.CommandDescription
-	Query               string                       `yaml:"query"`
-	SubQueries          map[string]string            `yaml:"subqueries,omitempty"`
-	dbConnectionFactory clay_sql.DBConnectionFactory `yaml:"-"`
-	renderedQuery       string
+	*cmds.CommandDescription `yaml:",inline"`
+	Query                    string                       `yaml:"query"`
+	SubQueries               map[string]string            `yaml:"subqueries,omitempty"`
+	dbConnectionFactory      clay_sql.DBConnectionFactory `yaml:"-"`
+	renderedQuery            string
 }
 
 func (s *SqlCommand) Metadata(
@@ -134,9 +134,9 @@ func NewSqlCommand(
 	}
 	description.Layers.AppendLayers(
 		sqlHelpersParameterLayer,
-		glazedParameterLayer,
 		sqlConnectionParameterLayer,
 		dbtParameterLayer,
+		glazedParameterLayer,
 	)
 
 	ret := &SqlCommand{

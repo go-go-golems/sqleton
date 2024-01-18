@@ -234,6 +234,10 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 
 	for _, repositoryPath := range repositoryPaths {
 		dir := os.ExpandEnv(repositoryPath)
+		// check if dir exists
+		if fi, err := os.Stat(dir); os.IsNotExist(err) || !fi.IsDir() {
+			continue
+		}
 		repositories_ = append(repositories_, repositories.NewRepository(
 			repositories.WithDirectories(dir),
 			repositories.WithName(dir),

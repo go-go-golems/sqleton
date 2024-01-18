@@ -44,7 +44,7 @@ type ServeSettings struct {
 
 func NewServeCommand(
 	dbConnectionFactory sql.DBConnectionFactory,
-	repositories []string,
+	repositoryPaths []string,
 	options ...cmds.CommandDescriptionOption,
 ) *ServeCommand {
 	options_ := append(options,
@@ -95,7 +95,7 @@ func NewServeCommand(
 			"serve",
 			options_...,
 		),
-		repositories: repositories,
+		repositories: repositoryPaths,
 	}
 }
 

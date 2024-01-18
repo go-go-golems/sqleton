@@ -9,14 +9,13 @@ import (
 	"github.com/go-go-golems/glazed/pkg/middlewares/row"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
-	sqleton "github.com/go-go-golems/sqleton/pkg/cmds"
+	"github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/pkg/errors"
 )
 
 type QueriesCommand struct {
 	*glazed_cmds.CommandDescription
-	queries []*sqleton.SqlCommand
-	aliases []*alias.CommandAlias
+	commands []glazed_cmds.Command
 }
 
 var _ glazed_cmds.GlazeCommand = (*QueriesCommand)(nil)
@@ -36,27 +35,25 @@ func (q *QueriesCommand) RunIntoGlazeProcessor(
 			[]string{"name", "short", "long", "source", "query"}),
 	)
 
-	for _, query := range q.queries {
-		description := query.Description()
+	for _, command := range q.commands {
+		description := command.Description()
 		obj := types.NewRow(
 			types.MRP("name", description.Name),
 			types.MRP("short", description.Short),
 			types.MRP("long", description.Long),
-			types.MRP("query", query.Query),
 			types.MRP("source", description.Source),
+			types.MRP("type", "unknown"),
+			types.MRP("parents", description.Parents),
 		)
-		err := gp.AddRow(ctx, obj)
-		if err != nil {
-			return err
+		switch c := command.(type) {
+		case *cmds.SqlCommand:
+			obj.Set("query", c.Query)
+			obj.Set("type", "sql")
+		case *alias.CommandAlias:
+			obj.Set("aliasFor", c.AliasFor)
+			obj.Set("type", "alias")
+		default:
 		}
-	}
-
-	for _, alias_ := range q.aliases {
-		obj := types.NewRow(
-			types.MRP("name", alias_.Name),
-			types.MRP("aliasFor", alias_.AliasFor),
-			types.MRP("source", alias_.Source),
-		)
 		err := gp.AddRow(ctx, obj)
 		if err != nil {
 			return err
@@ -67,8 +64,7 @@ func (q *QueriesCommand) RunIntoGlazeProcessor(
 }
 
 func NewQueriesCommand(
-	allQueries []*sqleton.SqlCommand,
-	aliases []*alias.CommandAlias,
+	allCommands []glazed_cmds.Command,
 	options ...glazed_cmds.CommandDescriptionOption,
 ) (*QueriesCommand, error) {
 	glazeParameterLayer, err := settings.NewGlazedParameterLayers(
@@ -90,8 +86,7 @@ func NewQueriesCommand(
 	}, options...)
 
 	return &QueriesCommand{
-		queries: allQueries,
-		aliases: aliases,
+		commands: allCommands,
 		CommandDescription: glazed_cmds.NewCommandDescription(
 			"queries",
 			options_...,

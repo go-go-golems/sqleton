@@ -4,6 +4,7 @@ import (
 	"embed"
 	"fmt"
 	clay "github.com/go-go-golems/clay/pkg"
+	"github.com/go-go-golems/clay/pkg/cmds/ls-commands"
 	"github.com/go-go-golems/clay/pkg/repositories"
 	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cli"
@@ -12,6 +13,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
 	"github.com/go-go-golems/glazed/pkg/help"
+	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/go-go-golems/sqleton/cmd/sqleton/cmds"
 	sqleton_cmds "github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/go-go-golems/sqleton/pkg/flags"
@@ -221,7 +223,6 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	loader := &sqleton_cmds.SqlCommandLoader{
 		DBConnectionFactory: sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 	}
-
 	repositories_ := []*repositories.Repository{
 		repositories.NewRepository(
 			repositories.WithFS(queriesFS),
@@ -241,41 +242,13 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		))
 	}
 
-	allCommands := []glazed_cmds.Command{}
-
-	for _, repository := range repositories_ {
-		err := repository.LoadCommands(helpSystem)
-		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
-			os.Exit(1)
-		}
-
-		aliases := []*alias.CommandAlias{}
-		commands := []glazed_cmds.Command{}
-		commands_ := repository.CollectCommands([]string{}, true)
-
-		for _, command := range commands_ {
-			switch v := command.(type) {
-			case *alias.CommandAlias:
-				aliases = append(aliases, v)
-			case glazed_cmds.Command:
-				commands = append(commands, v)
-			}
-		}
-
-		allCommands = append(allCommands, commands_...)
-
-		err = cli.AddCommandsToRootCommand(
-			rootCmd, commands, aliases,
-			cli.WithCobraMiddlewaresFunc(sql.GetCobraCommandSqletonMiddlewares),
-			cli.WithCobraShortHelpLayers(layers.DefaultSlug, sql.DbtSlug, sql.SqlConnectionSlug, flags.SqlHelpersSlug),
-		)
-		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
-			os.Exit(1)
-		}
-
-	}
+	allCommands := repositories.LoadRepositories(
+		helpSystem,
+		rootCmd,
+		repositories_,
+		cli.WithCobraMiddlewaresFunc(sql.GetCobraCommandSqletonMiddlewares),
+		cli.WithCobraShortHelpLayers(layers.DefaultSlug, sql.DbtSlug, sql.SqlConnectionSlug, flags.SqlHelpersSlug),
+	)
 
 	serveCommand := cmds.NewServeCommand(
 		sql.OpenDatabaseFromDefaultSqlConnectionLayer,
@@ -287,7 +260,27 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	}
 	rootCmd.AddCommand(cobraServeCommand)
 
-	queriesCommand, err := cmds.NewQueriesCommand(allCommands)
+	queriesCommand, err := ls_commands.NewListCommandsCommand(allCommands,
+		ls_commands.WithCommandDescriptionOptions(
+			glazed_cmds.WithShort("Commands related to sqleton queries"),
+		),
+		ls_commands.WithAddCommandToRowFunc(func(
+			command glazed_cmds.Command,
+			row types.Row,
+			parsedLayers *layers.ParsedLayers,
+		) ([]types.Row, error) {
+			ret := []types.Row{row}
+			switch c := command.(type) {
+			case *sqleton_cmds.SqlCommand:
+				row.Set("query", c.Query)
+				row.Set("type", "sql")
+			default:
+			}
+
+			return ret, nil
+		}),
+	)
+
 	if err != nil {
 		return err
 	}

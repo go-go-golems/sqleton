@@ -4,7 +4,7 @@ import (
 	"embed"
 	"fmt"
 	clay "github.com/go-go-golems/clay/pkg"
-	clay_cmds "github.com/go-go-golems/clay/pkg/cmds"
+	clay_cmds "github.com/go-go-golems/clay/pkg/cmds/locations"
 	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cli"
 	glazed_cmds "github.com/go-go-golems/glazed/pkg/cmds"

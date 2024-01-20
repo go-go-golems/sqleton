@@ -46,7 +46,16 @@ func NewServeCommand(
 	dbConnectionFactory sql.DBConnectionFactory,
 	repositoryPaths []string,
 	options ...cmds.CommandDescriptionOption,
-) *ServeCommand {
+) (*ServeCommand, error) {
+	sqlConnectionParameterLayer, err := sql.NewSqlConnectionParameterLayer()
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create SQL connection parameter layer")
+	}
+	dbtParameterLayer, err := sql.NewDbtParameterLayer()
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create dbt parameter layer")
+	}
+
 	options_ := append(options,
 		cmds.WithShort("Serve the API"),
 		cmds.WithArguments(),
@@ -88,6 +97,7 @@ func NewServeCommand(
 				parameters.WithHelp("Config file to configure the serve functionality"),
 			),
 		),
+		cmds.WithLayersList(sqlConnectionParameterLayer, dbtParameterLayer),
 	)
 	return &ServeCommand{
 		dbConnectionFactory: dbConnectionFactory,
@@ -96,7 +106,7 @@ func NewServeCommand(
 			options_...,
 		),
 		repositories: repositoryPaths,
-	}
+	}, nil
 }
 
 // NOTE(manuel, 2023-12-13) Why do we embed the favicon.ico here?

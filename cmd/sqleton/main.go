@@ -223,14 +223,14 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	loader := &sqleton_cmds.SqlCommandLoader{
 		DBConnectionFactory: sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 	}
-	repositories_ := []*repositories.Repository{
-		repositories.NewRepository(
-			repositories.WithFS(queriesFS),
-			repositories.WithName("embed:sqleton"),
-			repositories.WithRootDirectory("queries"),
-			repositories.WithDocRootDirectory("queries/doc"),
-		),
-	}
+	directories := []repositories.Directory{
+		{
+			FS:               queriesFS,
+			RootDirectory:    "queries",
+			RootDocDirectory: "queries/doc",
+			Name:             "sqleton",
+			SourcePrefix:     "embed",
+		}}
 
 	for _, repositoryPath := range repositoryPaths {
 		dir := os.ExpandEnv(repositoryPath)
@@ -238,26 +238,41 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		if fi, err := os.Stat(dir); os.IsNotExist(err) || !fi.IsDir() {
 			continue
 		}
-		repositories_ = append(repositories_, repositories.NewRepository(
-			repositories.WithDirectories(dir),
-			repositories.WithName(dir),
-			repositories.WithFS(os.DirFS(dir)),
-			repositories.WithCommandLoader(loader),
-		))
+		directories = append(directories, repositories.Directory{
+			FS:               os.DirFS(dir),
+			RootDirectory:    ".",
+			RootDocDirectory: "doc",
+			Directory:        dir,
+			Name:             dir,
+			SourcePrefix:     "file",
+		})
 	}
 
-	allCommands := repositories.LoadRepositories(
+	repositories_ := []*repositories.Repository{
+		repositories.NewRepository(
+			repositories.WithDirectories(directories...),
+			repositories.WithCommandLoader(loader),
+		),
+	}
+
+	allCommands, err := repositories.LoadRepositories(
 		helpSystem,
 		rootCmd,
 		repositories_,
 		cli.WithCobraMiddlewaresFunc(sql.GetCobraCommandSqletonMiddlewares),
 		cli.WithCobraShortHelpLayers(layers.DefaultSlug, sql.DbtSlug, sql.SqlConnectionSlug, flags.SqlHelpersSlug),
 	)
+	if err != nil {
+		return err
+	}
 
-	serveCommand := cmds.NewServeCommand(
+	serveCommand, err := cmds.NewServeCommand(
 		sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 		repositoryPaths,
 	)
+	if err != nil {
+		return err
+	}
 	cobraServeCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(serveCommand)
 	if err != nil {
 		return err

@@ -4,7 +4,8 @@ import (
 	"embed"
 	"fmt"
 	clay "github.com/go-go-golems/clay/pkg"
-	clay_cmds "github.com/go-go-golems/clay/pkg/cmds"
+	"github.com/go-go-golems/clay/pkg/cmds/ls-commands"
+	"github.com/go-go-golems/clay/pkg/repositories"
 	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cli"
 	glazed_cmds "github.com/go-go-golems/glazed/pkg/cmds"
@@ -12,7 +13,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
 	"github.com/go-go-golems/glazed/pkg/help"
-	"github.com/go-go-golems/glazed/pkg/helpers/cast"
+	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/go-go-golems/sqleton/cmd/sqleton/cmds"
 	sqleton_cmds "github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/go-go-golems/sqleton/pkg/flags"
@@ -211,63 +212,94 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 
 	rootCmd.AddCommand(cmds.MysqlCmd)
 
-	repositories := viper.GetStringSlice("repositories")
+	repositoryPaths := viper.GetStringSlice("repositories")
 
 	defaultDirectory := "$HOME/.sqleton/queries"
 	_, err = os.Stat(os.ExpandEnv(defaultDirectory))
 	if err == nil {
-		repositories = append(repositories, os.ExpandEnv(defaultDirectory))
-	}
-
-	locations := clay_cmds.CommandLocations{
-		Embedded: []clay_cmds.EmbeddedCommandLocation{
-			{
-				FS:      queriesFS,
-				Name:    "sqleton",
-				Root:    "queries",
-				DocRoot: "queries/doc",
-			},
-		},
-		Repositories: repositories,
+		repositoryPaths = append(repositoryPaths, os.ExpandEnv(defaultDirectory))
 	}
 
 	loader := &sqleton_cmds.SqlCommandLoader{
 		DBConnectionFactory: sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 	}
-	commandLoader := clay_cmds.NewCommandLoader[*sqleton_cmds.SqlCommand](&locations)
-	sqlCommands, aliases, err := commandLoader.LoadCommands(loader, helpSystem)
-	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
-		os.Exit(1)
+	directories := []repositories.Directory{
+		{
+			FS:               queriesFS,
+			RootDirectory:    "queries",
+			RootDocDirectory: "queries/doc",
+			Name:             "sqleton",
+			SourcePrefix:     "embed",
+		}}
+
+	for _, repositoryPath := range repositoryPaths {
+		dir := os.ExpandEnv(repositoryPath)
+		// check if dir exists
+		if fi, err := os.Stat(dir); os.IsNotExist(err) || !fi.IsDir() {
+			continue
+		}
+		directories = append(directories, repositories.Directory{
+			FS:               os.DirFS(dir),
+			RootDirectory:    ".",
+			RootDocDirectory: "doc",
+			Directory:        dir,
+			Name:             dir,
+			SourcePrefix:     "file",
+		})
 	}
 
-	commands, ok := cast.CastList[glazed_cmds.Command](sqlCommands)
-	if !ok {
-		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
-		os.Exit(1)
+	repositories_ := []*repositories.Repository{
+		repositories.NewRepository(
+			repositories.WithDirectories(directories...),
+			repositories.WithCommandLoader(loader),
+		),
 	}
 
-	err = cli.AddCommandsToRootCommand(
-		rootCmd, commands, aliases,
+	allCommands, err := repositories.LoadRepositories(
+		helpSystem,
+		rootCmd,
+		repositories_,
 		cli.WithCobraMiddlewaresFunc(sql.GetCobraCommandSqletonMiddlewares),
 		cli.WithCobraShortHelpLayers(layers.DefaultSlug, sql.DbtSlug, sql.SqlConnectionSlug, flags.SqlHelpersSlug),
 	)
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Error initializing commands: %s\n", err)
-		os.Exit(1)
+		return err
 	}
 
-	serveCommand := cmds.NewServeCommand(
+	serveCommand, err := cmds.NewServeCommand(
 		sql.OpenDatabaseFromDefaultSqlConnectionLayer,
-		repositories,
+		repositoryPaths,
 	)
+	if err != nil {
+		return err
+	}
 	cobraServeCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(serveCommand)
 	if err != nil {
 		return err
 	}
 	rootCmd.AddCommand(cobraServeCommand)
 
-	queriesCommand, err := cmds.NewQueriesCommand(sqlCommands, aliases)
+	queriesCommand, err := ls_commands.NewListCommandsCommand(allCommands,
+		ls_commands.WithCommandDescriptionOptions(
+			glazed_cmds.WithShort("Commands related to sqleton queries"),
+		),
+		ls_commands.WithAddCommandToRowFunc(func(
+			command glazed_cmds.Command,
+			row types.Row,
+			parsedLayers *layers.ParsedLayers,
+		) ([]types.Row, error) {
+			ret := []types.Row{row}
+			switch c := command.(type) {
+			case *sqleton_cmds.SqlCommand:
+				row.Set("query", c.Query)
+				row.Set("type", "sql")
+			default:
+			}
+
+			return ret, nil
+		}),
+	)
+
 	if err != nil {
 		return err
 	}
@@ -275,7 +307,6 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	if err != nil {
 		return err
 	}
-
 	rootCmd.AddCommand(cobraQueriesCommand)
 
 	rootCmd.PersistentFlags().Bool("mem-profile", false, "Enable memory profiling")

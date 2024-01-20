@@ -13,8 +13,9 @@ var MysqlCmd = &cobra.Command{
 }
 
 func init() {
+	// This is an example of how to programmatically create a sqleton query
 	psCommand, err := sqleton.NewSqlCommand(
-		glazed_cmds.NewCommandDescription("ps",
+		glazed_cmds.NewCommandDescription("ps-manual",
 			glazed_cmds.WithShort("List MySQL processes"),
 			glazed_cmds.WithLong("SHOW PROCESSLIST"),
 		),

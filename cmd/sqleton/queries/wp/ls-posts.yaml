@@ -29,6 +29,10 @@ flags:
       - page
     help: Select posts by type
     required: false
+  - name: body_like
+    type: stringList
+    help: Select posts by body
+    required: false
   - name: from
     type: date
     help: Select posts from date
@@ -117,6 +121,15 @@ query: |
     {{- end }}
   )
   {{- end }}
+  
+  {{- if .body_like }}
+    AND (
+        {{- range $index, $body_pattern := .body_like }}
+        {{- if $index }} OR {{ end -}}
+        wp.post_content LIKE {{ $body_pattern | sqlLike }}
+        {{- end }}
+    )
+    {{- end }}
   
   {{ if .slugs -}} AND post_name IN ({{ .slugs | sqlStringIn }}) {{- end -}}
   

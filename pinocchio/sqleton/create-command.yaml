@@ -6,10 +6,19 @@ factories:
   chat:
     engine: gpt-4
     temperature: 0.2
-    max_response_tokens: 2048
+    max_response_tokens: 4096
     stop: []
     stream: true
 flags:
+  - name: additional_system
+    type: stringList
+    help: Additional system prompt
+  - name: additional
+    type: stringList
+    help: Additional prompt
+  - name: context
+    type: fileList
+    help: Additional context
   - name: ddl
     type: stringFromFiles
     help: DDL for the table
@@ -19,13 +28,20 @@ flags:
     help: List of types
     default:
       - int
+      - file
+      - fileList
       - string
-      - date
       - stringList
+      - stringFromFile
+      - objectFromFile
+      - objectListFromFile
+      - stringListFromFile
       - intList
       - float
       - bool
       - floatList
+      - choice
+      - choiceList
   - name: instructions
     type: string
     help: Additional language specific instructions
@@ -135,6 +151,9 @@ flags:
         {{ end }}
         {{ end }}
 
+system-prompt: |
+  You are an experienced SQL developer. You know how to write SQL queries. You write clearly and concisely.
+  {{ .additional_system | join "\n" }}
 prompt: |
   I want to generate templates for SQL queries, stored in YAML and with the `query` field using go template syntax.
   The templates expose command line parameters that the user can use to control the query,
@@ -144,6 +163,45 @@ prompt: |
   template.
   
   Instead of "x > 10", the template language uses "gt x 10".
+  
+  Here are the sql-specific go template functions that are registered:
+  
+  ```
+  // sqlEscape escapes single quotes in a string for SQL queries.
+  // It doubles any single quote characters to prevent SQL injection.
+  func sqlEscape(value string) string
+  // sqlString wraps a string value in single quotes for SQL queries.
+  func sqlString(value string) string
+  // sqlStringLike formats a string for use in SQL LIKE queries, wrapping the value with '%' and escaping it.
+  func sqlStringLike(value string) string
+  // sqlStringIn converts a slice of values into a SQL IN clause string, properly escaping and quoting each value.
+  // Returns an error if the input cannot be cast to a slice of strings.
+  func sqlStringIn(values interface{}) (string, error)
+  // sqlIn converts a slice of interface{} values into a comma-separated string for SQL queries.
+  // Each value is formatted using fmt.Sprintf with the %v verb.
+  func sqlIn(values []interface{}) string
+  // sqlIntIn converts a slice of integer values into a comma-separated string for SQL queries.
+  // Returns an empty string if the input cannot be cast to a slice of int64.
+  func sqlIntIn(values interface{}) string
+  // sqlDate_ formats a date value for SQL queries, using different formats based on the date's timezone.
+  // Returns an error if the date cannot be parsed or formatted.
+  // This is a helper function used by other date formatting functions.
+  func sqlDate_(date interface{}, fullFormat string, defaultFormat string) (string, error)
+  // sqlDate formats a date value for SQL queries as YYYY-MM-DD or RFC3339, based on the date's timezone.
+  // Returns an error if the date cannot be parsed or formatted.
+  func sqlDate(date interface{}) (string, error)
+  // sqlDateTime formats a datetime value for SQL queries as YYYY-MM-DDTHH:MM:SS or RFC3339, based on the datetime's timezone.
+  // Returns an error if the datetime cannot be parsed or formatted.
+  func sqlDateTime(date interface{}) (string, error)
+  // sqliteDate formats a date value specifically for SQLite queries as YYYY-MM-DD.
+  // Returns an error if the date cannot be parsed or formatted.
+  func sqliteDate(date interface{}) (string, error)
+  // sqliteDateTime formats a datetime value specifically for SQLite queries as YYYY-MM-DD HH:MM:SS.
+  // Returns an error if the datetime cannot be parsed or formatted.
+  func sqliteDateTime(date interface{}) (string, error)
+  // sqlLike formats a string for use in SQL LIKE queries by wrapping the value with '%'.
+  func sqlLike(value string) string
+  ```
   
   {{ if .example }}
   Here is an example that queries the {{ .example_name }}.
@@ -163,7 +221,28 @@ prompt: |
   {{ end }}
   
   Use order_by instead of sort_by.
-  For %_like flags, take a stringList, and iterate over it to create a filter statement of LIKE queries joined by OR
-  {{ if .instructions }} {{ .instructions }} {{ end }}
-  {{ if .instructions_file }} {{ .instructions_file }} {{ end }}
+  For %_like flags, take a stringList, and iterate over it to create a filter statement of LIKE queries joined by OR.
+  
+  {{ if .instructions }}
+  INSTRUCTIONS:
+  ---
+  {{ .instructions }}
+  ---
+  {{ end }}
+  {{ if .instructions_file }}
+  INSTRUCTIONS FILE:
+  ---
+  {{ .instructions_file }}
+  ---
+  {{ end }}
 
+  {{- .additional | join "\n" }}
+
+  {{ if .context}}Additional Context:
+  {{ range .context }}
+  Path: {{ .Path }}
+  ---
+  {{ .Content }}
+  ---
+  {{- end }}
+  {{ end }}

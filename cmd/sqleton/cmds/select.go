@@ -32,8 +32,6 @@ func NewSelectParameterLayer() (*layers.ParameterLayerImpl, error) {
 	return ret, nil
 }
 
-const SelectSlug = "select"
-
 type SelectCommand struct {
 	*cmds.CommandDescription
 	dbConnectionFactory sql2.DBConnectionFactory
@@ -59,7 +57,7 @@ func (sc *SelectCommand) RunIntoGlazeProcessor(
 	gp middlewares.Processor,
 ) error {
 	s := &SelectCommandSettings{}
-	err := parsedLayers.InitializeStruct(SelectSlug, s)
+	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
 	if err != nil {
 		return err
 	}

@@ -1,0 +1,75 @@
+name: users
+short: List users from the mysql.user table with various filters.
+flags:
+  - name: hosts
+    type: stringList
+    help: Host of the user
+  - name: users
+    type: stringList
+    help: Username
+  - name: users_like
+    type: stringList
+    help: Username pattern for LIKE search
+  - name: password_expired
+    type: choice
+    choices: ['Y', 'N']
+    help: Filter users by password expired status
+  - name: active_privileges
+    type: stringList
+    help: List of privileges to check if they are active (Y)
+  - name: limit
+    type: int
+    help: Limit the number of results
+    default: 10
+  - name: offset
+    type: int
+    help: Offset for the results
+    default: 0
+  - name: order_by
+    type: string
+    default: User
+    help: Order by column
+query: |
+  SELECT
+    User,
+    Host,
+    authentication_string,
+    password_expired,
+    password_last_changed,
+    password_lifetime,
+    max_connections,
+    max_questions,
+    max_updates,
+    max_user_connections
+  FROM mysql.user
+  WHERE 1=1
+  {{ if .hosts }}
+    AND Host IN ({{ .hosts | sqlStringIn }})
+  {{ end }}
+  {{ if .users }}
+    AND User IN ({{ .users | sqlStringIn }})
+  {{ end }}
+  {{ if .user_like }}
+    {{ $first := true }}
+    {{ range .user_like }}
+      {{ if $first }}
+        AND (
+        {{ $first = false }}
+      {{ else }}
+        OR
+      {{ end }}
+      User LIKE '{{ . | sqlStringLike }}'
+    {{ end }}
+    )
+  {{ end }}
+  {{ if .password_expired }}
+    AND password_expired = '{{ .password_expired }}'
+  {{ end }}
+  {{ if .active_privileges }}
+    {{ range .active_privileges }}
+    AND {{ . }} = 'Y'
+    {{ end }}
+  {{ end }}
+  ORDER BY {{ .order_by | sqlEscape }}
+  LIMIT {{ .limit }}
+  OFFSET {{ .offset }}

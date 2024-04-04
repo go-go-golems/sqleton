@@ -221,9 +221,20 @@ prompt: |
   {{ end }}
   
   Use order_by instead of sort_by.
-  For %_like flags, take a stringList, and iterate over it to create a filter statement of LIKE queries joined by OR
-  {{ if .instructions }} {{ .instructions }} {{ end }}
-  {{ if .instructions_file }} {{ .instructions_file }} {{ end }}
+  For %_like flags, take a stringList, and iterate over it to create a filter statement of LIKE queries joined by OR.
+  
+  {{ if .instructions }}
+  INSTRUCTIONS:
+  ---
+  {{ .instructions }}
+  ---
+  {{ end }}
+  {{ if .instructions_file }}
+  INSTRUCTIONS FILE:
+  ---
+  {{ .instructions_file }}
+  ---
+  {{ end }}
 
   {{- .additional | join "\n" }}
 

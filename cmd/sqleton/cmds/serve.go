@@ -175,7 +175,7 @@ func (s *ServeCommand) runWithConfigFile(
 			),
 		),
 		command_dir.WithDefaultTemplateName("data-tables.tmpl.html"),
-		command_dir.WithDefaultIndexTemplateName("index.tmpl.html"),
+		command_dir.WithDefaultIndexTemplateName("commands.tmpl.html"),
 		command_dir.WithDevMode(devMode),
 	)
 

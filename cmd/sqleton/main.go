@@ -14,7 +14,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
 	"github.com/go-go-golems/glazed/pkg/help"
 	"github.com/go-go-golems/glazed/pkg/types"
-	"github.com/go-go-golems/parka/pkg/doc"
+	parka_doc "github.com/go-go-golems/parka/pkg/doc"
 	"github.com/go-go-golems/sqleton/cmd/sqleton/cmds"
 	sqleton_cmds "github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/go-go-golems/sqleton/pkg/flags"
@@ -142,7 +142,7 @@ func initRootCmd() (*help.HelpSystem, error) {
 	err := helpSystem.LoadSectionsFromFS(docFS, ".")
 	cobra.CheckErr(err)
 
-	err = doc.AddDocToHelpSystem(helpSystem)
+	err = parka_doc.AddDocToHelpSystem(helpSystem)
 	cobra.CheckErr(err)
 
 	helpSystem.SetupCobraRootCommand(rootCmd)

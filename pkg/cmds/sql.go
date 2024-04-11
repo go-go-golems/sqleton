@@ -69,7 +69,7 @@ func (s *SqlCommand) Metadata(
 		return nil, errors.Wrapf(err, "Could not ping database")
 	}
 
-	query, err := s.RenderQuery(ctx, parsedLayers.GetDataMap(), db)
+	query, err := s.RenderQuery(ctx, db, parsedLayers.GetDataMap())
 	if err != nil {
 		return nil, errors.Wrapf(err, "Could not generate query")
 	}
@@ -174,10 +174,7 @@ func (s *SqlCommand) RunIntoGlazeProcessor(
 		return errors.Wrapf(err, "Could not ping database")
 	}
 
-	s.renderedQuery, err = s.RenderQuery(ctx, parsedLayers.GetDataMap(), db)
-	if err != nil {
-		return errors.Wrapf(err, "Could not generate query")
-	}
+	dataMap := parsedLayers.GetDataMap()
 
 	printQuery := false
 	if printQuery_, ok := parsedLayers.GetParameter("sql-helpers", "print-query"); ok {
@@ -185,8 +182,38 @@ func (s *SqlCommand) RunIntoGlazeProcessor(
 	}
 
 	if printQuery {
-		fmt.Println(s.renderedQuery)
-		return &cmds.ExitWithoutGlazeError{}
+		return s.PrintQuery(ctx, db, dataMap)
+	}
+
+	return s.RunIntoGlazeProcessorWithDB(ctx, db, dataMap, gp)
+}
+
+func (s *SqlCommand) PrintQuery(
+	ctx context.Context,
+	db *sqlx.DB,
+	dataMap map[string]interface{},
+) error {
+	var err error
+	s.renderedQuery, err = s.RenderQuery(ctx, db, dataMap)
+	if err != nil {
+		return errors.Wrapf(err, "Could not generate query")
+	}
+
+	fmt.Println(s.renderedQuery)
+	return &cmds.ExitWithoutGlazeError{}
+	return nil
+}
+
+func (s *SqlCommand) RunIntoGlazeProcessorWithDB(
+	ctx context.Context,
+	db *sqlx.DB,
+	dataMap map[string]interface{},
+	gp middlewares.Processor,
+) error {
+	var err error
+	s.renderedQuery, err = s.RenderQuery(ctx, db, dataMap)
+	if err != nil {
+		return errors.Wrapf(err, "Could not generate query")
 	}
 
 	err = s.RunQueryIntoGlaze(ctx, db, gp)
@@ -219,7 +246,7 @@ func (s *SqlCommand) RenderQueryFull(
 		return "", errors.Wrapf(err, "Could not ping database")
 	}
 
-	query, err := s.RenderQuery(ctx, parsedLayers.GetDataMap(), db)
+	query, err := s.RenderQuery(ctx, db, parsedLayers.GetDataMap())
 	if err != nil {
 		return "", errors.Wrapf(err, "Could not generate query")
 	}
@@ -236,8 +263,8 @@ func (s *SqlCommand) IsValid() bool {
 
 func (s *SqlCommand) RenderQuery(
 	ctx context.Context,
-	ps map[string]interface{},
 	db *sqlx.DB,
+	ps map[string]interface{},
 ) (string, error) {
 	ret, err := clay_sql.RenderQuery(ctx, db, s.Query, s.SubQueries, ps)
 	if err != nil {
@@ -247,10 +274,12 @@ func (s *SqlCommand) RenderQuery(
 	return ret, nil
 }
 
+// RunQueryIntoGlaze runs the query and processes the results into Glaze.
+// This requires RenderQuery to be invoked first in order to have a s.renderedQuery.
+// NOTE(manuel, 2024-04-11) This really could benefit of a further cleanup, what with codegen now
 func (s *SqlCommand) RunQueryIntoGlaze(
 	ctx context.Context,
 	db *sqlx.DB,
 	gp middlewares.Processor) error {
-
 	return clay_sql.RunQueryIntoGlaze(ctx, db, s.renderedQuery, []interface{}{}, gp)
 }

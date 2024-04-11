@@ -94,10 +94,9 @@ func TestSimpleTemplateRender(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	query, err := s.RenderQuery(context.Background(),
-		map[string]interface{}{
-			"table": "test",
-		}, nil)
+	query, err := s.RenderQuery(context.Background(), nil, map[string]interface{}{
+		"table": "test",
+	})
 	require.NoError(t, err)
 	assert.Equal(t, "SELECT * FROM test", query)
 }
@@ -187,7 +186,7 @@ func TestSimpleSubQuery(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	s_, err := s.RenderQuery(ctx, ps, db)
+	s_, err := s.RenderQuery(ctx, db, ps)
 	require.NoError(t, err)
 	assert.Equal(t, sql.CleanQuery(`
 	SELECT * FROM test
@@ -238,7 +237,7 @@ func TestSimpleSubQuerySingle(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	s_, err := s.RenderQuery(context.Background(), parsedLayers.GetDataMap(), db)
+	s_, err := s.RenderQuery(context.Background(), db, parsedLayers.GetDataMap())
 	require.NoError(t, err)
 	assert.Equal(t, sql.CleanQuery(`
 	SELECT * FROM test
@@ -257,7 +256,7 @@ func TestSimpleSubQuerySingle(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	_, err = s.RenderQuery(context.Background(), parsedLayers.GetDataMap(), db)
+	_, err = s.RenderQuery(context.Background(), db, parsedLayers.GetDataMap())
 	assert.Error(t, err)
 
 	// fail if there are more than 2 fields
@@ -272,7 +271,7 @@ func TestSimpleSubQuerySingle(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	_, err = s.RenderQuery(context.Background(), parsedLayers.GetDataMap(), db)
+	_, err = s.RenderQuery(context.Background(), db, parsedLayers.GetDataMap())
 	assert.Error(t, err)
 }
 
@@ -301,7 +300,7 @@ func TestSimpleSubQueryWithArguments(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	s_, err := s.RenderQuery(ctx, parsedLayers.GetDataMap(), db)
+	s_, err := s.RenderQuery(ctx, db, parsedLayers.GetDataMap())
 	require.NoError(t, err)
 	assert.Equal(t, sql.CleanQuery(`
 	SELECT * FROM test
@@ -365,7 +364,7 @@ func TestSliceSubQueryWithArguments(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	s_, err := s.RenderQuery(context.Background(), parsedLayers.GetDataMap(), db)
+	s_, err := s.RenderQuery(context.Background(), db, parsedLayers.GetDataMap())
 	require.NoError(t, err)
 	assert.Equal(t, sql.CleanQuery(`
 	SELECT * FROM test
@@ -399,7 +398,7 @@ func TestMapSubQueryWithArguments(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	s_, err := s.RenderQuery(context.Background(), parsedLayers.GetDataMap(), db)
+	s_, err := s.RenderQuery(context.Background(), db, parsedLayers.GetDataMap())
 	require.NoError(t, err)
 	assert.Equal(t, sql.CleanQuery(`
 	SELECT * FROM test
@@ -438,7 +437,7 @@ func TestMapSubQuery(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	s_, err := s.RenderQuery(ctx, parsedLayers.GetDataMap(), db)
+	s_, err := s.RenderQuery(ctx, db, parsedLayers.GetDataMap())
 	require.NoError(t, err)
 	assert.Equal(t, sql.CleanQuery(`
 	SELECT * FROM test

@@ -193,7 +193,9 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	if err != nil {
 		return err
 	}
-	cobraSelectCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(selectCommand)
+	cobraSelectCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(selectCommand,
+		cli.WithCobraShortHelpLayers(cmds.SelectSlug),
+	)
 	if err != nil {
 		return err
 	}

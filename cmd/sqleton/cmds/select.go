@@ -23,6 +23,8 @@ import (
 //go:embed "flags/select.yaml"
 var selectFlagsYaml []byte
 
+const SelectSlug = "select"
+
 func NewSelectParameterLayer() (*layers.ParameterLayerImpl, error) {
 	ret := &layers.ParameterLayerImpl{}
 	err := ret.LoadFromYAML(selectFlagsYaml)

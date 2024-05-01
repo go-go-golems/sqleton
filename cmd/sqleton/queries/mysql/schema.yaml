@@ -42,7 +42,7 @@ query: |
     AND (
       {{ range $index, $database := .databases_like }}
         {{ if $index }}OR{{end}}
-        TABLE_SCHEMA LIKE '{{ $database }}'
+        TABLE_SCHEMA LIKE {{ $database | sqlStringLike}}
       {{ end }}
     )
   {{ end }}
@@ -53,7 +53,7 @@ query: |
     AND (
       {{ range $index, $table := .tables_like }}
         {{ if $index }}OR{{end}}
-        TABLE_NAME LIKE '{{ $table }}'
+        TABLE_NAME LIKE {{ $table | sqlStringLike }}
       {{ end }}
     )
   {{ end }}
@@ -64,7 +64,7 @@ query: |
     AND (
       {{ range $index, $column := .columns_like }}
         {{ if $index }}OR{{end}}
-        COLUMN_NAME LIKE '{{ $column }}'
+        COLUMN_NAME LIKE {{ $column | sqlStringLike }}
       {{ end }}
     )
   {{ end }}

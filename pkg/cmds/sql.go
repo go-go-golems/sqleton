@@ -201,7 +201,6 @@ func (s *SqlCommand) PrintQuery(
 
 	fmt.Println(s.renderedQuery)
 	return &cmds.ExitWithoutGlazeError{}
-	return nil
 }
 
 func (s *SqlCommand) RunIntoGlazeProcessorWithDB(

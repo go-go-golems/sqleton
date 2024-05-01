@@ -47,7 +47,7 @@ type SelectCommandSettings struct {
 	Where       string   `glazed.parameter:"where"`
 	OrderBy     string   `glazed.parameter:"order-by"`
 	Distinct    bool     `glazed.parameter:"distinct"`
-	Table       string   `glazed.parameter:"table"`
+	Table       string   `glazed.parameter:"default.table"`
 	CreateQuery string   `glazed.parameter:"create-query"`
 }
 
@@ -59,7 +59,7 @@ func (sc *SelectCommand) RunIntoGlazeProcessor(
 	gp middlewares.Processor,
 ) error {
 	s := &SelectCommandSettings{}
-	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
+	err := parsedLayers.InitializeStruct(SelectSlug, s)
 	if err != nil {
 		return err
 	}
@@ -194,7 +194,10 @@ func (sc *SelectCommand) RunIntoGlazeProcessor(
 
 	if ss.PrintQuery {
 		fmt.Println(query)
-		fmt.Println(queryArgs)
+		if len(queryArgs) > 0 {
+			fmt.Println("Args:")
+			fmt.Println(queryArgs)
+		}
 		return nil
 	}
 

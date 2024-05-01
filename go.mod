@@ -4,8 +4,8 @@ go 1.19
 
 require (
 	github.com/dave/jennifer v1.7.0
-	github.com/go-go-golems/clay v0.1.10
-	github.com/go-go-golems/glazed v0.5.12
+	github.com/go-go-golems/clay v0.1.11
+	github.com/go-go-golems/glazed v0.5.13
 	github.com/go-go-golems/parka v0.5.4
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/huandu/go-sqlbuilder v1.20.0
@@ -28,7 +28,6 @@ require (
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
 	github.com/adrg/frontmatter v0.2.0 // indirect
-	github.com/alecthomas/assert/v2 v2.2.2 // indirect
 	github.com/alecthomas/chroma/v2 v2.7.0 // indirect
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
@@ -67,7 +66,6 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.14.0 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
-	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/pprof v0.0.0-20211214055906-6f57359322fd // indirect
 	github.com/google/uuid v1.5.0 // indirect
 	github.com/gorilla/css v1.0.0 // indirect
@@ -124,7 +122,6 @@ require (
 	go.mongodb.org/mongo-driver v1.11.3 // indirect
 	golang.org/x/arch v0.3.0 // indirect
 	golang.org/x/crypto v0.16.0 // indirect
-	golang.org/x/image v0.14.0 // indirect
 	golang.org/x/net v0.19.0 // indirect
 	golang.org/x/sys v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect

@@ -10,8 +10,10 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/parka/pkg/glazed/handlers/datatables"
 	"github.com/go-go-golems/parka/pkg/handlers"
+	"github.com/go-go-golems/parka/pkg/handlers/command"
 	"github.com/go-go-golems/parka/pkg/handlers/command-dir"
 	"github.com/go-go-golems/parka/pkg/handlers/config"
+	generic_command "github.com/go-go-golems/parka/pkg/handlers/generic-command"
 	"github.com/go-go-golems/parka/pkg/handlers/template"
 	"github.com/go-go-golems/parka/pkg/handlers/template-dir"
 	"github.com/go-go-golems/parka/pkg/server"
@@ -19,7 +21,6 @@ import (
 	sqleton_cmds "github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
-	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -164,18 +165,20 @@ func (s *ServeCommand) runWithConfigFile(
 	// NOTE(manuel, 2023-12-13) Why do we append these to the config file?
 	commandDirHandlerOptions = append(
 		commandDirHandlerOptions,
-		command_dir.WithParameterFilterOptions(
-			config.WithLayerDefaults(
-				sqlConnectionLayer.Layer.GetSlug(),
-				sqlConnectionLayer.Parameters.ToMap(),
+		command_dir.WithGenericCommandHandlerOptions(
+			generic_command.WithParameterFilterOptions(
+				config.WithLayerDefaults(
+					sqlConnectionLayer.Layer.GetSlug(),
+					sqlConnectionLayer.Parameters.ToMap(),
+				),
+				config.WithLayerDefaults(
+					dbtConnectionLayer.Layer.GetSlug(),
+					dbtConnectionLayer.Parameters.ToMap(),
+				),
 			),
-			config.WithLayerDefaults(
-				dbtConnectionLayer.Layer.GetSlug(),
-				dbtConnectionLayer.Parameters.ToMap(),
-			),
+			generic_command.WithDefaultTemplateName("data-tables.tmpl.html"),
+			generic_command.WithDefaultIndexTemplateName("commands.tmpl.html"),
 		),
-		command_dir.WithDefaultTemplateName("data-tables.tmpl.html"),
-		command_dir.WithDefaultIndexTemplateName("commands.tmpl.html"),
 		command_dir.WithDevMode(devMode),
 	)
 
@@ -268,7 +271,7 @@ func (s *ServeCommand) Run(
 	} else {
 		serverOptions = append(serverOptions,
 			server.WithStaticPaths(
-				fs.NewStaticPath(http.FS(fs.NewAddPrefixPathFS(staticFiles, "static/")), "/static"),
+				fs.NewStaticPath(fs.NewAddPrefixPathFS(staticFiles, "static/"), "/static"),
 			),
 		)
 	}
@@ -282,10 +285,10 @@ func (s *ServeCommand) Run(
 		server_.RegisterDebugRoutes()
 	}
 
-	server_.Router.StaticFileFS(
+	server_.Router.FileFS(
 		"favicon.ico",
 		"static/favicon.ico",
-		http.FS(staticFiles),
+		staticFiles,
 	)
 
 	// This section configures the command directory default setting specific to sqleton
@@ -300,20 +303,41 @@ func (s *ServeCommand) Run(
 
 	// commandDirHandlerOptions will apply to all command dirs loaded by the server
 	commandDirHandlerOptions := []command_dir.CommandDirHandlerOption{
-		command_dir.WithTemplateLookup(datatables.NewDataTablesLookupTemplate()),
-		command_dir.WithParameterFilterOptions(
-			config.WithReplaceOverrideLayer(
-				dbtConnectionLayer.Layer.GetSlug(),
-				dbtConnectionLayer.Parameters.ToMap(),
+		command_dir.WithGenericCommandHandlerOptions(
+			generic_command.WithTemplateLookup(datatables.NewDataTablesLookupTemplate()),
+			generic_command.WithParameterFilterOptions(
+				config.WithReplaceOverrideLayer(
+					dbtConnectionLayer.Layer.GetSlug(),
+					dbtConnectionLayer.Parameters.ToMap(),
+				),
+				config.WithReplaceOverrideLayer(
+					sqlConnectionLayer.Layer.GetSlug(),
+					sqlConnectionLayer.Parameters.ToMap(),
+				),
 			),
-			config.WithReplaceOverrideLayer(
-				sqlConnectionLayer.Layer.GetSlug(),
-				sqlConnectionLayer.Parameters.ToMap(),
-			),
+			generic_command.WithDefaultTemplateName("data-tables.tmpl.html"),
+			generic_command.WithDefaultIndexTemplateName(""),
 		),
-		command_dir.WithDefaultTemplateName("data-tables.tmpl.html"),
-		command_dir.WithDefaultIndexTemplateName(""),
 		command_dir.WithDevMode(ss.Dev),
+	}
+
+	commandHandlerOptions := []command.CommandHandlerOption{
+		command.WithGenericCommandHandlerOptions(
+			generic_command.WithTemplateLookup(datatables.NewDataTablesLookupTemplate()),
+			generic_command.WithParameterFilterOptions(
+				config.WithReplaceOverrideLayer(
+					dbtConnectionLayer.Layer.GetSlug(),
+					dbtConnectionLayer.Parameters.ToMap(),
+				),
+				config.WithReplaceOverrideLayer(
+					sqlConnectionLayer.Layer.GetSlug(),
+					sqlConnectionLayer.Parameters.ToMap(),
+				),
+			),
+			generic_command.WithDefaultTemplateName("data-tables.tmpl.html"),
+			generic_command.WithDefaultIndexTemplateName(""),
+		),
+		command.WithDevMode(ss.Dev),
 	}
 
 	templateDirHandlerOptions := []template_dir.TemplateDirHandlerOption{
@@ -330,6 +354,7 @@ func (s *ServeCommand) Run(
 		configFile,
 		handlers.WithAppendCommandDirHandlerOptions(commandDirHandlerOptions...),
 		handlers.WithAppendTemplateDirHandlerOptions(templateDirHandlerOptions...),
+		handlers.WithAppendCommandHandlerOptions(commandHandlerOptions...),
 		handlers.WithRepositoryFactory(sqleton_cmds.NewRepositoryFactory()),
 		handlers.WithDevMode(ss.Dev),
 	)

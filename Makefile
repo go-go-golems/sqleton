@@ -1,13 +1,11 @@
 .PHONY: gifs
 
-VERSION ?= $(shell git describe --tags --always --dirty)
+VERSION ?= $(shell svu)
 COMMIT ?= $(shell git rev-parse --short HEAD)
 DIRTY ?= $(shell git diff --quiet || echo "dirty")
 LDFLAGS=-ldflags "-X main.version=$(VERSION)-$(COMMIT)-$(DIRTY)"
 
 all: gifs
-
-VERSION=v0.1.14
 
 TAPES=$(shell ls doc/vhs/*tape)
 gifs: $(TAPES)

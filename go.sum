@@ -132,10 +132,14 @@ github.com/go-gl/glfw/v3.3/glfw v0.0.0-20191125211704-12ad95a8df72/go.mod h1:tQ2
 github.com/go-gl/glfw/v3.3/glfw v0.0.0-20200222043503-6f7a984d4dc4/go.mod h1:tQ2UAYgL5IevRw8kRxooKSPJfGvJ9fJQFa0TUsXzTg8=
 github.com/go-go-golems/clay v0.1.12 h1:V/bRQOYjCzg5BKnX7MkBazmTWnVhvH/ir25M8X7YJG4=
 github.com/go-go-golems/clay v0.1.12/go.mod h1:SBmD8dSWOMuGEbbpw77xOAJWGU7NB10W4KbxtzzfhvA=
+github.com/go-go-golems/clay v0.1.13 h1:UdpnRmCCYtgVliVMF+oeMJNQd0RWeABcXrdyoFSTonA=
+github.com/go-go-golems/clay v0.1.13/go.mod h1:SBmD8dSWOMuGEbbpw77xOAJWGU7NB10W4KbxtzzfhvA=
 github.com/go-go-golems/glazed v0.5.13 h1:Mk2NQDAuXRDTvtHqiSKeMnncMa7w3CKOTuxACBM4fuE=
 github.com/go-go-golems/glazed v0.5.13/go.mod h1:SvPA8GVBwAbyNBZVrK2ZH9cIHLMKxc/bf+rB7ewuonE=
 github.com/go-go-golems/parka v0.5.6 h1:S4wfB8Y/2ceiZzVXjwnUkvTI35dHZ+qpm0rKUX88yks=
 github.com/go-go-golems/parka v0.5.6/go.mod h1:RTDYCJyCwG+Lotqwt+EKLMc4/5EhbwkP4NauEeP38Z0=
+github.com/go-go-golems/parka v0.5.7 h1:lnD8v85yE7aCGAiXtB734YXSPnNX0kYjTME4zUupf6w=
+github.com/go-go-golems/parka v0.5.7/go.mod h1:VrDRHtE5KNUHHTHudB+WNCBCnlO4FQ+n7ZEgqWurp0E=
 github.com/go-openapi/errors v0.20.3 h1:rz6kiC84sqNQoqrtulzaL/VERgkoCyB6WdEkc2ujzUc=
 github.com/go-openapi/errors v0.20.3/go.mod h1:Z3FlZ4I8jEGxjUK+bugx3on2mIAk4txuAOhlsB1FSgk=
 github.com/go-openapi/strfmt v0.21.7 h1:rspiXgNWgeUzhjo1YU01do6qsahtJNByjLVbPLNHb8k=

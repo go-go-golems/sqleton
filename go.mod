@@ -4,9 +4,9 @@ go 1.19
 
 require (
 	github.com/dave/jennifer v1.7.0
-	github.com/go-go-golems/clay v0.1.13
-	github.com/go-go-golems/glazed v0.5.13
-	github.com/go-go-golems/parka v0.5.8
+	github.com/go-go-golems/clay v0.1.14
+	github.com/go-go-golems/glazed v0.5.15
+	github.com/go-go-golems/parka v0.5.9
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/huandu/go-sqlbuilder v1.20.0
 	github.com/iancoleman/strcase v0.3.0
@@ -108,6 +108,7 @@ require (
 	github.com/yuin/goldmark v1.6.0 // indirect
 	github.com/yuin/goldmark-emoji v1.0.2 // indirect
 	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20220924101305-151362477c87 // indirect
+	github.com/ziflex/lecho/v3 v3.6.0 // indirect
 	go.mongodb.org/mongo-driver v1.11.3 // indirect
 	golang.org/x/crypto v0.22.0 // indirect
 	golang.org/x/net v0.24.0 // indirect

@@ -3,7 +3,6 @@ package cmds
 import (
 	"context"
 	"embed"
-	"fmt"
 	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
@@ -20,6 +19,8 @@ import (
 	"github.com/go-go-golems/parka/pkg/utils/fs"
 	sqleton_cmds "github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
 	"os"
 	"os/signal"
@@ -223,6 +224,9 @@ func (s *ServeCommand) Run(
 		server.WithGzip(),
 	}
 
+	// set default logger to log without colors
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, NoColor: true})
+
 	if ss.ConfigFile != "" {
 		return s.runWithConfigFile(ctx, parsedLayers, ss.ConfigFile, serverOptions)
 	}
@@ -241,7 +245,7 @@ func (s *ServeCommand) Run(
 	contentDirs := ss.ContentDirs
 
 	if len(contentDirs) > 1 {
-		return fmt.Errorf("only one content directory is supported at the moment")
+		return errors.Errorf("only one content directory is supported at the moment")
 	}
 
 	if len(contentDirs) == 1 {
@@ -294,11 +298,11 @@ func (s *ServeCommand) Run(
 	// This section configures the command directory default setting specific to sqleton
 	sqlConnectionLayer, ok := parsedLayers.Get("sql-connection")
 	if !ok || sqlConnectionLayer == nil {
-		return fmt.Errorf("sql-connection layer is required")
+		return errors.Errorf("sql-connection layer is required")
 	}
 	dbtConnectionLayer, ok := parsedLayers.Get("dbt")
 	if !ok || dbtConnectionLayer == nil {
-		return fmt.Errorf("dbt layer is required")
+		return errors.Errorf("dbt layer is required")
 	}
 
 	// commandDirHandlerOptions will apply to all command dirs loaded by the server

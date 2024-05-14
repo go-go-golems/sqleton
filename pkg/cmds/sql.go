@@ -157,7 +157,7 @@ func (s *SqlCommand) RunIntoGlazeProcessor(
 	gp middlewares.Processor,
 ) error {
 	if s.dbConnectionFactory == nil {
-		return fmt.Errorf("dbConnectionFactory is not set")
+		return errors.New("dbConnectionFactory is not set")
 	}
 
 	// at this point, the factory can probably be passed the sql-connection parsed layer
@@ -228,7 +228,7 @@ func (s *SqlCommand) RenderQueryFull(
 	parsedLayers *layers.ParsedLayers,
 ) (string, error) {
 	if s.dbConnectionFactory == nil {
-		return "", fmt.Errorf("dbConnectionFactory is not set")
+		return "", errors.Errorf("dbConnectionFactory is not set")
 	}
 
 	// at this point, the factory can probably be passed the sql-connection parsed layer

@@ -18,6 +18,7 @@ import (
 	"github.com/go-go-golems/sqleton/cmd/sqleton/cmds"
 	sqleton_cmds "github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/go-go-golems/sqleton/pkg/flags"
+	"github.com/pkg/errors"
 	"github.com/pkg/profile"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -127,7 +128,7 @@ var runCommandCmd = &cobra.Command{
 	Short: "Run a command from a file",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		panic(fmt.Errorf("not implemented"))
+		panic(errors.Errorf("not implemented"))
 	},
 }
 

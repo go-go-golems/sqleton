@@ -6,7 +6,7 @@ require (
 	github.com/dave/jennifer v1.7.0
 	github.com/go-go-golems/clay v0.1.14
 	github.com/go-go-golems/glazed v0.5.15
-	github.com/go-go-golems/parka v0.5.9
+	github.com/go-go-golems/parka v0.5.10
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/huandu/go-sqlbuilder v1.20.0
 	github.com/iancoleman/strcase v0.3.0

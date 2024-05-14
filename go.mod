@@ -6,7 +6,7 @@ require (
 	github.com/dave/jennifer v1.7.0
 	github.com/go-go-golems/clay v0.1.14
 	github.com/go-go-golems/glazed v0.5.15
-	github.com/go-go-golems/parka v0.5.10
+	github.com/go-go-golems/parka v0.5.12
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/huandu/go-sqlbuilder v1.20.0
 	github.com/iancoleman/strcase v0.3.0
@@ -69,6 +69,7 @@ require (
 	github.com/jedib0t/go-pretty v4.3.0+incompatible // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/kopoli/go-terminal-size v0.0.0-20170219200355-5c97524c8b54 // indirect
+	github.com/kucherenkovova/safegroup v1.0.2 // indirect
 	github.com/labstack/echo/v4 v4.12.0 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/lib/pq v1.10.9 // indirect

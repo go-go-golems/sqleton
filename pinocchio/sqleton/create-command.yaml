@@ -1,14 +1,5 @@
 name: create-command
 short: Generate a Sqleton query
-factories:
-  client:
-    timeout: 120
-  chat:
-    engine: gpt-4
-    temperature: 0.2
-    max_response_tokens: 4096
-    stop: []
-    stream: true
 flags:
   - name: additional_system
     type: stringList
@@ -245,4 +236,18 @@ prompt: |
   {{ .Content }}
   ---
   {{- end }}
+  {{ end }}
+  
+  
+  {{ if .instructions }}
+  INSTRUCTIONS:
+  ---
+  {{ .instructions }}
+  ---
+  {{ end }}
+  {{ if .instructions_file }}
+  INSTRUCTIONS FILE:
+  ---
+  {{ .instructions_file }}
+  ---
   {{ end }}

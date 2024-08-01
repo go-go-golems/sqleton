@@ -47,7 +47,7 @@ type SelectCommandSettings struct {
 	Where       string   `glazed.parameter:"where"`
 	OrderBy     string   `glazed.parameter:"order-by"`
 	Distinct    bool     `glazed.parameter:"distinct"`
-	Table       string   `glazed.parameter:"default.table"`
+	Table       string   `glazed.parameter:"table"`
 	CreateQuery string   `glazed.parameter:"create-query"`
 }
 
@@ -240,14 +240,6 @@ func NewSelectCommand(
 
 	options_ := append([]cmds.CommandDescriptionOption{
 		cmds.WithShort("Select" + " all columns from a table"),
-		cmds.WithArguments(
-			parameters.NewParameterDefinition(
-				"table",
-				parameters.ParameterTypeString,
-				parameters.WithHelp("The table to select from"),
-				parameters.WithRequired(true),
-			),
-		),
 		cmds.WithLayersList(
 			selectParameterLayer,
 			glazedParameterLayer,

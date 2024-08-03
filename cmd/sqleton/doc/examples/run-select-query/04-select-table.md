@@ -3,7 +3,7 @@ Title: Quickly select a table
 Slug: select-table
 Short: |
   ```
-  sqleton select orders \
+  sqleton select --table orders \
        --columns order_number,status,totals \
        --limit 10 --order-by "order_number DESC"
   ```
@@ -24,7 +24,7 @@ You can use sqleton to run a query straight from the CLI.
 and use the full set of glazed flags.
 
 ``` 
-❯ sqleton select orders \
+❯ sqleton select --table orders \
        --columns order_number,status,totals \
        --limit 10 --order-by "order_number DESC"
 +--------------+--------------+--------+

@@ -19,7 +19,7 @@ SectionType: Application
 You can get the list of currently connected users on a MySQL database with:
 
 ``` 
-❯ sqleton select information_schema.processlist --distinct --columns USER
+❯ sqleton select --table information_schema.processlist --distinct --columns USER
 +-------------------+
 | USER              |
 +-------------------+

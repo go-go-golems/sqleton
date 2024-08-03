@@ -3,7 +3,7 @@ Title: Quickly create a query template
 Slug: select-create-query
 Short: |
   ```
-  sqleton select orders \
+  sqleton select --table orders \
        --columns order_number,status,totals \
        --limit 10 --order-by "order_number DESC" \
        --create-query orders
@@ -25,7 +25,7 @@ You can use `sqleton select` with the `--create-query <name>` flag to
 quickly scaffold queries that can then be stored in `~/.sqleton/queries`.
 
 ``` 
-❯ sqleton select orders --limit 20 \
+❯ sqleton select --table orders --limit 20 \
      --order-by "order_number DESC" \
      --create-query orders 
 name: orders
@@ -61,7 +61,7 @@ It will prepopulate most flags for the template from the values you pass it.
 The flags `--columns` and `--where` however are fixed.
 
 ``` 
-❯ sqleton select orders --create-query orders \
+❯ sqleton select --table orders --create-query orders \
      --limit 50 --where "title LIKE '%anthropology%'"
 name: orders
 short: Select from orders where title LIKE '%anthropology%'
@@ -92,7 +92,7 @@ The `--count` flag also severely restricts the number
 of flags in the template:
 
 ```
-❯ sqleton select orders --create-query orders --count --distinct --columns name
+❯ sqleton select --table orders --create-query orders --count --distinct --columns name
 name: orders
 short: Count all rows from orders
 flags:

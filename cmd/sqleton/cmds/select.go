@@ -44,10 +44,10 @@ type SelectCommandSettings struct {
 	Limit       int      `glazed.parameter:"limit"`
 	Offset      int      `glazed.parameter:"offset"`
 	Count       bool     `glazed.parameter:"count"`
-	Where       string   `glazed.parameter:"where"`
+	Where       []string `glazed.parameter:"where"`
 	OrderBy     string   `glazed.parameter:"order-by"`
 	Distinct    bool     `glazed.parameter:"distinct"`
-	Table       string   `glazed.parameter:"default.table"`
+	Table       string   `glazed.parameter:"table"`
 	CreateQuery string   `glazed.parameter:"create-query"`
 }
 
@@ -89,8 +89,8 @@ func (sc *SelectCommand) RunIntoGlazeProcessor(
 		sb = sb.Distinct()
 	}
 
-	if s.Where != "" {
-		sb = sb.Where(s.Where)
+	for _, where := range s.Where {
+		sb = sb.Where(where)
 	}
 
 	if s.Limit > 0 && !s.Count {
@@ -108,15 +108,15 @@ func (sc *SelectCommand) RunIntoGlazeProcessor(
 		if s.Count {
 			short = fmt.Sprintf("Count all rows from %s", s.Table)
 		}
-		if s.Where != "" {
-			short = fmt.Sprintf("Select"+" from %s where %s", s.Table, s.Where)
+		if len(s.Where) > 0 {
+			short = fmt.Sprintf("Select"+" from %s where %s", s.Table, strings.Join(s.Where, " AND "))
 		}
 
 		flags := []*parameters.ParameterDefinition{}
-		if s.Where == "" {
+		if len(s.Where) == 0 {
 			flags = append(flags, &parameters.ParameterDefinition{
 				Name: "where",
-				Type: parameters.ParameterTypeString,
+				Type: parameters.ParameterTypeStringList,
 			})
 		}
 		if !s.Count {
@@ -159,10 +159,10 @@ func (sc *SelectCommand) RunIntoGlazeProcessor(
 			_, _ = fmt.Fprintf(sb, "{{ if .distinct }}DISTINCT{{ end }} ")
 		}
 		_, _ = fmt.Fprintf(sb, "%s FROM %s", strings.Join(s.Columns, ", "), s.Table)
-		if s.Where != "" {
-			_, _ = fmt.Fprintf(sb, " WHERE %s", s.Where)
+		if len(s.Where) > 0 {
+			_, _ = fmt.Fprintf(sb, " WHERE %s", strings.Join(s.Where, " AND "))
 		} else {
-			_, _ = fmt.Fprintf(sb, "\n{{ if .where  }}  WHERE {{.where}} {{ end }}")
+			_, _ = fmt.Fprintf(sb, "\nWHERE 1=1\n{{ range .where  }}  AND {{.}} {{ end }}")
 		}
 
 		_, _ = fmt.Fprintf(sb, "\n{{ if .order_by }} ORDER BY {{ .order_by }}{{ end }}")
@@ -240,14 +240,6 @@ func NewSelectCommand(
 
 	options_ := append([]cmds.CommandDescriptionOption{
 		cmds.WithShort("Select" + " all columns from a table"),
-		cmds.WithArguments(
-			parameters.NewParameterDefinition(
-				"table",
-				parameters.ParameterTypeString,
-				parameters.WithHelp("The table to select from"),
-				parameters.WithRequired(true),
-			),
-		),
 		cmds.WithLayersList(
 			selectParameterLayer,
 			glazedParameterLayer,

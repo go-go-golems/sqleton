@@ -4,9 +4,9 @@ Description: |
   These are the flags used to select data from a database.
 flags:
   - name: where
-    type: string
+    type: stringList
     help: Where clause
-    default: ""
+    default: []
   - name: order-by
     type: string
     help: Order by clause

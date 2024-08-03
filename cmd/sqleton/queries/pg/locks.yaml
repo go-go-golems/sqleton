@@ -1,0 +1,57 @@
+name: locks
+short: Show PostgreSQL locks
+flags:
+  - name: mode
+    type: string
+    help: Lock mode (e.g., ExclusiveLock)
+  - name: state
+    type: string
+    help: State of the activity (e.g., idle)
+  - name: relname
+    type: string
+    help: Relation name (table name)
+  - name: limit
+    type: int
+    help: Limit the number of results
+    default: 0
+  - name: offset
+    type: int
+    help: Offset
+    default: 0
+  - name: order_by
+    type: string
+    default: query_start DESC
+    help: Order by
+query: |
+  {{ if .explain }}
+    EXPLAIN
+  {{ end }}
+  SELECT
+    pg_stat_activity.pid,
+    pg_class.relname,
+    pg_locks.transactionid,
+    pg_locks.granted,
+    pg_stat_activity.query AS current_query,
+    pg_stat_activity.state,
+    pg_stat_activity.query_start,
+    age(now(), pg_stat_activity.query_start) AS "age"
+  FROM pg_stat_activity
+  JOIN pg_locks ON pg_stat_activity.pid = pg_locks.pid
+  JOIN pg_class ON pg_locks.relation = pg_class.oid
+  WHERE 1=1
+  {{ if .mode }}
+    AND pg_locks.mode = '{{ .mode }}'
+  {{ end }}
+  {{ if .state }}
+    AND pg_stat_activity.state = '{{ .state }}'
+  {{ end }}
+  {{ if .relname }}
+    AND pg_class.relname = '{{ .relname }}'
+  {{ end }}
+  ORDER BY {{ .order_by }}
+  {{ if .limit }}
+    LIMIT {{ .limit }}
+    {{ if .offset }}
+      OFFSET {{ .offset }}
+    {{ end }}
+  {{ end }}

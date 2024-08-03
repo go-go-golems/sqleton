@@ -1,0 +1,29 @@
+name: kill-connections
+short: Kill a specific PostgreSQL connection or all connections from a specific user or to a specific database
+flags:
+  - name: pid
+    type: int
+    help: Process ID of the connection to kill
+  - name: dbuser
+    type: string
+    help: Kill all connections from this database user
+  - name: dbname
+    type: string
+    help: Kill all connections to this database
+query: |
+  {{ if .pid }}
+    SELECT pg_terminate_backend({{ .pid }});
+  {{ else if .dbuser }}
+    SELECT pg_terminate_backend(pid)
+    FROM pg_stat_activity
+    WHERE usename = '{{ .dbuser }}'
+      AND pid <> pg_backend_pid();
+  {{ else if .dbname }}
+    SELECT pg_terminate_backend(pid)
+    FROM pg_stat_activity
+    WHERE datname = '{{ .dbname }}'
+      AND pid <> pg_backend_pid();
+  {{ else }}
+    -- If no flags are provided, raise an error
+    RAISE EXCEPTION 'You must provide either a pid, dbuser, or dbname';
+  {{ end }}

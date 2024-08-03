@@ -1,0 +1,67 @@
+name: connections
+short: Show all current PostgreSQL connections
+flags:
+  - name: dbuser
+    type: string
+    help: Database user
+  - name: dbname
+    type: string
+    help: Database name
+  - name: client_addr
+    type: string
+    help: Client address
+  - name: state
+    type: string
+    help: State of the connection (e.g., active, idle)
+  - name: application_name
+    type: string
+    help: Application name
+  - name: limit
+    type: int
+    help: Limit the number of results
+    default: 0
+  - name: offset
+    type: int
+    help: Offset
+    default: 0
+  - name: order_by
+    type: string
+    default: backend_start DESC
+    help: Order by
+query: |
+  {{ if .explain }}
+    EXPLAIN
+  {{ end }}
+  SELECT
+    pid,
+    usename AS user,
+    datname AS dbname,
+    client_addr,
+    state,
+    application_name,
+    backend_start,
+    query
+  FROM pg_stat_activity
+  WHERE 1=1
+  {{ if .dbuser }}
+    AND usename = '{{ .dbuser }}'
+  {{ end }}
+  {{ if .dbname }}
+    AND datname = '{{ .dbname }}'
+  {{ end }}
+  {{ if .client_addr }}
+    AND client_addr = '{{ .client_addr }}'
+  {{ end }}
+  {{ if .state }}
+    AND state = '{{ .state }}'
+  {{ end }}
+  {{ if .application_name }}
+    AND application_name = '{{ .application_name }}'
+  {{ end }}
+  ORDER BY {{ .order_by }}
+  {{ if .limit }}
+    LIMIT {{ .limit }}
+    {{ if .offset }}
+      OFFSET {{ .offset }}
+    {{ end }}
+  {{ end }}

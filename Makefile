@@ -43,7 +43,7 @@ bash:
 	docker compose exec sqleton bash
 
 goreleaser:
-	goreleaser release --skip-sign --snapshot --rm-dist
+	goreleaser release --skip=sign --snapshot --clean
 
 tag-major:
 	git tag $(shell svu major)

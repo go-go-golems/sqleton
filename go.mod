@@ -4,8 +4,8 @@ go 1.19
 
 require (
 	github.com/dave/jennifer v1.7.0
-	github.com/go-go-golems/clay v0.1.14
-	github.com/go-go-golems/glazed v0.5.16
+	github.com/go-go-golems/clay v0.1.16
+	github.com/go-go-golems/glazed v0.5.18
 	github.com/go-go-golems/parka v0.5.12
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/huandu/go-sqlbuilder v1.20.0

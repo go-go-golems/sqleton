@@ -315,6 +315,12 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	}
 	rootCmd.AddCommand(cobraQueriesCommand)
 
+	command, err := cmds.NewConfigGroupCommand(helpSystem)
+	if err != nil {
+		return err
+	}
+	rootCmd.AddCommand(command)
+
 	rootCmd.PersistentFlags().Bool("mem-profile", false, "Enable memory profiling")
 
 	return nil

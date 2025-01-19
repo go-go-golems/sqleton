@@ -3,3 +3,4 @@ go.work
 dist/
 ./sqleton
 /.envrc
+.history

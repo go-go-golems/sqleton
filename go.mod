@@ -1,14 +1,14 @@
 module github.com/go-go-golems/sqleton
 
-go 1.21
+go 1.23
 
 toolchain go1.23.3
 
 require (
 	github.com/dave/jennifer v1.7.0
-	github.com/go-go-golems/clay v0.1.17
-	github.com/go-go-golems/glazed v0.5.18
-	github.com/go-go-golems/parka v0.5.12
+	github.com/go-go-golems/clay v0.1.20
+	github.com/go-go-golems/glazed v0.5.24
+	github.com/go-go-golems/parka v0.5.13
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/huandu/go-sqlbuilder v1.20.0
 	github.com/iancoleman/strcase v0.3.0

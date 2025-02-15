@@ -3,8 +3,13 @@ package main
 import (
 	"embed"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+
 	clay "github.com/go-go-golems/clay/pkg"
-	"github.com/go-go-golems/clay/pkg/cmds/ls-commands"
+	ls_commands "github.com/go-go-golems/clay/pkg/cmds/ls-commands"
+	clay_doc "github.com/go-go-golems/clay/pkg/doc"
 	"github.com/go-go-golems/clay/pkg/repositories"
 	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cli"
@@ -23,12 +28,9 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"os"
-	"os/signal"
-	"syscall"
-)
 
-import _ "net/http/pprof"
+	_ "net/http/pprof"
+)
 
 var version = "dev"
 var profiler interface {
@@ -144,6 +146,9 @@ func initRootCmd() (*help.HelpSystem, error) {
 	cobra.CheckErr(err)
 
 	err = parka_doc.AddDocToHelpSystem(helpSystem)
+	cobra.CheckErr(err)
+
+	err = clay_doc.AddDocToHelpSystem(helpSystem)
 	cobra.CheckErr(err)
 
 	helpSystem.SetupCobraRootCommand(rootCmd)
@@ -267,6 +272,8 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		repositories_,
 		cli.WithCobraMiddlewaresFunc(sql.GetCobraCommandSqletonMiddlewares),
 		cli.WithCobraShortHelpLayers(layers.DefaultSlug, sql.DbtSlug, sql.SqlConnectionSlug, flags.SqlHelpersSlug),
+		cli.WithCreateCommandSettingsLayer(),
+		cli.WithProfileSettingsLayer(),
 	)
 	if err != nil {
 		return err

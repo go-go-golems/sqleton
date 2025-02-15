@@ -197,49 +197,7 @@ prompt: |
   {{ if .example }}
   Here is an example that queries the {{ .example_name }}.
   
-  ```yaml
-  name: sales-summary
-  short: Generate sales summary with grouping options
-  flags:
-    - name: group_by
-      type: string
-      help: Group by field (day, month, category)
-      default: month
-    - name: year
-      type: int
-      help: Filter by year
-      required: true
-    - name: categories
-      type: stringList
-      help: Filter by product categories
-  query: |
-    SELECT 
-      {{ if eq .group_by "day" }}
-        DATE(created_at) as period,
-      {{ else if eq .group_by "month" }}
-        DATE_TRUNC('month', created_at) as period,
-      {{ end }}
-      {{ if .categories }}
-        category,
-      {{ end }}
-      COUNT(*) as total_orders,
-      SUM(amount) as total_amount
-    FROM sales
-    WHERE EXTRACT(YEAR FROM created_at) = {{ .year }}
-    {{ if .categories }}
-      AND category IN ({{ range $i, $c := .categories }}{{ if $i }},{{ end }}'{{ $c }}'{{ end }})
-    {{ end }}
-    GROUP BY 
-      {{ if eq .group_by "day" }}
-        DATE(created_at)
-      {{ else if eq .group_by "month" }}
-        DATE_TRUNC('month', created_at)
-      {{ end }}
-      {{ if .categories }}
-        , category
-      {{ end }}
-    ORDER BY period
-  ```
+  {{ .example }}
 
   Based on these examples and the provided table structure (if any), create a YAML command that:
   1. Follows the structure and naming conventions shown

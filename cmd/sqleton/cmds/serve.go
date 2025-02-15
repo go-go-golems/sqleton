@@ -168,11 +168,12 @@ func (s *ServeCommand) runWithConfigFile(
 		commandDirHandlerOptions,
 		command_dir.WithGenericCommandHandlerOptions(
 			generic_command.WithParameterFilterOptions(
-				config.WithLayerDefaults(
+				// I think this is correct and sets the connection settings?
+				config.WithMergeOverrideLayer(
 					sqlConnectionLayer.Layer.GetSlug(),
 					sqlConnectionLayer.Parameters.ToMap(),
 				),
-				config.WithLayerDefaults(
+				config.WithMergeOverrideLayer(
 					dbtConnectionLayer.Layer.GetSlug(),
 					dbtConnectionLayer.Parameters.ToMap(),
 				),

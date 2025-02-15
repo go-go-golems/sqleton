@@ -9,6 +9,7 @@ import (
 
 	clay "github.com/go-go-golems/clay/pkg"
 	ls_commands "github.com/go-go-golems/clay/pkg/cmds/ls-commands"
+	clay_doc "github.com/go-go-golems/clay/pkg/doc"
 	"github.com/go-go-golems/clay/pkg/repositories"
 	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cli"
@@ -145,6 +146,9 @@ func initRootCmd() (*help.HelpSystem, error) {
 	cobra.CheckErr(err)
 
 	err = parka_doc.AddDocToHelpSystem(helpSystem)
+	cobra.CheckErr(err)
+
+	err = clay_doc.AddDocToHelpSystem(helpSystem)
 	cobra.CheckErr(err)
 
 	helpSystem.SetupCobraRootCommand(rootCmd)

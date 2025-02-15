@@ -6,9 +6,9 @@ toolchain go1.23.3
 
 require (
 	github.com/dave/jennifer v1.7.0
-	github.com/go-go-golems/clay v0.1.20
-	github.com/go-go-golems/glazed v0.5.24
-	github.com/go-go-golems/parka v0.5.15
+	github.com/go-go-golems/clay v0.1.27
+	github.com/go-go-golems/glazed v0.5.29
+	github.com/go-go-golems/parka v0.5.18
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/huandu/go-sqlbuilder v1.20.0
 	github.com/iancoleman/strcase v0.3.0
@@ -60,7 +60,6 @@ require (
 	github.com/go-openapi/errors v0.22.0 // indirect
 	github.com/go-openapi/strfmt v0.23.0 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
-	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/pprof v0.0.0-20240727154555-813a5fbdbec8 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/css v1.0.1 // indirect

@@ -223,8 +223,6 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	}
 	rootCmd.AddCommand(cobraQueryCommand)
 
-	rootCmd.AddCommand(cmds.MysqlCmd)
-
 	repositoryPaths := viper.GetStringSlice("repositories")
 
 	defaultDirectory := "$HOME/.sqleton/queries"

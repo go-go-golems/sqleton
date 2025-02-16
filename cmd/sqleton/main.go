@@ -22,6 +22,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/types"
 	parka_doc "github.com/go-go-golems/parka/pkg/doc"
 	"github.com/go-go-golems/sqleton/cmd/sqleton/cmds"
+	"github.com/go-go-golems/sqleton/cmd/sqleton/cmds/mcp"
 	sqleton_cmds "github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/go-go-golems/sqleton/pkg/flags"
 	"github.com/pkg/errors"
@@ -279,7 +280,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	}
 
 	// Create and add MCP commands
-	mcpCommands := cmds.NewMcpCommands(repositories_)
+	mcpCommands := mcp.NewMcpCommands(repositories_)
 	mcpCommands.AddToRootCommand(rootCmd)
 
 	serveCommand, err := cmds.NewServeCommand(

@@ -279,6 +279,10 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		return err
 	}
 
+	// Create and add MCP commands
+	mcpCommands := cmds.NewMcpCommands(repositories_)
+	mcpCommands.AddToRootCommand(rootCmd)
+
 	serveCommand, err := cmds.NewServeCommand(
 		sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 		repositoryPaths,

@@ -192,6 +192,10 @@ func (mc *McpCommands) CreateToolsCmd() *cobra.Command {
 	}
 
 	toolsCmd.AddCommand(cobraCmd)
+
+	runCmd := mc.CreateRunCmd()
+	toolsCmd.AddCommand(runCmd)
+
 	return toolsCmd
 }
 
@@ -333,7 +337,6 @@ func (mc *McpCommands) CreateRunCmd() *cobra.Command {
 
 func (mc *McpCommands) AddToRootCommand(rootCmd *cobra.Command) {
 	toolsCmd := mc.CreateToolsCmd()
-	runCmd := mc.CreateRunCmd()
-	McpCmd.AddCommand(toolsCmd, runCmd)
+	McpCmd.AddCommand(toolsCmd)
 	rootCmd.AddCommand(McpCmd)
 }

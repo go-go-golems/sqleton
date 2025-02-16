@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/go-go-golems/clay/pkg/repositories"
+	"github.com/go-go-golems/clay/pkg/repositories/mcp"
 	"github.com/spf13/cobra"
 )
 
@@ -33,22 +34,15 @@ func (mc *McpCommands) CreateToolsCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List all available tools",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			allTools := []map[string]interface{}{}
+			allTools := []mcp.Tool{}
 
 			for _, repo := range mc.repositories {
 				tools, _, err := repo.ListTools(cmd.Context(), "")
 				if err != nil {
 					return fmt.Errorf("error listing tools from repository: %w", err)
 				}
+				allTools = append(allTools, tools...)
 
-				for _, tool := range tools {
-					toolMap := map[string]interface{}{
-						"name":        tool.Name,
-						"description": tool.Description,
-						"inputSchema": tool.InputSchema,
-					}
-					allTools = append(allTools, toolMap)
-				}
 			}
 
 			jsonBytes, err := json.MarshalIndent(allTools, "", "  ")

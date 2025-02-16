@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	clay "github.com/go-go-golems/clay/pkg"
+	edit_command "github.com/go-go-golems/clay/pkg/cmds/edit-command"
 	ls_commands "github.com/go-go-golems/clay/pkg/cmds/ls-commands"
 	clay_doc "github.com/go-go-golems/clay/pkg/doc"
 	"github.com/go-go-golems/clay/pkg/repositories"
@@ -316,7 +317,6 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 			return ret, nil
 		}),
 	)
-
 	if err != nil {
 		return err
 	}
@@ -325,6 +325,16 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		return err
 	}
 	rootCmd.AddCommand(cobraQueriesCommand)
+
+	editCommandCommand, err := edit_command.NewEditCommand(allCommands)
+	if err != nil {
+		return err
+	}
+	cobraEditCommandCommand, err := cli.BuildCobraCommandFromCommand(editCommandCommand)
+	if err != nil {
+		return err
+	}
+	rootCmd.AddCommand(cobraEditCommandCommand)
 
 	command, err := cmds.NewConfigGroupCommand(helpSystem)
 	if err != nil {

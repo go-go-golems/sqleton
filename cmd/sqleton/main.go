@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	clay "github.com/go-go-golems/clay/pkg"
+	edit_command "github.com/go-go-golems/clay/pkg/cmds/edit-command"
 	ls_commands "github.com/go-go-golems/clay/pkg/cmds/ls-commands"
 	clay_doc "github.com/go-go-golems/clay/pkg/doc"
 	"github.com/go-go-golems/clay/pkg/repositories"
@@ -21,6 +22,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/types"
 	parka_doc "github.com/go-go-golems/parka/pkg/doc"
 	"github.com/go-go-golems/sqleton/cmd/sqleton/cmds"
+	"github.com/go-go-golems/sqleton/cmd/sqleton/cmds/mcp"
 	sqleton_cmds "github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/go-go-golems/sqleton/pkg/flags"
 	"github.com/pkg/errors"
@@ -222,8 +224,6 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	}
 	rootCmd.AddCommand(cobraQueryCommand)
 
-	rootCmd.AddCommand(cmds.MysqlCmd)
-
 	repositoryPaths := viper.GetStringSlice("repositories")
 
 	defaultDirectory := "$HOME/.sqleton/queries"
@@ -279,6 +279,10 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		return err
 	}
 
+	// Create and add MCP commands
+	mcpCommands := mcp.NewMcpCommands(repositories_)
+	mcpCommands.AddToRootCommand(rootCmd)
+
 	serveCommand, err := cmds.NewServeCommand(
 		sql.OpenDatabaseFromDefaultSqlConnectionLayer,
 		repositoryPaths,
@@ -312,7 +316,6 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 			return ret, nil
 		}),
 	)
-
 	if err != nil {
 		return err
 	}
@@ -321,6 +324,16 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		return err
 	}
 	rootCmd.AddCommand(cobraQueriesCommand)
+
+	editCommandCommand, err := edit_command.NewEditCommand(allCommands)
+	if err != nil {
+		return err
+	}
+	cobraEditCommandCommand, err := cli.BuildCobraCommandFromCommand(editCommandCommand)
+	if err != nil {
+		return err
+	}
+	rootCmd.AddCommand(cobraEditCommandCommand)
 
 	command, err := cmds.NewConfigGroupCommand(helpSystem)
 	if err != nil {

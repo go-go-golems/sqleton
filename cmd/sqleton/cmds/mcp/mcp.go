@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/go-go-golems/clay/pkg/repositories"
@@ -196,6 +197,33 @@ func (mc *McpCommands) CreateToolsCmd() *cobra.Command {
 	runCmd := mc.CreateRunCmd()
 	toolsCmd.AddCommand(runCmd)
 
+	schemaCmd, err := NewSchemaCommand(mc.repositories)
+	if err != nil {
+		panic(err)
+	}
+
+	cobraSchemaCmd, err := cli.BuildCobraCommandFromCommand(schemaCmd,
+		cli.WithCobraMiddlewaresFunc(func(
+			parsedLayers *layers.ParsedLayers,
+			cmd *cobra.Command,
+			args []string,
+		) ([]cmd_middlewares.Middleware, error) {
+			return createCommandMiddlewares(parsedLayers, cmd, args, nil)
+		}),
+		cli.WithCobraShortHelpLayers(
+			layers.DefaultSlug,
+			sql.DbtSlug,
+			sql.SqlConnectionSlug,
+			flags.SqlHelpersSlug,
+		),
+		cli.WithProfileSettingsLayer(),
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	toolsCmd.AddCommand(cobraSchemaCmd)
+
 	return toolsCmd
 }
 
@@ -333,6 +361,69 @@ func (mc *McpCommands) CreateRunCmd() *cobra.Command {
 	}
 
 	return cobraCmd
+}
+
+type SchemaCommand struct {
+	*cmds.CommandDescription
+	repositories []*repositories.Repository
+}
+
+func NewSchemaCommand(repositories []*repositories.Repository) (*SchemaCommand, error) {
+	return &SchemaCommand{
+		CommandDescription: cmds.NewCommandDescription(
+			"schema",
+			cmds.WithShort("Get JSON schema for a tool"),
+			cmds.WithArguments(
+				parameters.NewParameterDefinition(
+					"name",
+					parameters.ParameterTypeString,
+					parameters.WithHelp("Name of the tool to get schema for"),
+				),
+			),
+		),
+		repositories: repositories,
+	}, nil
+}
+
+func (c *SchemaCommand) RunIntoWriter(
+	ctx context.Context,
+	parsedLayers *layers.ParsedLayers,
+	w io.Writer,
+) error {
+	s := &struct {
+		Name string `glazed.parameter:"name"`
+	}{}
+	if err := parsedLayers.InitializeStruct(layers.DefaultSlug, s); err != nil {
+		return err
+	}
+
+	// Find tool in repositories
+	var foundCmd cmds.Command
+	for _, repo := range c.repositories {
+		cmd, ok := repo.GetCommand(s.Name)
+		if ok {
+			foundCmd = cmd
+			break
+		}
+	}
+	if foundCmd == nil {
+		return fmt.Errorf("command %s not found", s.Name)
+	}
+
+	// Get JSON schema from command description
+	schema, err := foundCmd.Description().ToJsonSchema()
+	if err != nil {
+		return fmt.Errorf("failed to get schema: %w", err)
+	}
+
+	// Pretty print the schema
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(schema); err != nil {
+		return fmt.Errorf("failed to encode schema: %w", err)
+	}
+
+	return nil
 }
 
 func (mc *McpCommands) AddToRootCommand(rootCmd *cobra.Command) {

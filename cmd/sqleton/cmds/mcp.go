@@ -1,7 +1,9 @@
 package cmds
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/go-go-golems/clay/pkg/repositories"
@@ -85,10 +87,25 @@ func (c *ListToolsCommand) RunIntoGlazeProcessor(
 	}
 
 	for _, tool := range allTools {
+		var prettySchema bytes.Buffer
+		err := json.Indent(&prettySchema, tool.InputSchema, "", "  ")
+		if err != nil {
+			return fmt.Errorf("error formatting input schema: %w", err)
+		}
+
+		var inputSchema_ interface{}
+
+		output, _ := parsedLayers.GetParameter(settings.GlazedSlug, "output")
+		if output.Value == "json" {
+			inputSchema_ = tool.InputSchema
+		} else {
+			inputSchema_ = prettySchema.String()
+		}
+
 		row := map[string]interface{}{
 			"name":        tool.Name,
 			"description": tool.Description,
-			"inputSchema": tool.InputSchema,
+			"inputSchema": inputSchema_,
 		}
 		row_ := types.NewRowFromMap(row)
 		if err := gp.AddRow(ctx, row_); err != nil {

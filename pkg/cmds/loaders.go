@@ -54,12 +54,19 @@ func (scl *SqlCommandLoader) loadSqlCommandFromReader(
 		return nil, err
 	}
 
+	if scd.Type == "" {
+		scd.Type = "sql"
+	}
+
 	options_ := []cmds.CommandDescriptionOption{
 		cmds.WithShort(scd.Short),
 		cmds.WithLong(scd.Long),
 		cmds.WithFlags(scd.Flags...),
 		cmds.WithArguments(scd.Arguments...),
 		cmds.WithLayersList(scd.Layers...),
+		cmds.WithType(scd.Type),
+		cmds.WithTags(scd.Tags...),
+		cmds.WithMetadata(scd.Metadata),
 		cmds.WithLayout(&layout.Layout{
 			Sections: scd.Layout,
 		}),

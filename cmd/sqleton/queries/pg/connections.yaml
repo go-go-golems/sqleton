@@ -28,6 +28,9 @@ flags:
     type: string
     default: backend_start DESC
     help: Order by
+tags:
+  - pg
+  - admin
 query: |
   {{ if .explain }}
     EXPLAIN

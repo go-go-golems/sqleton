@@ -39,6 +39,9 @@ type SqlCommandDescription struct {
 	Flags     []*parameters.ParameterDefinition `yaml:"flags,omitempty"`
 	Arguments []*parameters.ParameterDefinition `yaml:"arguments,omitempty"`
 	Layers    []layers.ParameterLayer           `yaml:"layers,omitempty"`
+	Type      string                            `yaml:"type,omitempty"`
+	Tags      []string                          `yaml:"tags,omitempty"`
+	Metadata  map[string]interface{}            `yaml:"metadata,omitempty"`
 
 	SubQueries map[string]string `yaml:"subqueries,omitempty"`
 	Query      string            `yaml:"query"`

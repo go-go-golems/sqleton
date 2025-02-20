@@ -11,6 +11,7 @@ import (
 	edit_command "github.com/go-go-golems/clay/pkg/cmds/edit-command"
 	ls_commands "github.com/go-go-golems/clay/pkg/cmds/ls-commands"
 	clay_doc "github.com/go-go-golems/clay/pkg/doc"
+	filter_command "github.com/go-go-golems/clay/pkg/filters/command/cmds"
 	"github.com/go-go-golems/clay/pkg/repositories"
 	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cli"
@@ -341,7 +342,37 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	}
 	rootCmd.AddCommand(command)
 
+	// Create the commands group
+	commandsGroup := &cobra.Command{
+		Use:   "commands",
+		Short: "Commands for managing and filtering sqleton commands",
+	}
+	rootCmd.AddCommand(commandsGroup)
+
+	// Create and add the filter command
+	filterCommand, err := filter_command.NewFilterCommand(convertCommandsToDescriptions(allCommands))
+	if err != nil {
+		return err
+	}
+	cobraFilterCommand, err := cli.BuildCobraCommandFromGlazeCommand(filterCommand)
+	if err != nil {
+		return err
+	}
+	commandsGroup.AddCommand(cobraFilterCommand)
+
 	rootCmd.PersistentFlags().Bool("mem-profile", false, "Enable memory profiling")
 
 	return nil
+}
+
+// convertCommandsToDescriptions converts a list of commands to their descriptions
+func convertCommandsToDescriptions(commands []glazed_cmds.Command) []*glazed_cmds.CommandDescription {
+	descriptions := make([]*glazed_cmds.CommandDescription, 0, len(commands))
+	for _, cmd := range commands {
+		if _, ok := cmd.(*alias.CommandAlias); ok {
+			continue
+		}
+		descriptions = append(descriptions, cmd.Description())
+	}
+	return descriptions
 }

@@ -249,6 +249,7 @@ func NewRunCommand(repositories []*repositories.Repository) (*RunCommand, error)
 					"name",
 					parameters.ParameterTypeString,
 					parameters.WithHelp("Name of the tool to run"),
+					parameters.WithRequired(true),
 				),
 			),
 			cmds.WithFlags(

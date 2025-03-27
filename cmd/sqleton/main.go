@@ -44,11 +44,6 @@ var rootCmd = &cobra.Command{
 	Use:   "sqleton",
 	Short: "sqleton runs SQL queries out of template files",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		// reinitialize the logger because we can now parse --log-level and co
-		// from the command line flag
-		err := clay.InitLogger()
-		cobra.CheckErr(err)
-
 		memProfile, _ := cmd.Flags().GetBool("mem-profile")
 		if memProfile {
 			log.Info().Msg("Starting memory profiler")
@@ -158,9 +153,6 @@ func initRootCmd() (*help.HelpSystem, error) {
 
 	err = clay.InitViper("sqleton", rootCmd)
 	cobra.CheckErr(err)
-	err = clay.InitLogger()
-	cobra.CheckErr(err)
-
 	rootCmd.AddCommand(runCommandCmd)
 
 	rootCmd.AddCommand(cmds.NewCodegenCommand())

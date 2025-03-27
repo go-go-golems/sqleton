@@ -1,6 +1,10 @@
 package cmds
 
 import (
+	"fmt"
+	"io"
+	"io/fs"
+
 	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
@@ -8,9 +12,6 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
-	"io"
-	"io/fs"
-	"strings"
 )
 
 type SqlCommandLoader struct {
@@ -40,7 +41,7 @@ func (scl *SqlCommandLoader) LoadCommands(
 }
 
 func (scl *SqlCommandLoader) IsFileSupported(f fs.FS, fileName string) bool {
-	return strings.HasSuffix(fileName, ".yaml") || strings.HasSuffix(fileName, ".yml")
+	return loaders.CheckYamlFileType(f, fileName, "sqleton")
 }
 
 func (scl *SqlCommandLoader) loadSqlCommandFromReader(
@@ -55,7 +56,9 @@ func (scl *SqlCommandLoader) loadSqlCommandFromReader(
 	}
 
 	if scd.Type == "" {
-		scd.Type = "sql"
+		scd.Type = "sqleton"
+	} else if scd.Type != "sqleton" {
+		return nil, fmt.Errorf("invalid type: %s", scd.Type)
 	}
 
 	options_ := []cmds.CommandDescriptionOption{

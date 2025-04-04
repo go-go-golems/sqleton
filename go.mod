@@ -8,7 +8,7 @@ require (
 	github.com/go-go-golems/glazed v0.5.40
 	github.com/go-go-golems/parka v0.5.21
 	github.com/go-sql-driver/mysql v1.9.1
-	github.com/huandu/go-sqlbuilder v1.20.0
+	github.com/huandu/go-sqlbuilder v1.35.0
 	github.com/iancoleman/strcase v0.3.0
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/mattn/go-sqlite3 v1.14.24

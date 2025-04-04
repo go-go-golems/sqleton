@@ -1,24 +1,36 @@
-.PHONY: gifs
+.PHONY: gifs test build lint lintmax docker-lint gosec govulncheck goreleaser tag-major tag-minor tag-patch release bump-glazed install
 
 VERSION ?= $(shell svu)
 COMMIT ?= $(shell git rev-parse --short HEAD)
 DIRTY ?= $(shell git diff --quiet || echo "dirty")
 LDFLAGS=-ldflags "-X main.version=$(VERSION)-$(COMMIT)-$(DIRTY)"
 
-all: gifs
+all: test build
 
 TAPES=$(shell ls doc/vhs/*tape)
 gifs: $(TAPES)
 	for i in $(TAPES); do vhs < $$i; done
 
 docker-lint:
-	docker run --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:v1.50.1 golangci-lint run -v
+	docker run --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:v2.0.2 golangci-lint run -v
 
 ghcr-login:
 	op read "$(CR_PAT)" | docker login ghcr.io -u wesen --password-stdin
 
 lint:
 	golangci-lint run -v
+
+lintmax:
+	golangci-lint run -v --max-same-issues=100
+
+gosec:
+	go install github.com/securego/gosec/v2/cmd/gosec@latest
+	# Adjust exclusions as needed
+	gosec -exclude=G101,G304,G301,G306,G204 -exclude-dir=.history ./...
+
+govulncheck:
+	go install golang.org/x/vuln/cmd/govulncheck@latest
+	govulncheck ./...
 
 test:
 	go test ./...

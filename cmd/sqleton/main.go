@@ -32,6 +32,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	// #nosec G108 - pprof is imported for profiling and debugging in development environments only.
+	// This is gated behind the --mem-profile flag and not enabled by default.
 	_ "net/http/pprof"
 )
 

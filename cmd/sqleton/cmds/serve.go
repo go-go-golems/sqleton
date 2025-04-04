@@ -3,6 +3,10 @@ package cmds
 import (
 	"context"
 	"embed"
+	"os"
+	"os/signal"
+	"path/filepath"
+
 	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
@@ -22,9 +26,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
-	"os"
-	"os/signal"
-	"path/filepath"
 )
 
 type ServeCommand struct {
@@ -219,6 +220,12 @@ func (s *ServeCommand) Run(
 	if err != nil {
 		return err
 	}
+
+	// Validate port is within uint16 range to prevent overflow
+	if ss.ServePort < 0 || ss.ServePort > 65535 {
+		return errors.Errorf("port number %d is outside the valid range (0-65535)", ss.ServePort)
+	}
+
 	serverOptions := []server.ServerOption{
 		server.WithPort(uint16(ss.ServePort)),
 		server.WithAddress(ss.ServeHost),

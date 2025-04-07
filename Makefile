@@ -1,4 +1,4 @@
-.PHONY: gifs test build lint lintmax docker-lint gosec govulncheck goreleaser tag-major tag-minor tag-patch release bump-glazed install
+.PHONY: gifs test build lint lintmax docker-lint gosec govulncheck goreleaser tag-major tag-minor tag-patch release bump-glazed install codeql-local
 
 VERSION ?= $(shell svu)
 COMMIT ?= $(shell git rev-parse --short HEAD)
@@ -80,3 +80,16 @@ SQLETON_BINARY=$(shell which sqleton)
 install:
 	go build $(LDFLAGS) -o ./dist/sqleton ./cmd/sqleton && \
 		cp ./dist/sqleton $(SQLETON_BINARY)
+
+# Path to CodeQL CLI - adjust based on installation location
+CODEQL_PATH ?= $(shell which codeql)
+# Path to CodeQL queries - adjust based on where you cloned the repository
+CODEQL_QUERIES ?= $(HOME)/codeql-go/ql/src/go
+
+# Create CodeQL database and run analysis
+codeql-local:
+	@if [ -z "$(CODEQL_PATH)" ]; then echo "CodeQL CLI not found. Install from https://github.com/github/codeql-cli-binaries/releases"; exit 1; fi
+	@if [ ! -d "$(CODEQL_QUERIES)" ]; then echo "CodeQL queries not found. Clone from https://github.com/github/codeql-go"; exit 1; fi
+	$(CODEQL_PATH) database create --language=go --source-root=. ./codeql-db
+	$(CODEQL_PATH) database analyze ./codeql-db $(CODEQL_QUERIES)/Security --format=sarif-latest --output=codeql-results.sarif
+	@echo "Results saved to codeql-results.sarif"

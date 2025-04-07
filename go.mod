@@ -4,9 +4,9 @@ go 1.24.2
 
 require (
 	github.com/dave/jennifer v1.7.0
-	github.com/go-go-golems/clay v0.1.35
-	github.com/go-go-golems/glazed v0.5.40
-	github.com/go-go-golems/parka v0.5.22
+	github.com/go-go-golems/clay v0.1.37
+	github.com/go-go-golems/glazed v0.5.43
+	github.com/go-go-golems/parka v0.5.23
 	github.com/go-sql-driver/mysql v1.9.1
 	github.com/huandu/go-sqlbuilder v1.35.0
 	github.com/iancoleman/strcase v0.3.0
@@ -18,7 +18,7 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
-	golang.org/x/sync v0.12.0
+	golang.org/x/sync v0.13.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 

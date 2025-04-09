@@ -8,10 +8,7 @@ import (
 	"syscall"
 
 	clay "github.com/go-go-golems/clay/pkg"
-	edit_command "github.com/go-go-golems/clay/pkg/cmds/edit-command"
-	ls_commands "github.com/go-go-golems/clay/pkg/cmds/ls-commands"
 	clay_doc "github.com/go-go-golems/clay/pkg/doc"
-	filter_command "github.com/go-go-golems/clay/pkg/filters/command/cmds"
 	"github.com/go-go-golems/clay/pkg/repositories"
 	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cli"
@@ -35,6 +32,10 @@ import (
 	// #nosec G108 - pprof is imported for profiling and debugging in development environments only.
 	// This is gated behind the --mem-profile flag and not enabled by default.
 	_ "net/http/pprof"
+
+	clay_commandmeta "github.com/go-go-golems/clay/pkg/cmds/commandmeta"
+	clay_profiles "github.com/go-go-golems/clay/pkg/cmds/profiles"
+	clay_repositories "github.com/go-go-golems/clay/pkg/cmds/repositories"
 )
 
 var version = "dev"
@@ -291,82 +292,89 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	}
 	rootCmd.AddCommand(cobraServeCommand)
 
-	queriesCommand, err := ls_commands.NewListCommandsCommand(allCommands,
-		ls_commands.WithCommandDescriptionOptions(
-			glazed_cmds.WithShort("Commands related to sqleton queries"),
-		),
-		ls_commands.WithAddCommandToRowFunc(func(
+	// Create and add the unified command management group
+	commandManagementCmd, err := clay_commandmeta.NewCommandManagementCommandGroup(
+		allCommands, // Pass the loaded commands
+		// Pass the existing AddCommandToRowFunc logic as an option
+		clay_commandmeta.WithListAddCommandToRowFunc(func(
 			command glazed_cmds.Command,
 			row types.Row,
 			parsedLayers *layers.ParsedLayers,
 		) ([]types.Row, error) {
-			ret := []types.Row{row}
+			// Example: Set 'type' and 'query' based on command type
 			switch c := command.(type) {
 			case *sqleton_cmds.SqlCommand:
 				row.Set("query", c.Query)
 				row.Set("type", "sql")
+			case *alias.CommandAlias: // Handle aliases if needed
+				row.Set("type", "alias")
+				row.Set("aliasFor", c.AliasFor)
 			default:
+				// Default type handling if needed
+				if _, ok := row.Get("type"); !ok {
+					row.Set("type", "unknown")
+				}
 			}
-
-			return ret, nil
+			return []types.Row{row}, nil
 		}),
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to initialize command management commands: %w", err)
 	}
-	cobraQueriesCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(queriesCommand)
-	if err != nil {
-		return err
-	}
-	rootCmd.AddCommand(cobraQueriesCommand)
+	rootCmd.AddCommand(commandManagementCmd) // Add the group directly to root
 
-	editCommandCommand, err := edit_command.NewEditCommand(allCommands)
+	// Create and add the profiles command
+	profilesCmd, err := clay_profiles.NewProfilesCommand("sqleton", sqletonInitialProfilesContent)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to initialize profiles command: %w", err)
 	}
-	cobraEditCommandCommand, err := cli.BuildCobraCommandFromCommand(editCommandCommand)
-	if err != nil {
-		return err
-	}
-	rootCmd.AddCommand(cobraEditCommandCommand)
+	rootCmd.AddCommand(profilesCmd)
 
-	command, err := cmds.NewConfigGroupCommand(helpSystem)
-	if err != nil {
-		return err
-	}
-	rootCmd.AddCommand(command)
-
-	// Create the commands group
-	commandsGroup := &cobra.Command{
-		Use:   "commands",
-		Short: "Commands for managing and filtering sqleton commands",
-	}
-	rootCmd.AddCommand(commandsGroup)
-
-	// Create and add the filter command
-	filterCommand, err := filter_command.NewFilterCommand(convertCommandsToDescriptions(allCommands))
-	if err != nil {
-		return err
-	}
-	cobraFilterCommand, err := cli.BuildCobraCommandFromGlazeCommand(filterCommand)
-	if err != nil {
-		return err
-	}
-	commandsGroup.AddCommand(cobraFilterCommand)
+	// Create and add the repositories command group
+	rootCmd.AddCommand(clay_repositories.NewRepositoriesGroupCommand())
 
 	rootCmd.PersistentFlags().Bool("mem-profile", false, "Enable memory profiling")
 
 	return nil
 }
 
-// convertCommandsToDescriptions converts a list of commands to their descriptions
-func convertCommandsToDescriptions(commands []glazed_cmds.Command) []*glazed_cmds.CommandDescription {
-	descriptions := make([]*glazed_cmds.CommandDescription, 0, len(commands))
-	for _, cmd := range commands {
-		if _, ok := cmd.(*alias.CommandAlias); ok {
-			continue
-		}
-		descriptions = append(descriptions, cmd.Description())
-	}
-	return descriptions
+// sqletonInitialProfilesContent provides the default YAML content for a new sqleton profiles file.
+func sqletonInitialProfilesContent() string {
+	return `# Sqleton Profiles Configuration
+#
+# This file allows defining profiles to override default SQL connection
+# settings or query parameters for sqleton commands.
+#
+# Profiles are selected using the --profile <profile-name> flag.
+# Settings within a profile override the default values for the specified layer.
+#
+# Example:
+#
+# production-db:
+#   # Override settings for the 'sql-connection' layer
+#   sql-connection:
+#     driver: postgres
+#     dsn: "host=prod.db user=reporter password=secret dbname=reports sslmode=require"
+#     # You can also specify individual DSN components:
+#     # host: prod.db
+#     # port: 5432
+#     # user: reporter
+#     # password: secret
+#     # dbname: reports
+#     # sslmode: require
+#
+#   # Override settings for the 'dbt' layer (if using dbt)
+#   dbt:
+#     dbt-project-path: /path/to/prod/dbt/project
+#     dbt-profile: production
+#
+# You can manage this file using the 'sqleton profiles' commands:
+# - list: List all profiles
+# - get: Get profile settings
+# - set: Set a profile setting
+# - delete: Delete a profile, layer, or setting
+# - edit: Open this file in your editor
+# - init: Create this file if it doesn't exist
+# - duplicate: Copy an existing profile
+`
 }

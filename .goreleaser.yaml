@@ -12,6 +12,7 @@ builds:
       - CGO_ENABLED=0
     main: ./cmd/sqleton
     binary: sqleton
+    id: sqleton-binaries
     goos:
       - linux
 # I am not able to test windows at the time
@@ -20,6 +21,14 @@ builds:
     goarch:
       - amd64
       - arm64
+
+# Add this section to include raw binaries
+archives:
+  - id: raw-binaries
+    builds:
+     - sqleton-binaries
+    format: "binary"
+
 checksum:
   name_template: 'checksums.txt'
 snapshot:

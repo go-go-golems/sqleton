@@ -4,9 +4,9 @@ go 1.24.2
 
 require (
 	github.com/dave/jennifer v1.7.0
-	github.com/go-go-golems/clay v0.1.37
-	github.com/go-go-golems/glazed v0.5.43
-	github.com/go-go-golems/parka v0.5.23
+	github.com/go-go-golems/clay v0.1.38
+	github.com/go-go-golems/glazed v0.5.44
+	github.com/go-go-golems/parka v0.5.24
 	github.com/go-sql-driver/mysql v1.9.1
 	github.com/huandu/go-sqlbuilder v1.35.0
 	github.com/iancoleman/strcase v0.3.0
@@ -80,7 +80,7 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/felixge/fgprof v0.9.3 // indirect
-	github.com/fsnotify/fsnotify v1.8.0 // indirect
+	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-openapi/errors v0.22.0 // indirect
 	github.com/go-openapi/strfmt v0.23.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect

@@ -305,7 +305,10 @@ var dbLsCmd = &cobra.Command{
 		}
 
 		// don't output the password
-		gp.AddRowMiddleware(row.NewFieldsFilterMiddleware([]string{}, []string{"password"}))
+		gp.AddRowMiddleware(row.NewFieldsFilterMiddleware(
+			row.WithFields([]string{"name", "type", "hostname", "port", "database", "schema"}),
+			row.WithFilters([]string{"password"}),
+		))
 		gp.AddRowMiddleware(row.NewReorderColumnOrderMiddleware([]string{"name", "type", "hostname", "port", "database", "schema"}))
 
 		for _, source := range sources {

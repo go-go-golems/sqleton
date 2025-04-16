@@ -4,9 +4,9 @@ go 1.24.2
 
 require (
 	github.com/dave/jennifer v1.7.0
-	github.com/go-go-golems/clay v0.1.38
-	github.com/go-go-golems/glazed v0.5.46
-	github.com/go-go-golems/parka v0.5.25
+	github.com/go-go-golems/clay v0.1.39
+	github.com/go-go-golems/glazed v0.5.48
+	github.com/go-go-golems/parka v0.5.26
 	github.com/go-sql-driver/mysql v1.9.1
 	github.com/huandu/go-sqlbuilder v1.35.0
 	github.com/iancoleman/strcase v0.3.0

@@ -42,7 +42,9 @@ func createConfigFromCobra(cmd *cobra.Command) *sql2.DatabaseConfig {
 
 	parser, err := cli.NewCobraParserFromLayers(
 		description.Layers,
-		cli.WithCobraMiddlewaresFunc(sql2.GetCobraCommandSqletonMiddlewares),
+		&cli.CobraParserConfig{
+			MiddlewaresFunc: sql2.GetCobraCommandSqletonMiddlewares,
+		},
 	)
 	cobra.CheckErr(err)
 

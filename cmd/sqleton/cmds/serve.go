@@ -284,6 +284,7 @@ func (s *ServeCommand) Run(
 		serverOptions = append(serverOptions,
 			server.WithStaticPaths(
 				fs.NewStaticPath(fs.NewAddPrefixPathFS(staticFiles, "static/"), "/static"),
+				fs.NewStaticPath(staticFiles, "/favicon.ico"),
 			),
 		)
 	}
@@ -296,12 +297,6 @@ func (s *ServeCommand) Run(
 	if ss.Debug {
 		server_.RegisterDebugRoutes()
 	}
-
-	server_.Router.FileFS(
-		"favicon.ico",
-		"static/favicon.ico",
-		staticFiles,
-	)
 
 	// This section configures the command directory default setting specific to sqleton
 	sqlConnectionLayer, ok := parsedLayers.Get("sql-connection")

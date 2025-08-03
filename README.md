@@ -117,26 +117,50 @@ sqleton select --table products --where "price > 100" --columns name,price
 
 ## Installation
 
-### Using Homebrew
+### Installing the Framework
+To use sqleton as a library in your Go project:
+```bash
+go get github.com/go-go-golems/sqleton
+```
+
+### Installing the `sqleton` CLI Tool
+
+**Using Homebrew:**
 ```bash
 brew tap go-go-golems/go-go-go
 brew install go-go-golems/go-go-go/sqleton
 ```
 
-### Using Go
+**Using apt-get:**
+```bash
+echo "deb [trusted=yes] https://apt.fury.io/go-go-golems/ /" >> /etc/apt/sources.list.d/fury.list
+apt-get update
+apt-get install sqleton
+```
+
+**Using yum:**
+```bash
+echo "
+[fury]
+name=Gemfury Private Repo
+baseurl=https://yum.fury.io/go-go-golems/
+enabled=1
+gpgcheck=0
+" >> /etc/yum.repos.d/fury.repo
+yum install sqleton
+```
+
+**Using go install:**
 ```bash
 go install github.com/go-go-golems/sqleton/cmd/sqleton@latest
 ```
 
-### From Source
-```bash
-git clone https://github.com/go-go-golems/sqleton
-cd sqleton
-go build ./cmd/sqleton
-```
+**Download binaries from [GitHub Releases](https://github.com/go-go-golems/sqleton/releases)**
 
-### Download Binaries
-Get pre-built binaries from [GitHub Releases](https://github.com/go-go-golems/sqleton/releases)
+**Or run from source:**
+```bash
+go run ./cmd/sqleton
+```
 
 ## Live Demo
 

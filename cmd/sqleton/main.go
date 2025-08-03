@@ -17,6 +17,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
 	"github.com/go-go-golems/glazed/pkg/help"
+	help_cmd "github.com/go-go-golems/glazed/pkg/help/cmd"
 	"github.com/go-go-golems/glazed/pkg/types"
 	parka_doc "github.com/go-go-golems/parka/pkg/doc"
 	"github.com/go-go-golems/sqleton/cmd/sqleton/cmds"
@@ -152,7 +153,7 @@ func initRootCmd() (*help.HelpSystem, error) {
 	err = clay_doc.AddDocToHelpSystem(helpSystem)
 	cobra.CheckErr(err)
 
-	helpSystem.SetupCobraRootCommand(rootCmd)
+	help_cmd.SetupCobraRootCommand(helpSystem, rootCmd)
 
 	err = clay.InitViper("sqleton", rootCmd)
 	cobra.CheckErr(err)

@@ -1,117 +1,458 @@
-# ☠️ sqleton ☠️ - a tool to quickly execute SQL commands
+# ☠️ sqleton ☠️ - Powerful SQL CLI Tool with Rich Output
 
 [![golangci-lint](https://github.com/wesen/sqleton/actions/workflows/lint.yml/badge.svg)](https://github.com/wesen/sqleton/actions/workflows/lint.yml)
 [![golang-pipeline](https://github.com/wesen/sqleton/actions/workflows/push.yml/badge.svg)](https://github.com/wesen/sqleton/actions/workflows/push.yml)
 
 ![sqleton logo](doc/logo.png)
 
-sqleton is a tool to easily run SQL commands.
+**sqleton** is a command-line tool that makes SQL execution fast, flexible, and beautifully formatted. Execute queries, manage database connections, and export data in multiple formats with professional output quality suitable for both development and business use.
 
-## ☠️ Main features ☠️
+Built on the powerful [glazed](https://github.com/go-go-golems/glazed) framework, sqleton combines the speed of command-line tools with the rich formatting capabilities of modern data processing applications.
 
-- easily make a self-contained CLI to interact with your application
-- extend the CLI application with your own repository of commands
-  - create aliases for existing commands to save flag presets
-- rich data format output thanks to [glazed](https://github.com/go-go-golems/glazed)
-- rich help system courtesy of [glazed](https://github.com/go-go-golems/glazed)
-    - easily add documentation to your CLI by editing markdown files
-- support for connection information from:
-    - environment variables
-    - configuration file
-    - command line flags
-    - DBT profiles
-- easy API for developers to supply custom commands
+## Quick Start
 
-## Demo
+```bash
+# Execute a simple query
+sqleton query --db-type mysql --host localhost --user root --database mydb \
+  "SELECT id, name, email FROM users LIMIT 5"
 
-![Demo of sqleton](https://i.imgur.com/agO8aYr.gif)
+# Get JSON output for API integration
+sqleton query --db-type postgres --host localhost --database analytics \
+  --output json "SELECT category, SUM(revenue) FROM sales GROUP BY category"
 
-## Overview
+# Generate CSV report for Excel
+sqleton query --db-type sqlite --database ./data.db \
+  --output csv "SELECT date, orders_count, revenue FROM daily_stats" > report.csv
+```
 
-sqleton makes it easy to specify SQL commands along with parameters in a YAML file and run 
-the result as a nice CLI application.
+## Core Features
 
-These files look like the following:
+### Multiple Database Support
+Connect to MySQL, PostgreSQL, and SQLite databases with consistent interface and authentication options.
+
+### Rich Output Formats
+Professional formatting for every use case:
+
+**Table** (default) - Perfect for terminal inspection:
+```
++----+----------+---------------------+
+| id | username | email               |
++----+----------+---------------------+
+| 1  | johndoe  | john@example.com    |
+| 2  | janesmit | jane@example.com    |
++----+----------+---------------------+
+```
+
+**JSON** - Ideal for APIs and data integration:
+```json
+[
+  {"id": 1, "username": "johndoe", "email": "john@example.com"},
+  {"id": 2, "username": "janesmit", "email": "jane@example.com"}
+]
+```
+
+**CSV** - Ready for spreadsheets and BI tools:
+```csv
+id,username,email
+1,johndoe,john@example.com
+2,janesmit,jane@example.com
+```
+
+### YAML Command Definitions
+Create reusable, parameterized SQL commands with rich templating:
 
 ```yaml
-name: ls-posts [types...]
-short: "Show all WordPress posts"
-long: |
-  Show all WordPress posts and their ID, allowing you to filter by type, status,
-  date and title.
+name: user-report [status...]
+short: Generate user analytics report with filtering
 flags:
   - name: limit
-    shortFlag: l
     type: int
-    default: 10
-    help: Limit the number of posts
+    default: 50
+    help: Maximum number of users to include
+  - name: min_orders
+    type: int
+    help: Filter users with minimum order count
+arguments:
   - name: status
     type: stringList
-    help: Select posts by status
-    required: false
-  - name: order_by
-    type: string
-    default: post_date DESC
-    help: Order by column
-  - name: types
-    type: stringList
-    default:
-      - post
-      - page
-    help: Select posts by type
-    required: false
-  - name: from
-    type: date
-    help: Select posts from date
-    required: false
-  - name: to
-    type: date
-    help: Select posts to date
-    required: false
-  - name: title_like
-    type: string
-    help: Select posts by title
-    required: false
+    default: ["active"]
+    help: User status filter
 query: |
-  SELECT wp.ID, wp.post_title, wp.post_type, wp.post_status, wp.post_date FROM wp_posts wp
-  WHERE post_type IN ({{ .types | sqlStringIn }})
-  {{ if .status -}}
-  AND post_status IN ({{ .status | sqlStringIn }})
-  {{- end -}}
-  {{ if .from -}}
-  AND post_date >= {{ .from | sqlDate }}
-  {{- end -}}
-  {{ if .to -}}
-  AND post_date <= {{ .to | sqlDate }}
-  {{- end -}}
-  {{ if .title_like -}}
-  AND post_title LIKE {{ .title_like | sqlLike }}
-  {{- end -}}
-  ORDER BY {{ .order_by }}
+  SELECT u.id, u.username, u.email, COUNT(o.id) as order_count
+  FROM users u 
+  LEFT JOIN orders o ON u.id = o.user_id
+  WHERE u.status IN ({{ .status | sqlStringIn }})
+  {{ if .min_orders -}}
+  AND order_count >= {{ .min_orders }}
+  {{- end }}
+  GROUP BY u.id
+  ORDER BY order_count DESC
   LIMIT {{ .limit }}
 ```
 
-Furthermore, these commands can be included in the binary itself, which makes
-distributing a rich set of queries very easy. The same concept is used to provide
-a rich help system, which are just bundled markdown files. Instead of having to edit
-the source code to provide advanced documentation for flags, commands and general topics,
-all you need to do is add a markdown file in the doc/ directory!
+### Flexible Connection Management
+Multiple ways to specify database connections:
 
-```
-❯ sqleton queries --fields name,source
-+--------------------------+--------------------------------------------------------+
-| name                     | source                                                 |
-+--------------------------+--------------------------------------------------------+
-| ls-posts                 | embed:queries/examples/01-get-posts.yaml               |
-| ls-posts-limit           | embed:queries/examples/02-get-posts-limit.yaml         |
-| ls-posts-type [types...] | embed:queries/examples/03-get-posts-by-type.yaml       |
-| full-ps                  | embed:queries/mysql/01-show-full-processlist.yaml      |
-| ls-tables                | embed:queries/mysql/02-show-tables.yaml                |
-| ls-posts [types...]      | embed:queries/wp/ls-posts.yaml                         |
-| count                    | file:/Users/manuel/.sqleton/queries/misc/count.yaml    |
-| ls-orders                | file:/Users/manuel/.sqleton/queries/ttc/01-orders.yaml |
-+--------------------------+--------------------------------------------------------+
+- **Command-line flags**: Direct specification for one-off queries
+- **Environment variables**: Secure credential management
+- **Configuration files**: Shareable connection profiles
+- **DBT profiles**: Integration with existing dbt workflows
+
+### Built-in Database Commands
+Common database operations without writing SQL:
+
+```bash
+# List tables in database
+sqleton db ls-tables
+
+# Test database connection
+sqleton db test
+
+# Describe table structure
+sqleton select --table users --describe
+
+# Quick data inspection with filtering
+sqleton select --table products --where "price > 100" --columns name,price
 ```
 
-It makes heavy use of my [glazed](https://github.com/go-go-golems/glazed) library,
-and in many ways is a test-driver for its development presets
+## Installation
+
+### Installing the Framework
+To use sqleton as a library in your Go project:
+```bash
+go get github.com/go-go-golems/sqleton
+```
+
+### Installing the `sqleton` CLI Tool
+
+**Using Homebrew:**
+```bash
+brew tap go-go-golems/go-go-go
+brew install go-go-golems/go-go-go/sqleton
+```
+
+**Using apt-get:**
+```bash
+echo "deb [trusted=yes] https://apt.fury.io/go-go-golems/ /" >> /etc/apt/sources.list.d/fury.list
+apt-get update
+apt-get install sqleton
+```
+
+**Using yum:**
+```bash
+echo "
+[fury]
+name=Gemfury Private Repo
+baseurl=https://yum.fury.io/go-go-golems/
+enabled=1
+gpgcheck=0
+" >> /etc/yum.repos.d/fury.repo
+yum install sqleton
+```
+
+**Using go install:**
+```bash
+go install github.com/go-go-golems/sqleton/cmd/sqleton@latest
+```
+
+**Download binaries from [GitHub Releases](https://github.com/go-go-golems/sqleton/releases)**
+
+**Or run from source:**
+```bash
+go run ./cmd/sqleton
+```
+
+## Live Demo
+
+Want to see sqleton in action? Try our MySQL demo with realistic ecommerce data:
+
+### Setup Demo Environment
+```bash
+# Start MySQL with sample data
+docker run --name sqleton-demo \
+  -e MYSQL_ROOT_PASSWORD=demo123 \
+  -e MYSQL_DATABASE=ecommerce \
+  -p 3306:3306 \
+  -d mysql:8.0
+
+# Wait for startup, then load sample data
+sleep 30
+curl -fsSL https://raw.githubusercontent.com/go-go-golems/sqleton/main/examples/demo-data.sql | \
+  docker exec -i sqleton-demo mysql -u root -pdemo123 ecommerce
+```
+
+### Try Demo Queries
+
+**Basic customer analysis:**
+```bash
+sqleton query --db-type mysql --host localhost --user root --password demo123 \
+  --database ecommerce --port 3306 \
+  "SELECT username, email, status FROM users WHERE status = 'active' LIMIT 5"
+```
+
+**Business analytics with JSON output:**
+```bash
+sqleton query --db-type mysql --host localhost --user root --password demo123 \
+  --database ecommerce --port 3306 --output json \
+  "SELECT category, COUNT(*) as products, AVG(price) as avg_price 
+   FROM products GROUP BY category ORDER BY avg_price DESC"
+```
+
+**Daily revenue report as CSV:**
+```bash
+sqleton query --db-type mysql --host localhost --user root --password demo123 \
+  --database ecommerce --port 3306 --output csv \
+  "SELECT DATE(order_date) as day, COUNT(*) as orders, SUM(total_amount) as revenue 
+   FROM orders GROUP BY DATE(order_date) ORDER BY day"
+```
+
+**Customer spending analysis:**
+```bash
+sqleton query --db-type mysql --host localhost --user root --password demo123 \
+  --database ecommerce --port 3306 \
+  "SELECT u.username, COUNT(o.id) as orders, ROUND(SUM(o.total_amount),2) as total_spent
+   FROM users u LEFT JOIN orders o ON u.id = o.user_id 
+   GROUP BY u.id ORDER BY total_spent DESC LIMIT 5"
+```
+
+**Clean up demo:**
+```bash
+docker stop sqleton-demo && docker rm sqleton-demo
+```
+
+## Connection Examples
+
+### Direct Connection Flags
+```bash
+# MySQL
+sqleton query --db-type mysql --host localhost --user root --password mypass \
+  --database mydb --port 3306 "SELECT * FROM users"
+
+# PostgreSQL  
+sqleton query --db-type postgres --host localhost --user postgres \
+  --database analytics --port 5432 "SELECT COUNT(*) FROM events"
+
+# SQLite
+sqleton query --db-type sqlite --database ./local.db "SELECT * FROM logs"
+```
+
+### Environment Variables
+```bash
+export SQLETON_DB_TYPE=mysql
+export SQLETON_HOST=localhost
+export SQLETON_USER=root
+export SQLETON_PASSWORD=mypass
+export SQLETON_DATABASE=mydb
+
+sqleton query "SELECT * FROM users WHERE created_at > '2024-01-01'"
+```
+
+### Configuration File
+Create `~/.sqleton/config.yaml`:
+```yaml
+database:
+  type: mysql
+  host: localhost
+  user: root
+  password: mypass
+  database: mydb
+  port: 3306
+```
+
+Then use without connection flags:
+```bash
+sqleton query "SELECT COUNT(*) FROM users"
+```
+
+### DBT Profiles Integration
+If you use dbt, sqleton can read your existing profiles:
+```bash
+# Use default dbt profile
+sqleton query --use-dbt-profile "SELECT * FROM dim_customers"
+
+# Use specific profile and target
+sqleton query --dbt-profile analytics --dbt-target dev \
+  "SELECT * FROM fact_orders WHERE order_date >= '2024-01-01'"
+```
+
+## Command Usage
+
+### Basic Query Execution
+```bash
+# Execute SQL from command line
+sqleton query "SELECT * FROM users WHERE active = true"
+
+# Execute SQL from file
+sqleton run queries/user-analysis.sql
+
+# Execute SQL from stdin
+cat report.sql | sqleton run -
+```
+
+### Built-in Commands
+```bash
+# Test database connection
+sqleton db test
+
+# List available commands
+sqleton queries
+
+# Get help for specific command
+sqleton help database-sources
+```
+
+### Advanced YAML Commands
+```bash
+# Run custom command with parameters
+sqleton user-report --limit 100 --min-orders 5 active premium
+
+# List available custom commands  
+sqleton queries --fields name,source
+
+# Run command from external repository
+sqleton run-command https://github.com/myorg/sql-commands/user-stats.yaml
+```
+
+## Output Customization
+
+### Format Options
+```bash
+# Table format (default)
+sqleton query "SELECT * FROM users" --output table
+
+# JSON for API integration
+sqleton query "SELECT * FROM users" --output json
+
+# CSV for spreadsheets
+sqleton query "SELECT * FROM users" --output csv
+
+# YAML for configuration
+sqleton query "SELECT * FROM users" --output yaml
+
+# Custom Go template
+sqleton query "SELECT name, email FROM users" \
+  --template "{{.name}} <{{.email}}>"
+```
+
+### Field Selection and Filtering
+```bash
+# Select specific columns
+sqleton query "SELECT * FROM users" --fields name,email,created_at
+
+# Filter rows after query
+sqleton query "SELECT * FROM products" --filter "price > 100"
+
+# Combine filtering and field selection
+sqleton query "SELECT * FROM orders" \
+  --filter "status = 'completed'" \
+  --fields order_id,customer_name,total
+```
+
+## Use Cases
+
+### Development and Debugging
+- **Quick data inspection**: Rapidly check database state during development
+- **Query prototyping**: Test complex queries before putting them in application code
+- **Database exploration**: Understand schema and data relationships
+- **Performance testing**: Analyze query execution plans and timing
+
+### Business Intelligence and Analytics
+- **Customer analysis**: Segment users, analyze behavior patterns
+- **Revenue reporting**: Generate daily, weekly, monthly financial reports
+- **Inventory management**: Track stock levels, identify trending products
+- **Operational metrics**: Monitor application performance and usage statistics
+
+### Data Export and Integration
+- **CSV generation**: Create spreadsheet-compatible reports for stakeholders
+- **JSON APIs**: Generate data feeds for web applications and microservices  
+- **Data pipeline**: Extract data for ETL processes and data warehousing
+- **Report automation**: Schedule automated report generation and distribution
+
+### Database Administration
+- **Schema inspection**: Quickly examine table structures and relationships
+- **Data validation**: Verify data integrity and consistency across tables
+- **Performance monitoring**: Track query performance and identify bottlenecks
+- **Migration support**: Validate data before and after schema changes
+
+## Advanced Features
+
+### Command Repositories
+Share and version-control your SQL commands:
+
+```bash
+# Load commands from repository
+sqleton queries --repository https://github.com/myorg/analytics-queries
+
+# Use repository command
+sqleton customer-lifetime-value --segment premium --period 2024
+```
+
+### Template Functions
+Powerful templating with SQL-specific helpers:
+
+```yaml
+query: |
+  SELECT * FROM users 
+  WHERE created_at >= {{ .start_date | sqlDate }}
+  {{ if .status -}}
+  AND status IN ({{ .status | sqlStringIn }})
+  {{- end }}
+  {{ if .email_domain -}}
+  AND email LIKE {{ .email_domain | sqlLike }}
+  {{- end }}
+```
+
+### Server Mode
+Run sqleton as a web service:
+
+```bash
+# Start HTTP server
+sqleton serve --port 8080
+
+# Execute queries via HTTP
+curl -X POST http://localhost:8080/query \
+  -H "Content-Type: application/json" \
+  -d '{"sql": "SELECT COUNT(*) FROM users", "format": "json"}'
+```
+
+## Documentation
+
+For detailed guides and references:
+
+```bash
+# Browse all help topics
+sqleton help
+
+# Specific topics
+sqleton help database-sources
+sqleton help aliases  
+sqleton help query-commands
+sqleton help print-settings
+```
+
+**Online Documentation:**
+- [Database Connection Guide](cmd/sqleton/doc/topics/02-database-sources.md)
+- [YAML Command Reference](cmd/sqleton/doc/topics/06-query-commands.md)
+- [Output Format Options](cmd/sqleton/doc/topics/05-print-settings.md)
+- [Examples and Tutorials](cmd/sqleton/doc/examples/)
+
+## Why Choose sqleton?
+
+**🚀 Speed**: Faster than setting up GUI clients or writing custom scripts
+**🔧 Flexibility**: Works with multiple databases and output formats  
+**📊 Professional**: Clean formatting suitable for presentations and reports
+**🔄 Integration**: Seamless integration with existing tools and workflows
+**📚 Powerful**: Handles complex queries while remaining simple to use
+**🏗️ Extensible**: Custom commands and repositories for team collaboration
+
+sqleton bridges the gap between simple command-line database clients and complex business intelligence tools, providing the perfect balance of power and simplicity for modern data workflows.
+
+## License
+
+sqleton is released under the MIT License. See [LICENSE](LICENSE) for details.
+
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details on how to get started.
+
+**Built with ❤️ by the [go-go-golems](https://github.com/go-go-golems) team**

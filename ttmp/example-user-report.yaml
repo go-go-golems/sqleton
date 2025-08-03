@@ -1,0 +1,73 @@
+name: user-report
+short: "Generate comprehensive user activity report"
+long: |
+  Generate a detailed user activity report including order history, spending,
+  and account status. Supports filtering by status, date range, and minimum spending.
+  
+  Perfect for customer analytics and business intelligence reporting.
+  
+  Example usage:
+    sqleton user-report --status active --min-spending 100 --output csv > user_report.csv
+    sqleton user-report --recent-only --output json | jq '.[] | select(.total_spent > 200)'
+    
+flags:
+  - name: status
+    type: stringList
+    help: Filter users by status (active, inactive, suspended)
+    required: false
+    default: []
+  - name: min_spending
+    type: float
+    help: Minimum total spending amount filter
+    required: false
+  - name: recent_only
+    type: bool
+    help: Show only users with orders in last 30 days
+    required: false
+  - name: limit
+    shortFlag: l
+    type: int
+    default: 100
+    help: Maximum number of users to return
+  - name: order_by
+    type: string
+    default: "total_spent DESC"
+    help: "Order results by: total_spent, order_count, username, last_order"
+query: |
+  SELECT 
+    u.id,
+    u.username,
+    u.email,
+    CONCAT(u.first_name, ' ', u.last_name) as full_name,
+    u.status,
+    u.created_at as registration_date,
+    u.last_login,
+    DATEDIFF(NOW(), u.last_login) as days_since_login,
+    COUNT(o.id) as order_count,
+    COALESCE(ROUND(SUM(o.total_amount), 2), 0) as total_spent,
+    COALESCE(ROUND(AVG(o.total_amount), 2), 0) as avg_order_value,
+    MAX(o.order_date) as last_order_date,
+    CASE 
+      WHEN COUNT(o.id) = 0 THEN 'No Orders'
+      WHEN COUNT(o.id) = 1 THEN 'New Customer'
+      WHEN COUNT(o.id) BETWEEN 2 AND 5 THEN 'Regular Customer'
+      ELSE 'VIP Customer'
+    END as customer_tier
+  FROM users u
+  LEFT JOIN orders o ON u.id = o.user_id
+  WHERE 1=1
+  {{ if .status -}}
+  AND u.status IN ({{ .status | sqlStringIn }})
+  {{- end -}}
+  {{ if .min_spending -}}
+  AND COALESCE(SUM(o.total_amount), 0) >= {{ .min_spending }}
+  {{- end -}}
+  {{ if .recent_only -}}
+  AND o.order_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+  {{- end }}
+  GROUP BY u.id, u.username, u.email, u.first_name, u.last_name, u.status, u.created_at, u.last_login
+  {{ if .min_spending -}}
+  HAVING total_spent >= {{ .min_spending }}
+  {{- end }}
+  ORDER BY {{ .order_by }}
+  LIMIT {{ .limit }}

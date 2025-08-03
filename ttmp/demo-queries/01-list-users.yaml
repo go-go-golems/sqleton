@@ -1,0 +1,39 @@
+name: list-users
+short: "List all users in the system"
+long: |
+  Show all users with their basic information including status, 
+  last login time, and registration date. Supports filtering by status.
+flags:
+  - name: status
+    type: stringList
+    help: Filter users by status (active, inactive, suspended)
+    required: false
+  - name: limit
+    shortFlag: l
+    type: int
+    default: 50
+    help: Limit the number of users returned
+  - name: recent_only
+    type: bool
+    help: Show only users who logged in within last 30 days
+    required: false
+query: |
+  SELECT 
+    id,
+    username,
+    email,
+    CONCAT(first_name, ' ', last_name) as full_name,
+    status,
+    created_at,
+    last_login,
+    DATEDIFF(NOW(), last_login) as days_since_login
+  FROM users
+  WHERE 1=1
+  {{ if .status -}}
+  AND status IN ({{ .status | sqlStringIn }})
+  {{- end -}}
+  {{ if .recent_only -}}
+  AND last_login >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+  {{- end }}
+  ORDER BY created_at DESC
+  LIMIT {{ .limit }}

@@ -1,0 +1,11 @@
+db:
+  type: mysql
+  host: localhost
+  port: 3306
+  user: root
+  password: demo123
+  database: ecommerce
+
+# Optional: Add some query directories
+queryDirectories:
+  - /home/manuel/workspaces/2025-08-03/add-sqleton-glazed-help/ttmp/2025-08-03/demo-queries

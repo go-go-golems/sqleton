@@ -25,30 +25,6 @@ sqleton query --db-type sqlite --database ./data.db \
   --output csv "SELECT date, orders_count, revenue FROM daily_stats" > report.csv
 ```
 
-## Live Demos
-
-See sqleton in action with these interactive demos using real ecommerce data:
-
-### Basic Query Execution
-![Basic Query Demo](doc/demos/01-basic-query.gif)
-
-Clean, professional table output perfect for terminal inspection and development workflows.
-
-### Multiple Output Formats
-![Output Formats Demo](doc/demos/02-output-formats.gif)
-
-JSON for APIs, CSV for Excel, YAML for configuration - sqleton adapts to your workflow.
-
-### Built-in Database Commands
-![Database Commands Demo](doc/demos/03-database-commands.gif)
-
-Explore your database without writing SQL - test connections, list tables, and inspect data with built-in commands.
-
-### Business Analytics & Complex Queries
-![Business Analytics Demo](doc/demos/04-business-analytics.gif)
-
-Handle complex joins, aggregations, and business intelligence queries with ease.
-
 ## Core Features
 
 ### Multiple Database Support

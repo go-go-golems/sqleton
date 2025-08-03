@@ -1,0 +1,57 @@
+name: orders-analysis
+short: "Analyze order data with filtering and aggregation"
+long: |
+  Comprehensive order analysis showing order statistics with filtering by 
+  status, date range, and customer. Includes revenue calculations.
+flags:
+  - name: status
+    type: stringList
+    help: Filter orders by status (pending, confirmed, shipped, delivered, cancelled)
+    required: false
+  - name: from_date
+    type: date
+    help: Show orders from this date onwards (YYYY-MM-DD)
+    required: false
+  - name: to_date
+    type: date
+    help: Show orders up to this date (YYYY-MM-DD)
+    required: false
+  - name: min_amount
+    type: float
+    help: Minimum order amount filter
+    required: false
+  - name: customer_id
+    type: int
+    help: Filter by specific customer ID
+    required: false
+query: |
+  SELECT 
+    o.id as order_id,
+    CONCAT(u.first_name, ' ', u.last_name) as customer_name,
+    u.email as customer_email,
+    o.order_date,
+    o.total_amount,
+    o.status,
+    COUNT(oi.id) as item_count,
+    ROUND(AVG(oi.unit_price), 2) as avg_item_price
+  FROM orders o
+  LEFT JOIN users u ON o.user_id = u.id
+  LEFT JOIN order_items oi ON o.id = oi.order_id
+  WHERE 1=1
+  {{ if .status -}}
+  AND o.status IN ({{ .status | sqlStringIn }})
+  {{- end -}}
+  {{ if .from_date -}}
+  AND DATE(o.order_date) >= {{ .from_date | sqlDate }}
+  {{- end -}}
+  {{ if .to_date -}}
+  AND DATE(o.order_date) <= {{ .to_date | sqlDate }}
+  {{- end -}}
+  {{ if .min_amount -}}
+  AND o.total_amount >= {{ .min_amount }}
+  {{- end -}}
+  {{ if .customer_id -}}
+  AND o.user_id = {{ .customer_id }}
+  {{- end }}
+  GROUP BY o.id, u.first_name, u.last_name, u.email, o.order_date, o.total_amount, o.status
+  ORDER BY o.order_date DESC

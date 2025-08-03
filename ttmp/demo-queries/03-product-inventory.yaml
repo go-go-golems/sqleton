@@ -1,0 +1,52 @@
+name: product-inventory
+short: "Product inventory and sales report"
+long: |
+  Detailed product inventory report showing stock levels, sales statistics,
+  and revenue by category. Supports filtering by category and stock status.
+flags:
+  - name: category
+    type: stringList
+    help: Filter by product categories
+    required: false
+  - name: low_stock
+    type: bool
+    help: Show only products with low stock (< 20 items)
+    required: false
+  - name: include_sales
+    type: bool
+    default: false
+    help: Include sales statistics for each product
+    required: false
+query: |
+  SELECT 
+    p.id,
+    p.name,
+    p.category,
+    p.price,
+    p.stock_quantity,
+    p.status,
+    {{ if .include_sales -}}
+    COALESCE(SUM(oi.quantity), 0) as total_sold,
+    COALESCE(SUM(oi.quantity * oi.unit_price), 0) as total_revenue,
+    {{- end }}
+    CASE 
+      WHEN p.stock_quantity = 0 THEN 'Out of Stock'
+      WHEN p.stock_quantity < 20 THEN 'Low Stock'
+      WHEN p.stock_quantity < 50 THEN 'Medium Stock'
+      ELSE 'High Stock'
+    END as stock_level
+  FROM products p
+  {{ if .include_sales -}}
+  LEFT JOIN order_items oi ON p.id = oi.product_id
+  {{- end }}
+  WHERE 1=1
+  {{ if .category -}}
+  AND p.category IN ({{ .category | sqlStringIn }})
+  {{- end -}}
+  {{ if .low_stock -}}
+  AND p.stock_quantity < 20
+  {{- end }}
+  {{ if .include_sales -}}
+  GROUP BY p.id, p.name, p.category, p.price, p.stock_quantity, p.status
+  {{- end }}
+  ORDER BY p.category, p.name

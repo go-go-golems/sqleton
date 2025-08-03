@@ -1,0 +1,74 @@
+name: product-sales [categories...]
+short: "Product sales analysis with revenue and quantity metrics"
+long: |
+  Analyze product performance with sales quantities, revenue, and trends.
+  Filter by category, price range, and time period for detailed insights.
+flags:
+  - name: categories
+    type: stringList
+    help: Filter products by category names
+    required: false
+  - name: min_price
+    type: float
+    help: Minimum product price
+    default: 0.0
+    required: false
+  - name: max_price
+    type: float
+    help: Maximum product price
+    required: false
+  - name: status
+    type: stringList
+    help: Filter products by status
+    default:
+      - active
+    required: false
+  - name: from_date
+    type: date
+    help: Show sales from this date
+    required: false
+  - name: to_date
+    type: date
+    help: Show sales to this date
+    required: false
+  - name: limit
+    type: int
+    help: Limit number of results
+    default: 20
+    required: false
+query: |
+  SELECT 
+    p.id,
+    p.name as product_name,
+    p.sku,
+    c.name as category,
+    p.price as unit_price,
+    p.stock_quantity,
+    p.status,
+    COUNT(oi.id) as orders_count,
+    COALESCE(SUM(oi.quantity), 0) as total_quantity_sold,
+    COALESCE(SUM(oi.quantity * oi.price), 0) as total_revenue,
+    COALESCE(AVG(oi.price), p.price) as avg_sale_price
+  FROM products p
+  LEFT JOIN categories c ON p.category_id = c.id
+  LEFT JOIN order_items oi ON p.id = oi.product_id
+  {{ if .from_date || .to_date -}}
+  LEFT JOIN orders o ON oi.order_id = o.id
+  {{- end }}
+  WHERE p.status IN ({{ .status | sqlStringIn }})
+  AND p.price >= {{ .min_price }}
+  {{ if .max_price -}}
+  AND p.price <= {{ .max_price }}
+  {{- end -}}
+  {{ if .categories -}}
+  AND c.name IN ({{ .categories | sqlStringIn }})
+  {{- end -}}
+  {{ if .from_date -}}
+  AND o.created_at >= {{ .from_date | sqlDate }}
+  {{- end -}}
+  {{ if .to_date -}}
+  AND o.created_at <= {{ .to_date | sqlDate }}
+  {{- end -}}
+  GROUP BY p.id, p.name, p.sku, c.name, p.price, p.stock_quantity, p.status
+  ORDER BY total_revenue DESC, total_quantity_sold DESC
+  LIMIT {{ .limit }}

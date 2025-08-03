@@ -1,0 +1,81 @@
+name: order-summary [statuses...]
+short: "Order summary with customer and item details"
+long: |
+  Get detailed order information including customer details, items, and totals.
+  Filter by order status, date range, and minimum order value.
+flags:
+  - name: statuses
+    type: stringList
+    help: Filter orders by status
+    default:
+      - pending
+      - processing
+      - shipped
+      - delivered
+    required: false
+  - name: min_amount
+    type: float
+    help: Minimum order amount
+    default: 0.0
+    required: false
+  - name: max_amount
+    type: float
+    help: Maximum order amount
+    required: false
+  - name: customer_like
+    type: string
+    help: Filter by customer name (partial match)
+    required: false
+  - name: from_date
+    type: date
+    help: Show orders from this date
+    required: false
+  - name: to_date
+    type: date
+    help: Show orders to this date
+    required: false
+  - name: limit
+    type: int
+    help: Limit number of results
+    default: 10
+    required: false
+query: |
+  SELECT 
+    o.id as order_id,
+    o.created_at as order_date,
+    o.status,
+    o.total_amount,
+    o.payment_method,
+    u.username,
+    CONCAT(u.first_name, ' ', u.last_name) as customer_name,
+    u.email,
+    u.country,
+    COUNT(oi.id) as item_count,
+    GROUP_CONCAT(
+      CONCAT(p.name, ' (', oi.quantity, 'x $', oi.price, ')')
+      ORDER BY p.name 
+      SEPARATOR '; '
+    ) as items
+  FROM orders o
+  JOIN users u ON o.user_id = u.id
+  LEFT JOIN order_items oi ON o.id = oi.order_id
+  LEFT JOIN products p ON oi.product_id = p.id
+  WHERE o.status IN ({{ .statuses | sqlStringIn }})
+  AND o.total_amount >= {{ .min_amount }}
+  {{ if .max_amount -}}
+  AND o.total_amount <= {{ .max_amount }}
+  {{- end -}}
+  {{ if .customer_like -}}
+  AND (CONCAT(u.first_name, ' ', u.last_name) LIKE {{ .customer_like | sqlLike }}
+       OR u.username LIKE {{ .customer_like | sqlLike }})
+  {{- end -}}
+  {{ if .from_date -}}
+  AND o.created_at >= {{ .from_date | sqlDate }}
+  {{- end -}}
+  {{ if .to_date -}}
+  AND o.created_at <= {{ .to_date | sqlDate }}
+  {{- end -}}
+  GROUP BY o.id, o.created_at, o.status, o.total_amount, o.payment_method, 
+           u.username, u.first_name, u.last_name, u.email, u.country
+  ORDER BY o.created_at DESC
+  LIMIT {{ .limit }}

@@ -1,0 +1,58 @@
+name: user-analytics [country...]
+short: "Analyze user activity and spending by country" 
+long: |
+  Get comprehensive user analytics including order counts, total spending,
+  and user status breakdown. Filter by country and status for detailed insights.
+flags:
+  - name: countries
+    type: stringList
+    help: Filter users by country (e.g., US, CA, UK, FR)
+    required: false
+  - name: status
+    type: stringList
+    help: Filter users by status (active, inactive, suspended)
+    default:
+      - active
+      - inactive
+    required: false
+  - name: min_orders
+    type: int
+    help: Minimum number of orders
+    default: 0
+    required: false
+  - name: from_date
+    type: date
+    help: Show users created from this date
+    required: false
+  - name: to_date
+    type: date
+    help: Show users created to this date
+    required: false
+query: |
+  SELECT 
+    u.id,
+    u.username,
+    u.first_name,
+    u.last_name,
+    u.email,
+    u.country,
+    u.status,
+    u.created_at,
+    COUNT(o.id) as order_count,
+    COALESCE(SUM(o.total_amount), 0) as total_spent,
+    MAX(o.created_at) as last_order_date
+  FROM users u
+  LEFT JOIN orders o ON u.id = o.user_id
+  WHERE u.status IN ({{ .status | sqlStringIn }})
+  {{ if .countries -}}
+  AND u.country IN ({{ .countries | sqlStringIn }})
+  {{- end -}}
+  {{ if .from_date -}}
+  AND u.created_at >= {{ .from_date | sqlDate }}
+  {{- end -}}
+  {{ if .to_date -}}
+  AND u.created_at <= {{ .to_date | sqlDate }}
+  {{- end -}}
+  GROUP BY u.id, u.username, u.first_name, u.last_name, u.email, u.country, u.status, u.created_at
+  HAVING COUNT(o.id) >= {{ .min_orders }}
+  ORDER BY total_spent DESC, order_count DESC

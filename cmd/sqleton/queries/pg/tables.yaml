@@ -1,0 +1,92 @@
+name: tables
+short: Get tables in a PostgreSQL schema
+flags:
+  - name: db_schema
+    type: string
+    help: Schema name to filter by
+    default: public
+  - name: table_name
+    type: string
+    help: Table name to filter by
+  - name: table_like
+    type: stringList
+    help: Filter tables matching pattern (uses LIKE)
+  - name: table_type
+    type: string
+    help: Filter by table type (BASE TABLE, VIEW, etc.)
+    default: BASE TABLE
+  - name: owner
+    type: string
+    help: Filter by table owner
+  - name: include_views
+    type: bool
+    help: Include views in the results
+    default: false
+  - name: include_system_tables
+    type: bool
+    help: Include system tables in the results
+    default: false
+  - name: order_by
+    type: string
+    default: table_name ASC
+    help: Order results by specified columns
+  - name: limit
+    type: int
+    help: Limit the number of results
+    default: 0
+  - name: offset
+    type: int
+    help: Offset results
+    default: 0
+query: |
+  {{ if .explain }}
+    EXPLAIN
+  {{ end }}
+  SELECT
+    t.table_catalog,
+    t.table_schema,
+    t.table_name,
+    t.table_type,
+    t.is_insertable_into,
+    pg_catalog.pg_get_userbyid(c.relowner) AS table_owner,
+    pg_catalog.obj_description(c.oid, 'pg_class') AS description,
+    pg_catalog.pg_size_pretty(pg_catalog.pg_table_size(c.oid)) AS table_size,
+    c.reltuples::bigint AS row_estimate
+  FROM 
+    information_schema.tables t
+  JOIN 
+    pg_catalog.pg_class c ON t.table_name = c.relname
+  JOIN 
+    pg_catalog.pg_namespace n ON c.relnamespace = n.oid AND t.table_schema = n.nspname
+  WHERE 1=1
+  {{ if .db_schema }}
+    AND t.table_schema = {{ .db_schema | sqlString }}
+  {{ end }}
+  {{ if .table_name }}
+    AND t.table_name = {{ .table_name | sqlString }}
+  {{ end }}
+  {{ if .table_like }}
+    AND (
+    {{- range $index, $element := .table_like }}
+      {{- if $index }} OR {{ end }}t.table_name LIKE {{ $element | sqlStringLike }}
+    {{- end }}
+    )
+  {{ end }}
+  {{ if .table_type }}
+    AND t.table_type = {{ .table_type | sqlString }}
+  {{ else if not .include_views }}
+    AND t.table_type = 'BASE TABLE'
+  {{ end }}
+  {{ if .owner }}
+    AND pg_catalog.pg_get_userbyid(c.relowner) = {{ .owner | sqlString }}
+  {{ end }}
+  {{ if not .include_system_tables }}
+    AND t.table_schema NOT IN ('pg_catalog', 'information_schema')
+  {{ end }}
+  ORDER BY {{ .order_by }}
+  {{ if .limit }}
+    LIMIT {{ .limit }}
+    {{ if .offset }}
+      OFFSET {{ .offset }}
+    {{ end }}
+  {{ end }}

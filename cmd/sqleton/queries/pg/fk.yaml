@@ -1,0 +1,90 @@
+name: fk
+short: Get foreign key relationships from PostgreSQL database
+flags:
+  - name: db-schema
+    type: string
+    help: Schema name to filter by
+    default: public
+  - name: table
+    type: string
+    help: Table name to filter by
+  - name: constraint_name
+    type: string
+    help: Constraint name to filter by
+  - name: table_like
+    type: stringList
+    help: Filter tables matching pattern (uses LIKE)
+  - name: column_name
+    type: string
+    help: Column name to filter by
+  - name: foreign_table
+    type: string
+    help: Foreign table name to filter by
+  - name: foreign_column
+    type: string
+    help: Foreign column name to filter by
+  - name: order_by
+    type: string
+    default: tc.table_name, tc.constraint_name
+    help: Order results by specified columns
+  - name: limit
+    type: int
+    help: Limit the number of results
+    default: 0
+  - name: offset
+    type: int
+    help: Offset results
+    default: 0
+query: |
+  {{ if .explain }}
+    EXPLAIN
+  {{ end }}
+  SELECT
+    tc.table_schema, 
+    tc.constraint_name, 
+    tc.table_name, 
+    kcu.column_name, 
+    ccu.table_schema AS foreign_table_schema,
+    ccu.table_name AS foreign_table_name,
+    ccu.column_name AS foreign_column_name 
+  FROM 
+    information_schema.table_constraints AS tc 
+    JOIN information_schema.key_column_usage AS kcu
+      ON tc.constraint_name = kcu.constraint_name
+      AND tc.table_schema = kcu.table_schema
+    JOIN information_schema.constraint_column_usage AS ccu
+      ON ccu.constraint_name = tc.constraint_name
+      AND ccu.table_schema = tc.table_schema
+  WHERE tc.constraint_type = 'FOREIGN KEY'
+  {{ if .db_schema }}
+    AND tc.table_schema = {{ .db_schema | sqlString }}
+  {{ end }}
+  {{ if .table }}
+    AND tc.table_name = {{ .table | sqlString }}
+  {{ end }}
+  {{ if .constraint_name }}
+    AND tc.constraint_name = {{ .constraint_name | sqlString }}
+  {{ end }}
+  {{ if .table_like }}
+    AND (
+    {{- range $index, $element := .table_like }}
+      {{- if $index }} OR {{ end }}tc.table_name LIKE {{ $element | sqlStringLike }}
+    {{- end }}
+    )
+  {{ end }}
+  {{ if .column_name }}
+    AND kcu.column_name = {{ .column_name | sqlString }}
+  {{ end }}
+  {{ if .foreign_table }}
+    AND ccu.table_name = {{ .foreign_table | sqlString }}
+  {{ end }}
+  {{ if .foreign_column }}
+    AND ccu.column_name = {{ .foreign_column | sqlString }}
+  {{ end }}
+  ORDER BY {{ .order_by }}
+  {{ if .limit }}
+    LIMIT {{ .limit }}
+    {{ if .offset }}
+      OFFSET {{ .offset }}
+    {{ end }}
+  {{ end }}

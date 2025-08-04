@@ -1,0 +1,143 @@
+name: columns
+short: Get detailed column information from PostgreSQL tables
+flags:
+  - name: detail_level
+    type: choice
+    choices: [basic, standard, full]
+    default: standard
+    help: Control the amount of column information returned
+  - name: db_schema
+    type: string
+    help: Schema name to filter by
+    default: public
+  - name: table_name
+    type: string
+    help: Table name to filter by
+  - name: table_like
+    type: stringList
+    help: Filter tables matching pattern (uses LIKE)
+  - name: column_name
+    type: string
+    help: Column name to filter by
+  - name: column_like
+    type: stringList
+    help: Filter columns matching pattern (uses LIKE)
+  - name: data_type
+    type: string
+    help: Filter by specific data type
+  - name: data_type_like
+    type: stringList
+    help: Filter data types matching pattern (uses LIKE)
+  - name: is_nullable
+    type: bool
+    help: Filter by nullable status (true for YES, false for NO)
+  - name: has_default
+    type: bool
+    help: Filter by whether column has default value
+  - name: include_system_tables
+    type: bool
+    help: Include system tables in the results
+    default: false
+  - name: show_descriptions
+    type: bool
+    help: Include column descriptions
+    default: true
+  - name: order_by
+    type: string
+    default: "table_schema, table_name, ordinal_position"
+    help: Order results by specified columns
+  - name: limit
+    type: int
+    help: Limit the number of results
+    default: 0
+  - name: offset
+    type: int
+    help: Offset results
+    default: 0
+query: |
+  {{ if .explain }}
+    EXPLAIN
+  {{ end }}
+  SELECT
+    c.table_schema
+    , c.table_name
+    , c.column_name
+    , c.ordinal_position
+  {{ if ne .detail_level "basic" }}
+    , c.data_type
+    , c.is_nullable
+    , c.column_default
+  {{ else }}
+    , c.data_type
+  {{ end }}
+  {{ if eq .detail_level "full" }}
+    , c.character_maximum_length
+    , c.numeric_precision
+    , c.numeric_scale
+    , c.datetime_precision
+    , c.is_identity
+    , c.is_updatable
+    , c.udt_name
+  {{ end }}
+  {{ if .show_descriptions }}
+    , pg_catalog.col_description(
+        (c.table_schema || '.' || c.table_name)::regclass::oid, 
+        c.ordinal_position
+      ) AS column_description
+  {{ end }}
+  FROM 
+    information_schema.columns c
+  WHERE 1=1
+  {{ if .db_schema }}
+    AND c.table_schema = {{ .db_schema | sqlString }}
+  {{ end }}
+  {{ if .table_name }}
+    AND c.table_name = {{ .table_name | sqlString }}
+  {{ end }}
+  {{ if .table_like }}
+    AND (
+    {{- range $index, $element := .table_like }}
+      {{- if $index }} OR {{ end }}c.table_name LIKE {{ $element | sqlStringLike }}
+    {{- end }}
+    )
+  {{ end }}
+  {{ if .column_name }}
+    AND c.column_name = {{ .column_name | sqlString }}
+  {{ end }}
+  {{ if .column_like }}
+    AND (
+    {{- range $index, $element := .column_like }}
+      {{- if $index }} OR {{ end }}c.column_name LIKE {{ $element | sqlStringLike }}
+    {{- end }}
+    )
+  {{ end }}
+  {{ if .data_type }}
+    AND c.data_type = {{ .data_type | sqlString }}
+  {{ end }}
+  {{ if .data_type_like }}
+    AND (
+    {{- range $index, $element := .data_type_like }}
+      {{- if $index }} OR {{ end }}c.data_type LIKE {{ $element | sqlStringLike }}
+    {{- end }}
+    )
+  {{ end }}
+  {{ if not .is_nullable | eq nil }}
+    AND c.is_nullable = {{ if .is_nullable }}'YES'{{ else }}'NO'{{ end }}
+  {{ end }}
+  {{ if not .has_default | eq nil }}
+    {{ if .has_default }}
+    AND c.column_default IS NOT NULL
+    {{ else }}
+    AND c.column_default IS NULL
+    {{ end }}
+  {{ end }}
+  {{ if not .include_system_tables }}
+    AND c.table_schema NOT IN ('pg_catalog', 'information_schema')
+  {{ end }}
+  ORDER BY {{ .order_by }}
+  {{ if .limit }}
+    LIMIT {{ .limit }}
+    {{ if .offset }}
+      OFFSET {{ .offset }}
+    {{ end }}
+  {{ end }}

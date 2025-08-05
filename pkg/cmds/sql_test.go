@@ -21,7 +21,7 @@ import (
 
 // Here we do a bunch of unit tests in a pretty end to end style by using an in memory SQLite database.
 
-func createDB(_ *layers.ParsedLayers) (*sqlx.DB, error) {
+func createDB(_ context.Context, _ *layers.ParsedLayers) (*sqlx.DB, error) {
 	db, err := sqlx.Connect("sqlite3", ":memory:")
 	if err != nil {
 		return nil, err
@@ -175,7 +175,7 @@ func TestSimpleSubQuery(t *testing.T) {
 		),
 	)
 	require.NoError(t, err)
-	db, err := createDB(nil)
+	db, err := createDB(context.Background(), nil)
 	require.NoError(t, err)
 	defer func(db *sqlx.DB) {
 		_ = db.Close()
@@ -226,7 +226,7 @@ func TestSimpleSubQuerySingle(t *testing.T) {
 		),
 	)
 	require.NoError(t, err)
-	db, err := createDB(nil)
+	db, err := createDB(context.Background(), nil)
 	require.NoError(t, err)
 	defer func(db *sqlx.DB) {
 		_ = db.Close()
@@ -288,7 +288,7 @@ func TestSimpleSubQueryWithArguments(t *testing.T) {
 		),
 	)
 	require.NoError(t, err)
-	db, err := createDB(nil)
+	db, err := createDB(context.Background(), nil)
 	require.NoError(t, err)
 	defer func(db *sqlx.DB) {
 		_ = db.Close()
@@ -353,7 +353,7 @@ func TestSliceSubQueryWithArguments(t *testing.T) {
 		),
 	)
 	require.NoError(t, err)
-	db, err := createDB(nil)
+	db, err := createDB(context.Background(), nil)
 	require.NoError(t, err)
 	defer func(db *sqlx.DB) {
 		_ = db.Close()
@@ -387,7 +387,7 @@ func TestMapSubQueryWithArguments(t *testing.T) {
 		),
 	)
 	require.NoError(t, err)
-	db, err := createDB(nil)
+	db, err := createDB(context.Background(), nil)
 	require.NoError(t, err)
 	defer func(db *sqlx.DB) {
 		_ = db.Close()
@@ -425,7 +425,7 @@ func TestMapSubQuery(t *testing.T) {
 		}),
 	)
 	require.NoError(t, err)
-	db, err := createDB(nil)
+	db, err := createDB(context.Background(), nil)
 	require.NoError(t, err)
 	defer func(db *sqlx.DB) {
 		_ = db.Close()

@@ -60,7 +60,7 @@ func (q *QueryCommand) RunIntoGlazeProcessor(
 		return err
 	}
 
-	db, err := q.dbConnectionFactory(parsedLayers)
+	db, err := q.dbConnectionFactory(ctx, parsedLayers)
 	if err != nil {
 		return err
 	}

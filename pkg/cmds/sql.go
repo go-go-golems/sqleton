@@ -59,7 +59,7 @@ type SqlCommand struct {
 func (s *SqlCommand) Metadata(
 	ctx context.Context,
 	parsedLayers *layers.ParsedLayers) (map[string]interface{}, error) {
-	db, err := s.dbConnectionFactory(parsedLayers)
+	db, err := s.dbConnectionFactory(ctx, parsedLayers)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +164,7 @@ func (s *SqlCommand) RunIntoGlazeProcessor(
 	}
 
 	// at this point, the factory can probably be passed the sql-connection parsed layer
-	db, err := s.dbConnectionFactory(parsedLayers)
+	db, err := s.dbConnectionFactory(ctx, parsedLayers)
 	if err != nil {
 		return err
 	}
@@ -235,7 +235,7 @@ func (s *SqlCommand) RenderQueryFull(
 	}
 
 	// at this point, the factory can probably be passed the sql-connection parsed layer
-	db, err := s.dbConnectionFactory(parsedLayers)
+	db, err := s.dbConnectionFactory(ctx, parsedLayers)
 	if err != nil {
 		return "", err
 	}

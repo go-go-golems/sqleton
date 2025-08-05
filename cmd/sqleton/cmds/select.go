@@ -201,7 +201,7 @@ func (sc *SelectCommand) RunIntoGlazeProcessor(
 		return nil
 	}
 
-	db, err := sc.dbConnectionFactory(parsedLayers)
+	db, err := sc.dbConnectionFactory(ctx, parsedLayers)
 	if err != nil {
 		return err
 	}

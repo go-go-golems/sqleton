@@ -44,7 +44,7 @@ func (c *RunCommand) RunIntoGlazeProcessor(
 		return errors.Wrap(err, "could not initialize sql-helpers settings")
 	}
 
-	db, err := c.dbConnectionFactory(parsedLayers)
+	db, err := c.dbConnectionFactory(ctx, parsedLayers)
 	if err != nil {
 		return errors.Wrap(err, "could not open database")
 	}

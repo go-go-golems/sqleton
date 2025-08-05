@@ -66,7 +66,7 @@ var dbTestConnectionCmd = &cobra.Command{
 		config := createConfigFromCobra(cmd)
 
 		fmt.Printf("Testing connection to %s\n", config.ToString())
-		db, err := config.Connect()
+		db, err := config.Connect(cmd.Context())
 		cobra.CheckErr(err)
 
 		cobra.CheckErr(err)
@@ -90,7 +90,7 @@ var dbTestConnectionCmdWithPrefix = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		config := createConfigFromCobra(cmd)
 		fmt.Printf("Testing connection to %s\n", config.ToString())
-		db, err := config.Connect()
+		db, err := config.Connect(cmd.Context())
 		cobra.CheckErr(err)
 
 		cobra.CheckErr(err)

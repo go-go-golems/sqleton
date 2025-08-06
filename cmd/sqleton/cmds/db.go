@@ -3,6 +3,8 @@ package cmds
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+
 	sql2 "github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds"
@@ -12,7 +14,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"os"
 
 	_ "github.com/go-sql-driver/mysql" // MySQL driver for database/sql
 )
@@ -28,12 +29,16 @@ var DbCmd = &cobra.Command{
 	Short: "Manage databases",
 }
 
-func createConfigFromCobra(cmd *cobra.Command) *sql2.DatabaseConfig {
+func createConfigFromCobra(cmd *cobra.Command) (*sqlx.DB, *sql2.DatabaseConfig, error) {
 	connectionLayer, err := sql2.NewSqlConnectionParameterLayer()
-	cobra.CheckErr(err)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	dbtLayer, err := sql2.NewDbtParameterLayer()
-	cobra.CheckErr(err)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	description := cmds.NewCommandDescription(
 		cmd.Name(),
@@ -46,36 +51,51 @@ func createConfigFromCobra(cmd *cobra.Command) *sql2.DatabaseConfig {
 			MiddlewaresFunc: sql2.GetCobraCommandSqletonMiddlewares,
 		},
 	)
-	cobra.CheckErr(err)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	parsedLayers, err := parser.Parse(cmd, nil)
-	cobra.CheckErr(err)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	sqlParsedLayer := parsedLayers.GetOrCreate(connectionLayer)
 	dbtParsedLayer := parsedLayers.GetOrCreate(dbtLayer)
 	config, err := sql2.NewConfigFromParsedLayers(dbtParsedLayer, sqlParsedLayer)
-	cobra.CheckErr(err)
+	if err != nil {
+		return nil, nil, err
+	}
 
-	return config
+	db, err := sql2.OpenDatabaseFromSqlConnectionLayer(cmd.Context(), parsedLayers, sql2.SqlConnectionSlug, sql2.DbtSlug)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return db, config, nil
 }
 
 var dbTestConnectionCmd = &cobra.Command{
 	Use:   "test",
 	Short: "Test the connection to a database",
 	Run: func(cmd *cobra.Command, args []string) {
-		config := createConfigFromCobra(cmd)
+		db, config, err := createConfigFromCobra(cmd)
+		if err != nil {
+			fmt.Printf("Error creating config: %v\n", err)
+			return
+		}
 
 		fmt.Printf("Testing connection to %s\n", config.ToString())
-		db, err := config.Connect(cmd.Context())
-		cobra.CheckErr(err)
 
-		cobra.CheckErr(err)
 		defer func(db *sqlx.DB) {
 			_ = db.Close()
 		}(db)
 
-		err = db.Ping()
-		cobra.CheckErr(err)
+		err = db.PingContext(cmd.Context())
+		if err != nil {
+			fmt.Printf("Error pinging database: %v\n", err)
+			return
+		}
 
 		fmt.Println("Connection successful")
 	},
@@ -88,18 +108,23 @@ var dbTestConnectionCmdWithPrefix = &cobra.Command{
 	Use:   "test-prefix",
 	Short: "Test the connection to a database, but all sqleton flags have the test- prefix",
 	Run: func(cmd *cobra.Command, args []string) {
-		config := createConfigFromCobra(cmd)
-		fmt.Printf("Testing connection to %s\n", config.ToString())
-		db, err := config.Connect(cmd.Context())
-		cobra.CheckErr(err)
+		db, config, err := createConfigFromCobra(cmd)
+		if err != nil {
+			fmt.Printf("Error creating config: %v\n", err)
+			return
+		}
 
-		cobra.CheckErr(err)
+		fmt.Printf("Testing connection to %s\n", config.ToString())
+
 		defer func(db *sqlx.DB) {
 			_ = db.Close()
 		}(db)
 
-		err = db.Ping()
-		cobra.CheckErr(err)
+		err = db.PingContext(cmd.Context())
+		if err != nil {
+			fmt.Printf("Error pinging database: %v\n", err)
+			return
+		}
 
 		fmt.Println("Connection successful")
 	},
@@ -112,9 +137,16 @@ var dbPrintEvidenceSettingsCmd = &cobra.Command{
 	Use:   "print-evidence-settings",
 	Short: "Output the settings to connect to a database for evidence.dev",
 	Run: func(cmd *cobra.Command, args []string) {
-		config := createConfigFromCobra(cmd)
+		_, config, err := createConfigFromCobra(cmd)
+		if err != nil {
+			fmt.Printf("Error creating config: %v\n", err)
+			return
+		}
 		source, err := config.GetSource()
-		cobra.CheckErr(err)
+		if err != nil {
+			fmt.Printf("Error getting source: %v\n", err)
+			return
+		}
 
 		gitRepo, _ := cmd.Flags().GetString("git-repo")
 
@@ -157,9 +189,16 @@ var dbPrintEnvCmd = &cobra.Command{
 	Use:   "print-env",
 	Short: "Output the settings to connect to a database as environment variables",
 	Run: func(cmd *cobra.Command, args []string) {
-		config := createConfigFromCobra(cmd)
+		_, config, err := createConfigFromCobra(cmd)
+		if err != nil {
+			fmt.Printf("Error creating config: %v\n", err)
+			return
+		}
 		source, err := config.GetSource()
-		cobra.CheckErr(err)
+		if err != nil {
+			fmt.Printf("Error getting source: %v\n", err)
+			return
+		}
 
 		isEnvRc, _ := cmd.Flags().GetBool("envrc")
 		envPrefix, _ := cmd.Flags().GetString("env-prefix")
@@ -190,9 +229,16 @@ var dbPrintSettingsCmd = &cobra.Command{
 	Use:   "print-settings",
 	Short: "Output the settings to connect to a database using glazed",
 	Run: func(cmd *cobra.Command, args []string) {
-		config := createConfigFromCobra(cmd)
+		_, config, err := createConfigFromCobra(cmd)
+		if err != nil {
+			fmt.Printf("Error creating config: %v\n", err)
+			return
+		}
 		source, err := config.GetSource()
-		cobra.CheckErr(err)
+		if err != nil {
+			fmt.Printf("Error getting source: %v\n", err)
+			return
+		}
 
 		gp, _, err := cli.CreateGlazedProcessorFromCobra(cmd)
 		if err != nil {
@@ -278,7 +324,10 @@ var dbPrintSettingsCmd = &cobra.Command{
 			_, _ = fmt.Fprintf(os.Stderr, "Error rendering output: %s\n", err)
 			os.Exit(1)
 		}
-		cobra.CheckErr(err)
+		if err != nil {
+			fmt.Printf("Error closing gp: %v\n", err)
+			return
+		}
 	},
 }
 

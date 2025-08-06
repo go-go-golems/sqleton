@@ -10,7 +10,6 @@ require (
 	github.com/go-go-golems/glazed v0.6.10
 	github.com/go-go-golems/parka v0.5.28
 	github.com/go-sql-driver/mysql v1.9.1
-	github.com/google/gops v0.3.28
 	github.com/huandu/go-sqlbuilder v1.36.0
 	github.com/iancoleman/strcase v0.3.0
 	github.com/jmoiron/sqlx v1.4.0

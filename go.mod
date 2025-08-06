@@ -6,10 +6,11 @@ toolchain go1.24.4
 
 require (
 	github.com/dave/jennifer v1.7.0
-	github.com/go-go-golems/clay v0.1.44
-	github.com/go-go-golems/glazed v0.6.9
+	github.com/go-go-golems/clay v0.1.45
+	github.com/go-go-golems/glazed v0.6.10
 	github.com/go-go-golems/parka v0.5.28
 	github.com/go-sql-driver/mysql v1.9.1
+	github.com/google/gops v0.3.28
 	github.com/huandu/go-sqlbuilder v1.36.0
 	github.com/iancoleman/strcase v0.3.0
 	github.com/jmoiron/sqlx v1.4.0
@@ -102,13 +103,16 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/itchyny/gojq v0.12.12 // indirect
 	github.com/itchyny/timefmt-go v0.1.5 // indirect
+	github.com/jackc/pgpassfile v1.0.0 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/pgx/v5 v5.7.5 // indirect
+	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jedib0t/go-pretty v4.3.0+incompatible // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kopoli/go-terminal-size v0.0.0-20170219200355-5c97524c8b54 // indirect
 	github.com/kucherenkovova/safegroup v1.0.2 // indirect
 	github.com/labstack/echo/v4 v4.13.3 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
-	github.com/lib/pq v1.10.9 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect

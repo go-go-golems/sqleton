@@ -9,10 +9,12 @@ before:
     - go generate ./...
 builds:
   - env:
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1
     main: ./cmd/sqleton
     binary: sqleton
     id: sqleton-binaries
+    tags:
+      - sqlite_fts5
     goos:
       - linux
 # I am not able to test windows at the time
@@ -21,6 +23,17 @@ builds:
     goarch:
       - amd64
       - arm64
+    # overrides:
+    #   - goos: linux
+    #     goarch: amd64
+        # env:
+        #   - CC=x86_64-linux-gnu-gcc
+        #   - CXX=x86_64-linux-gnu-g++
+      # - goos: linux
+      #   goarch: arm64
+        # env:
+        #   - CC=aarch64-linux-gnu-gcc
+        #   - CXX=aarch64-linux-gnu-g++
 
 # Add this section to include raw binaries
 archives:

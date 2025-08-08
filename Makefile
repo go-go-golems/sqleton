@@ -37,10 +37,10 @@ test:
 
 build:
 	go generate ./...
-	go build $(LDFLAGS) ./...
+	go build -tags sqlite_fts5 $(LDFLAGS) ./...
 
 sqleton:
-	go build $(LDFLAGS) -o sqleton ./cmd/sqleton
+	go build -tags sqlite_fts5 $(LDFLAGS) -o sqleton ./cmd/sqleton
 
 build-docker: sqleton
 #	GOOS=linux GOARCH=amd64 go build -o sqleton ./cmd/sqleton
@@ -67,7 +67,7 @@ tag-patch:
 	git tag $(shell svu patch)
 
 release:
-	git push --tags
+	git push origin --tags
 	GOPROXY=proxy.golang.org go list -m github.com/go-go-golems/sqleton@$(shell svu current)
 
 bump-glazed:
@@ -78,7 +78,7 @@ bump-glazed:
 
 SQLETON_BINARY=$(shell which sqleton)
 install:
-	go build $(LDFLAGS) -o ./dist/sqleton ./cmd/sqleton && \
+	go build -tags sqlite_fts5 $(LDFLAGS) -o ./dist/sqleton ./cmd/sqleton && \
 		cp ./dist/sqleton $(SQLETON_BINARY)
 
 # Path to CodeQL CLI - adjust based on installation location

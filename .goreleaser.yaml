@@ -12,13 +12,22 @@ builds:
       - CGO_ENABLED=1
     main: ./cmd/sqleton
     binary: sqleton
-    id: sqleton-binaries
+    id: sqleton-linux
     tags:
       - sqlite_fts5
     goos:
       - linux
-# I am not able to test windows at the time
-#      - windows
+    goarch:
+      - amd64
+      - arm64
+  - env:
+      - CGO_ENABLED=1
+    main: ./cmd/sqleton
+    binary: sqleton
+    id: sqleton-darwin
+    tags:
+      - sqlite_fts5
+    goos:
       - darwin
     goarch:
       - amd64
@@ -39,7 +48,8 @@ builds:
 archives:
   - id: raw-binaries
     builds:
-     - sqleton-binaries
+     - sqleton-linux
+     - sqleton-darwin
     format: "binary"
 
 checksum:

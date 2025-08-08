@@ -58,7 +58,7 @@ jobs:
         with:
           distribution: goreleaser
           version: latest
-          args: release --clean --skip=publish
+          args: release --clean --skip=publish --id=sqleton-linux
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COSIGN_PWD: ${{ secrets.COSIGN_PWD }}
@@ -92,7 +92,7 @@ jobs:
         with:
           distribution: goreleaser
           version: latest
-          args: release --clean
+          args: release --clean --id=sqleton-darwin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COSIGN_PWD: ${{ secrets.COSIGN_PWD }}

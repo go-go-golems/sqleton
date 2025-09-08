@@ -41,7 +41,7 @@ jobs:
           password: ${{ secrets.RELEASE_ACTION_PAT }}
 
       - run: git fetch --force --tags
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: '>=1.22.0'
           cache: true
@@ -75,7 +75,7 @@ jobs:
           fetch-depth: 0
 
       - run: git fetch --force --tags
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: '>=1.22.0'
           cache: true

@@ -17,6 +17,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
+	glazed_config "github.com/go-go-golems/glazed/pkg/config"
 	"github.com/go-go-golems/glazed/pkg/help"
 	help_cmd "github.com/go-go-golems/glazed/pkg/help/cmd"
 	"github.com/go-go-golems/glazed/pkg/types"
@@ -29,7 +30,7 @@ import (
 	"github.com/pkg/profile"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
 
 	// #nosec G108 - pprof is imported for profiling and debugging in development environments only.
 	// This is gated behind the --mem-profile flag and not enabled by default.
@@ -156,12 +157,46 @@ func initRootCmd() (*help.HelpSystem, error) {
 
 	help_cmd.SetupCobraRootCommand(helpSystem, rootCmd)
 
-	err = clay.InitViper("sqleton", rootCmd)
+	err = clay.InitGlazed("sqleton", rootCmd)
 	cobra.CheckErr(err)
 	rootCmd.AddCommand(runCommandCmd)
 
 	rootCmd.AddCommand(cmds.NewCodegenCommand())
 	return helpSystem, nil
+}
+
+// loadRepositoriesFromConfig reads repository paths from the sqleton config file.
+func loadRepositoriesFromConfig() []string {
+	configPath, err := glazed_config.ResolveAppConfigPath("sqleton", "")
+	if err != nil || configPath == "" {
+		return []string{}
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		log.Debug().Err(err).Str("config", configPath).Msg("Could not read config file for repositories")
+		return []string{}
+	}
+
+	var config map[string]interface{}
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		log.Debug().Err(err).Str("config", configPath).Msg("Could not parse config file")
+		return []string{}
+	}
+
+	repos, ok := config["repositories"].([]interface{})
+	if !ok {
+		return []string{}
+	}
+
+	repositoryPaths := make([]string, 0, len(repos))
+	for _, repo := range repos {
+		if repoStr, ok := repo.(string); ok {
+			repositoryPaths = append(repositoryPaths, repoStr)
+		}
+	}
+
+	return repositoryPaths
 }
 
 func initAllCommands(helpSystem *help.HelpSystem) error {
@@ -222,7 +257,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	}
 	rootCmd.AddCommand(cobraQueryCommand)
 
-	repositoryPaths := viper.GetStringSlice("repositories")
+	repositoryPaths := loadRepositoriesFromConfig()
 
 	defaultDirectory := "$HOME/.sqleton/queries"
 	_, err = os.Stat(os.ExpandEnv(defaultDirectory))

@@ -6,9 +6,9 @@ import (
 	"fmt"
 	sql2 "github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
-	"github.com/go-go-golems/glazed/pkg/cmds/layers"
-	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
-	"github.com/go-go-golems/glazed/pkg/helpers/cast"
+	"github.com/go-go-golems/glazed/pkg/cmds/fields"
+	"github.com/go-go-golems/glazed/pkg/cmds/schema"
+	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	cmds2 "github.com/go-go-golems/sqleton/pkg/cmds"
@@ -25,11 +25,10 @@ var selectFlagsYaml []byte
 
 const SelectSlug = "select"
 
-func NewSelectParameterLayer() (*layers.ParameterLayerImpl, error) {
-	ret := &layers.ParameterLayerImpl{}
-	err := ret.LoadFromYAML(selectFlagsYaml)
+func NewSelectSection() (*schema.SectionImpl, error) {
+	ret, err := schema.NewSectionFromYAML(selectFlagsYaml)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to initialize select parameter layer")
+		return nil, errors.Wrap(err, "Failed to initialize select section")
 	}
 	return ret, nil
 }
@@ -40,32 +39,32 @@ type SelectCommand struct {
 }
 
 type SelectCommandSettings struct {
-	Columns     []string `glazed.parameter:"columns"`
-	Limit       int      `glazed.parameter:"limit"`
-	Offset      int      `glazed.parameter:"offset"`
-	Count       bool     `glazed.parameter:"count"`
-	Where       []string `glazed.parameter:"where"`
-	OrderBy     string   `glazed.parameter:"order-by"`
-	Distinct    bool     `glazed.parameter:"distinct"`
-	Table       string   `glazed.parameter:"table"`
-	CreateQuery string   `glazed.parameter:"create-query"`
+	Columns     []string `glazed:"columns"`
+	Limit       int      `glazed:"limit"`
+	Offset      int      `glazed:"offset"`
+	Count       bool     `glazed:"count"`
+	Where       []string `glazed:"where"`
+	OrderBy     string   `glazed:"order-by"`
+	Distinct    bool     `glazed:"distinct"`
+	Table       string   `glazed:"table"`
+	CreateQuery string   `glazed:"create-query"`
 }
 
 var _ cmds.GlazeCommand = (*SelectCommand)(nil)
 
 func (sc *SelectCommand) RunIntoGlazeProcessor(
 	ctx context.Context,
-	parsedLayers *layers.ParsedLayers,
+	parsedValues *values.Values,
 	gp middlewares.Processor,
 ) error {
 	s := &SelectCommandSettings{}
-	err := parsedLayers.InitializeStruct(SelectSlug, s)
+	err := parsedValues.DecodeSectionInto(SelectSlug, s)
 	if err != nil {
 		return err
 	}
 
 	ss := &flags.SqlHelpersSettings{}
-	err = parsedLayers.InitializeStruct(flags.SqlHelpersSlug, ss)
+	err = parsedValues.DecodeSectionInto(flags.SqlHelpersSlug, ss)
 	if err != nil {
 		return errors.Wrap(err, "could not initialize sql-helpers settings")
 	}
@@ -112,45 +111,45 @@ func (sc *SelectCommand) RunIntoGlazeProcessor(
 			short = fmt.Sprintf("Select"+" from %s where %s", s.Table, strings.Join(s.Where, " AND "))
 		}
 
-		flags := []*parameters.ParameterDefinition{}
+		flags := []*fields.Definition{}
 		if len(s.Where) == 0 {
-			flags = append(flags, &parameters.ParameterDefinition{
-				Name: "where",
-				Type: parameters.ParameterTypeStringList,
-			})
+			flags = append(flags, fields.New("where", fields.TypeStringList))
 		}
 		if !s.Count {
-			flags = append(flags, &parameters.ParameterDefinition{
-				Name:    "limit",
-				Type:    parameters.ParameterTypeInteger,
-				Help:    fmt.Sprintf("Limit the number of rows (default: %d), set to 0 to disable", s.Limit),
-				Default: cast.InterfaceAddr(s.Limit),
-			})
-			flags = append(flags, &parameters.ParameterDefinition{
-				Name:    "offset",
-				Type:    parameters.ParameterTypeInteger,
-				Help:    fmt.Sprintf("Offset the number of rows (default: %d)", s.Offset),
-				Default: cast.InterfaceAddr(s.Offset),
-			})
-			flags = append(flags, &parameters.ParameterDefinition{
-				Name:    "distinct",
-				Type:    parameters.ParameterTypeBool,
-				Help:    fmt.Sprintf("Whether to select distinct rows (default: %t)", s.Distinct),
-				Default: cast.InterfaceAddr(s.Distinct),
-			})
+			flags = append(flags, fields.New(
+				"limit",
+				fields.TypeInteger,
+				fields.WithHelp(fmt.Sprintf("Limit the number of rows (default: %d), set to 0 to disable", s.Limit)),
+				fields.WithDefault(s.Limit),
+			))
+			flags = append(flags, fields.New(
+				"offset",
+				fields.TypeInteger,
+				fields.WithHelp(fmt.Sprintf("Offset the number of rows (default: %d)", s.Offset)),
+				fields.WithDefault(s.Offset),
+			))
+			flags = append(flags, fields.New(
+				"distinct",
+				fields.TypeBool,
+				fields.WithHelp(fmt.Sprintf("Whether to select distinct rows (default: %t)", s.Distinct)),
+				fields.WithDefault(s.Distinct),
+			))
 
 			orderByHelp := "Order by"
-			var orderDefault interface{}
+			var orderDefault string
 			if s.OrderBy != "" {
 				orderByHelp = fmt.Sprintf("Order by (default: %s)", s.OrderBy)
 				orderDefault = s.OrderBy
 			}
-			flags = append(flags, &parameters.ParameterDefinition{
-				Name:    "order_by",
-				Type:    parameters.ParameterTypeString,
-				Help:    orderByHelp,
-				Default: cast.InterfaceAddr(orderDefault),
-			})
+			orderOptions := []fields.Option{fields.WithHelp(orderByHelp)}
+			if orderDefault != "" {
+				orderOptions = append(orderOptions, fields.WithDefault(orderDefault))
+			}
+			flags = append(flags, fields.New(
+				"order_by",
+				fields.TypeString,
+				orderOptions...,
+			))
 		}
 
 		sb := &strings.Builder{}
@@ -201,7 +200,7 @@ func (sc *SelectCommand) RunIntoGlazeProcessor(
 		return nil
 	}
 
-	db, err := sc.dbConnectionFactory(ctx, parsedLayers)
+	db, err := sc.dbConnectionFactory(ctx, parsedValues)
 	if err != nil {
 		return err
 	}
@@ -225,7 +224,7 @@ func NewSelectCommand(
 	dbConnectionFactory sql2.DBConnectionFactory,
 	options ...cmds.CommandDescriptionOption,
 ) (*SelectCommand, error) {
-	glazedParameterLayer, err := settings.NewGlazedParameterLayers()
+	glazedSection, err := settings.NewGlazedSection()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create Glazed parameter layer")
 	}
@@ -233,16 +232,16 @@ func NewSelectCommand(
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create SQL helpers parameter layer")
 	}
-	selectParameterLayer, err := NewSelectParameterLayer()
+	selectSection, err := NewSelectSection()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create select parameter layer")
 	}
 
 	options_ := append([]cmds.CommandDescriptionOption{
 		cmds.WithShort("Select" + " all columns from a table"),
-		cmds.WithLayersList(
-			selectParameterLayer,
-			glazedParameterLayer,
+		cmds.WithSections(
+			selectSection,
+			glazedSection,
 			sqlHelpersParameterLayer,
 		),
 	}, options...)

@@ -10,6 +10,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
 	"github.com/go-go-golems/glazed/pkg/cmds/layout"
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
+	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 )
@@ -61,12 +62,24 @@ func (scl *SqlCommandLoader) loadSqlCommandFromReader(
 		return nil, fmt.Errorf("invalid type: %s", scd.Type)
 	}
 
+	sectionList := scd.Sections
+	if len(sectionList) == 0 {
+		sectionList = scd.Layers
+	}
+	sections := make([]schema.Section, 0, len(sectionList))
+	for _, section := range sectionList {
+		if section == nil {
+			continue
+		}
+		sections = append(sections, section)
+	}
+
 	options_ := []cmds.CommandDescriptionOption{
 		cmds.WithShort(scd.Short),
 		cmds.WithLong(scd.Long),
 		cmds.WithFlags(scd.Flags...),
 		cmds.WithArguments(scd.Arguments...),
-		cmds.WithLayersList(scd.Layers...),
+		cmds.WithSections(sections...),
 		cmds.WithType(scd.Type),
 		cmds.WithTags(scd.Tags...),
 		cmds.WithMetadata(scd.Metadata),

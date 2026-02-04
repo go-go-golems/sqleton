@@ -13,10 +13,11 @@ import (
 	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds"
-	"github.com/go-go-golems/glazed/pkg/cmds/layers"
-	cmd_middlewares "github.com/go-go-golems/glazed/pkg/cmds/middlewares"
-	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
+	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/cmds/runner"
+	"github.com/go-go-golems/glazed/pkg/cmds/schema"
+	"github.com/go-go-golems/glazed/pkg/cmds/sources"
+	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
@@ -45,7 +46,7 @@ type ListToolsCommand struct {
 }
 
 func NewListToolsCommand(repositories []*repositories.Repository) (*ListToolsCommand, error) {
-	glazedLayer, err := settings.NewGlazedParameterLayers()
+	glazedSection, err := settings.NewGlazedSection()
 	if err != nil {
 		return nil, err
 	}
@@ -55,14 +56,14 @@ func NewListToolsCommand(repositories []*repositories.Repository) (*ListToolsCom
 			"list",
 			cmds.WithShort("List all available tools"),
 			cmds.WithFlags(
-				parameters.NewParameterDefinition(
+				fields.New(
 					"repository",
-					parameters.ParameterTypeString,
-					parameters.WithHelp("Filter tools by repository name"),
-					parameters.WithDefault(""),
+					fields.TypeString,
+					fields.WithHelp("Filter tools by repository name"),
+					fields.WithDefault(""),
 				),
 			),
-			cmds.WithLayersList(glazedLayer),
+			cmds.WithSections(glazedSection),
 		),
 		repositories: repositories,
 	}, nil
@@ -70,13 +71,13 @@ func NewListToolsCommand(repositories []*repositories.Repository) (*ListToolsCom
 
 func (c *ListToolsCommand) RunIntoGlazeProcessor(
 	ctx context.Context,
-	parsedLayers *layers.ParsedLayers,
+	parsedValues *values.Values,
 	gp middlewares.Processor,
 ) error {
 	s := &struct {
-		Repository string `glazed.parameter:"repository"`
+		Repository string `glazed:"repository"`
 	}{}
-	if err := parsedLayers.InitializeStruct(layers.DefaultSlug, s); err != nil {
+	if err := parsedValues.DecodeSectionInto(schema.DefaultSlug, s); err != nil {
 		return err
 	}
 
@@ -98,8 +99,13 @@ func (c *ListToolsCommand) RunIntoGlazeProcessor(
 
 		var inputSchema_ interface{}
 
-		output, _ := parsedLayers.GetParameter(settings.GlazedSlug, "output")
-		if output.Value == "json" {
+		outputValue := ""
+		if outputField, ok := parsedValues.GetField(settings.GlazedSlug, "output"); ok {
+			if outputString, ok := outputField.Value.(string); ok {
+				outputValue = outputString
+			}
+		}
+		if outputValue == "json" {
 			inputSchema_ = tool.InputSchema
 		} else {
 			inputSchema_ = prettySchema.String()
@@ -121,22 +127,22 @@ func (c *ListToolsCommand) RunIntoGlazeProcessor(
 
 // createCommandMiddlewares creates the common middleware chain used by MCP commands
 func createCommandMiddlewares(
-	parsedLayers *layers.ParsedLayers,
+	parsedValues *values.Values,
 	cmd *cobra.Command,
 	args []string,
-	outputOverride cmd_middlewares.Middleware,
-) ([]cmd_middlewares.Middleware, error) {
+	outputOverride sources.Middleware,
+) ([]sources.Middleware, error) {
 	// Start with cobra-specific middlewares
-	middlewares_ := []cmd_middlewares.Middleware{
-		cmd_middlewares.ParseFromCobraCommand(cmd,
-			parameters.WithParseStepSource("cobra"),
+	middlewares_ := []sources.Middleware{
+		sources.FromCobra(cmd,
+			fields.WithSource("cobra"),
 		),
-		cmd_middlewares.GatherArguments(args,
-			parameters.WithParseStepSource("arguments"),
+		sources.FromArgs(args,
+			fields.WithSource("arguments"),
 		),
 	}
 
-	sqletonMiddlewares, err := sql.GetSqletonMiddlewares(parsedLayers)
+	sqletonMiddlewares, err := sql.GetSqletonMiddlewares(parsedValues)
 	if err != nil {
 		return nil, err
 	}
@@ -161,32 +167,32 @@ func (mc *McpCommands) CreateToolsCmd() *cobra.Command {
 		panic(err)
 	}
 
-	// Create middleware to override output format to YAML
-	outputOverride := cmd_middlewares.UpdateFromMap(
+	// Create middleware to override output format to JSON
+	outputOverride := sources.FromMap(
 		map[string]map[string]interface{}{
-			"glazed": {
+			settings.GlazedSlug: {
 				"output": "json",
 			},
 		},
-		parameters.WithParseStepSource("output-override"),
+		fields.WithSource("output-override"),
 	)
 
 	// Build cobra command with custom middlewares
 	cobraCmd, err := cli.BuildCobraCommandFromCommand(listCmd,
 		cli.WithCobraMiddlewaresFunc(func(
-			parsedLayers *layers.ParsedLayers,
+			parsedValues *values.Values,
 			cmd *cobra.Command,
 			args []string,
-		) ([]cmd_middlewares.Middleware, error) {
-			return createCommandMiddlewares(parsedLayers, cmd, args, outputOverride)
+		) ([]sources.Middleware, error) {
+			return createCommandMiddlewares(parsedValues, cmd, args, outputOverride)
 		}),
-		cli.WithCobraShortHelpLayers(
-			layers.DefaultSlug,
+		cli.WithCobraShortHelpSections(
+			schema.DefaultSlug,
 			sql.DbtSlug,
 			sql.SqlConnectionSlug,
 			flags.SqlHelpersSlug,
 		),
-		cli.WithProfileSettingsLayer(),
+		cli.WithProfileSettingsSection(),
 	)
 	if err != nil {
 		panic(err)
@@ -204,19 +210,19 @@ func (mc *McpCommands) CreateToolsCmd() *cobra.Command {
 
 	cobraSchemaCmd, err := cli.BuildCobraCommandFromCommand(schemaCmd,
 		cli.WithCobraMiddlewaresFunc(func(
-			parsedLayers *layers.ParsedLayers,
+			parsedValues *values.Values,
 			cmd *cobra.Command,
 			args []string,
-		) ([]cmd_middlewares.Middleware, error) {
-			return createCommandMiddlewares(parsedLayers, cmd, args, nil)
+		) ([]sources.Middleware, error) {
+			return createCommandMiddlewares(parsedValues, cmd, args, nil)
 		}),
-		cli.WithCobraShortHelpLayers(
-			layers.DefaultSlug,
+		cli.WithCobraShortHelpSections(
+			schema.DefaultSlug,
 			sql.DbtSlug,
 			sql.SqlConnectionSlug,
 			flags.SqlHelpersSlug,
 		),
-		cli.WithProfileSettingsLayer(),
+		cli.WithProfileSettingsSection(),
 	)
 	if err != nil {
 		panic(err)
@@ -229,9 +235,9 @@ func (mc *McpCommands) CreateToolsCmd() *cobra.Command {
 
 // RunCommandSettings holds the parameters for the run command
 type RunCommandSettings struct {
-	Name         string                 `glazed.parameter:"name"`
-	Args         string                 `glazed.parameter:"args"`
-	ArgsFromFile map[string]interface{} `glazed.parameter:"args-from-file"`
+	Name         string                 `glazed:"name"`
+	Args         string                 `glazed:"args"`
+	ArgsFromFile map[string]interface{} `glazed:"args-from-file"`
 }
 
 type RunCommand struct {
@@ -245,24 +251,24 @@ func NewRunCommand(repositories []*repositories.Repository) (*RunCommand, error)
 			"run",
 			cmds.WithShort("Run a tool by name"),
 			cmds.WithArguments(
-				parameters.NewParameterDefinition(
+				fields.New(
 					"name",
-					parameters.ParameterTypeString,
-					parameters.WithHelp("Name of the tool to run"),
-					parameters.WithRequired(true),
+					fields.TypeString,
+					fields.WithHelp("Name of the tool to run"),
+					fields.WithRequired(true),
 				),
 			),
 			cmds.WithFlags(
-				parameters.NewParameterDefinition(
+				fields.New(
 					"args",
-					parameters.ParameterTypeString,
-					parameters.WithHelp("Arguments as JSON string"),
-					parameters.WithDefault("{}"),
+					fields.TypeString,
+					fields.WithHelp("Arguments as JSON string"),
+					fields.WithDefault("{}"),
 				),
-				parameters.NewParameterDefinition(
+				fields.New(
 					"args-from-file",
-					parameters.ParameterTypeObjectFromFile,
-					parameters.WithHelp("Load arguments from JSON/YAML file"),
+					fields.TypeObjectFromFile,
+					fields.WithHelp("Load arguments from JSON/YAML file"),
 				),
 			),
 		),
@@ -270,10 +276,10 @@ func NewRunCommand(repositories []*repositories.Repository) (*RunCommand, error)
 	}, nil
 }
 
-func (c *RunCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLayers) error {
+func (c *RunCommand) Run(ctx context.Context, parsedValues *values.Values) error {
 	// Parse settings
 	s := &RunCommandSettings{}
-	if err := parsedLayers.InitializeStruct(layers.DefaultSlug, s); err != nil {
+	if err := parsedValues.DecodeSectionInto(schema.DefaultSlug, s); err != nil {
 		return err
 	}
 
@@ -303,16 +309,16 @@ func (c *RunCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLayers)
 		}
 	}
 
-	sqletonMiddlewares, err := sql.GetSqletonMiddlewares(parsedLayers)
+	sqletonMiddlewares, err := sql.GetSqletonMiddlewares(parsedValues)
 	if err != nil {
 		return fmt.Errorf("failed to get sqleton middlewares: %w", err)
 	}
 
 	// Parse parameters using runner
-	parsedToolLayers, err := runner.ParseCommandParameters(
+	parsedToolValues, err := runner.ParseCommandValues(
 		foundCmd,
-		runner.WithValuesForLayers(map[string]map[string]interface{}{
-			layers.DefaultSlug: argsMap,
+		runner.WithValuesForSections(map[string]map[string]interface{}{
+			schema.DefaultSlug: argsMap,
 		}),
 		runner.WithAdditionalMiddlewares(sqletonMiddlewares...),
 	)
@@ -324,7 +330,7 @@ func (c *RunCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLayers)
 	err = runner.RunCommand(
 		ctx,
 		foundCmd,
-		parsedToolLayers,
+		parsedToolValues,
 		runner.WithWriter(os.Stdout), // For WriterCommand
 	)
 	if err != nil {
@@ -343,19 +349,19 @@ func (mc *McpCommands) CreateRunCmd() *cobra.Command {
 	// Build cobra command with custom middlewares
 	cobraCmd, err := cli.BuildCobraCommandFromCommand(runCmd,
 		cli.WithCobraMiddlewaresFunc(func(
-			parsedLayers *layers.ParsedLayers,
+			parsedValues *values.Values,
 			cmd *cobra.Command,
 			args []string,
-		) ([]cmd_middlewares.Middleware, error) {
-			return createCommandMiddlewares(parsedLayers, cmd, args, nil)
+		) ([]sources.Middleware, error) {
+			return createCommandMiddlewares(parsedValues, cmd, args, nil)
 		}),
-		cli.WithCobraShortHelpLayers(
-			layers.DefaultSlug,
+		cli.WithCobraShortHelpSections(
+			schema.DefaultSlug,
 			sql.DbtSlug,
 			sql.SqlConnectionSlug,
 			flags.SqlHelpersSlug,
 		),
-		cli.WithProfileSettingsLayer(),
+		cli.WithProfileSettingsSection(),
 	)
 	if err != nil {
 		panic(err)
@@ -375,10 +381,10 @@ func NewSchemaCommand(repositories []*repositories.Repository) (*SchemaCommand, 
 			"schema",
 			cmds.WithShort("Get JSON schema for a tool"),
 			cmds.WithArguments(
-				parameters.NewParameterDefinition(
+				fields.New(
 					"name",
-					parameters.ParameterTypeString,
-					parameters.WithHelp("Name of the tool to get schema for"),
+					fields.TypeString,
+					fields.WithHelp("Name of the tool to get schema for"),
 				),
 			),
 		),
@@ -388,13 +394,13 @@ func NewSchemaCommand(repositories []*repositories.Repository) (*SchemaCommand, 
 
 func (c *SchemaCommand) RunIntoWriter(
 	ctx context.Context,
-	parsedLayers *layers.ParsedLayers,
+	parsedValues *values.Values,
 	w io.Writer,
 ) error {
 	s := &struct {
-		Name string `glazed.parameter:"name"`
+		Name string `glazed:"name"`
 	}{}
-	if err := parsedLayers.InitializeStruct(layers.DefaultSlug, s); err != nil {
+	if err := parsedValues.DecodeSectionInto(schema.DefaultSlug, s); err != nil {
 		return err
 	}
 

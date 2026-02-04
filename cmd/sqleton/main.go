@@ -14,8 +14,9 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cli"
 	glazed_cmds "github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
-	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
+	"github.com/go-go-golems/glazed/pkg/cmds/schema"
+	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/help"
 	help_cmd "github.com/go-go-golems/glazed/pkg/help/cmd"
 	"github.com/go-go-golems/glazed/pkg/types"
@@ -176,7 +177,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	}
 
 	runCommand, err := cmds.NewRunCommand(sql.OpenDatabaseFromDefaultSqlConnectionLayer,
-		glazed_cmds.WithLayersList(
+		glazed_cmds.WithSections(
 			dbtParameterLayer,
 			sqlConnectionParameterLayer,
 		))
@@ -191,7 +192,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	rootCmd.AddCommand(cobraRunCommand)
 
 	selectCommand, err := cmds.NewSelectCommand(sql.OpenDatabaseFromDefaultSqlConnectionLayer,
-		glazed_cmds.WithLayersList(
+		glazed_cmds.WithSections(
 			dbtParameterLayer,
 			sqlConnectionParameterLayer,
 		))
@@ -199,7 +200,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		return err
 	}
 	cobraSelectCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(selectCommand,
-		cli.WithCobraShortHelpLayers(cmds.SelectSlug),
+		cli.WithCobraShortHelpSections(cmds.SelectSlug),
 	)
 	if err != nil {
 		return err
@@ -208,7 +209,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 
 	queryCommand, err := cmds.NewQueryCommand(
 		sql.OpenDatabaseFromDefaultSqlConnectionLayer,
-		glazed_cmds.WithLayersList(
+		glazed_cmds.WithSections(
 			dbtParameterLayer,
 			sqlConnectionParameterLayer,
 		))
@@ -268,9 +269,9 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		rootCmd,
 		repositories_,
 		cli.WithCobraMiddlewaresFunc(sql.GetCobraCommandSqletonMiddlewares),
-		cli.WithCobraShortHelpLayers(layers.DefaultSlug, sql.DbtSlug, sql.SqlConnectionSlug, flags.SqlHelpersSlug),
-		cli.WithCreateCommandSettingsLayer(),
-		cli.WithProfileSettingsLayer(),
+		cli.WithCobraShortHelpSections(schema.DefaultSlug, sql.DbtSlug, sql.SqlConnectionSlug, flags.SqlHelpersSlug),
+		cli.WithCreateCommandSettingsSection(),
+		cli.WithProfileSettingsSection(),
 	)
 	if err != nil {
 		return err
@@ -300,7 +301,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		clay_commandmeta.WithListAddCommandToRowFunc(func(
 			command glazed_cmds.Command,
 			row types.Row,
-			parsedLayers *layers.ParsedLayers,
+			parsedValues *values.Values,
 		) ([]types.Row, error) {
 			// Example: Set 'type' and 'query' based on command type
 			switch c := command.(type) {

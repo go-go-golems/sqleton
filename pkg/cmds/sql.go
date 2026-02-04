@@ -5,9 +5,10 @@ import (
 	"fmt"
 	clay_sql "github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
-	"github.com/go-go-golems/glazed/pkg/cmds/layers"
+	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/cmds/layout"
-	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
+	"github.com/go-go-golems/glazed/pkg/cmds/schema"
+	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/sqleton/pkg/flags"
@@ -32,16 +33,17 @@ var _ cmds.GlazeCommand = (*SqlCommand)(nil)
 var _ cmds.CommandWithMetadata = (*SqlCommand)(nil)
 
 type SqlCommandDescription struct {
-	Name      string                            `yaml:"name"`
-	Short     string                            `yaml:"short"`
-	Long      string                            `yaml:"long,omitempty"`
-	Layout    []*layout.Section                 `yaml:"layout,omitempty"`
-	Flags     []*parameters.ParameterDefinition `yaml:"flags,omitempty"`
-	Arguments []*parameters.ParameterDefinition `yaml:"arguments,omitempty"`
-	Layers    []layers.ParameterLayer           `yaml:"layers,omitempty"`
-	Type      string                            `yaml:"type,omitempty"`
-	Tags      []string                          `yaml:"tags,omitempty"`
-	Metadata  map[string]interface{}            `yaml:"metadata,omitempty"`
+	Name      string                 `yaml:"name"`
+	Short     string                 `yaml:"short"`
+	Long      string                 `yaml:"long,omitempty"`
+	Layout    []*layout.Section      `yaml:"layout,omitempty"`
+	Flags     []*fields.Definition   `yaml:"flags,omitempty"`
+	Arguments []*fields.Definition   `yaml:"arguments,omitempty"`
+	Sections  []*schema.SectionImpl  `yaml:"sections,omitempty"`
+	Layers    []*schema.SectionImpl  `yaml:"layers,omitempty"`
+	Type      string                 `yaml:"type,omitempty"`
+	Tags      []string               `yaml:"tags,omitempty"`
+	Metadata  map[string]interface{} `yaml:"metadata,omitempty"`
 
 	SubQueries map[string]string `yaml:"subqueries,omitempty"`
 	Query      string            `yaml:"query"`
@@ -58,8 +60,8 @@ type SqlCommand struct {
 
 func (s *SqlCommand) Metadata(
 	ctx context.Context,
-	parsedLayers *layers.ParsedLayers) (map[string]interface{}, error) {
-	db, err := s.dbConnectionFactory(ctx, parsedLayers)
+	parsedValues *values.Values) (map[string]interface{}, error) {
+	db, err := s.dbConnectionFactory(ctx, parsedValues)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +74,7 @@ func (s *SqlCommand) Metadata(
 		return nil, errors.Wrapf(err, "Could not ping database")
 	}
 
-	query, err := s.RenderQuery(ctx, db, parsedLayers.GetDataMap())
+	query, err := s.RenderQuery(ctx, db, parsedValues.AllFieldValues().ToMap())
 	if err != nil {
 		return nil, errors.Wrapf(err, "Could not generate query")
 	}
@@ -119,7 +121,7 @@ func NewSqlCommand(
 	description *cmds.CommandDescription,
 	options ...SqlCommandOption,
 ) (*SqlCommand, error) {
-	glazedParameterLayer, err := settings.NewGlazedParameterLayers()
+	glazedParameterLayer, err := settings.NewGlazedSection()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create Glazed parameter layer")
 	}
@@ -135,7 +137,7 @@ func NewSqlCommand(
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create SQL helpers parameter layer")
 	}
-	description.Layers.AppendLayers(
+	description.Schema.AppendSections(
 		sqlHelpersParameterLayer,
 		sqlConnectionParameterLayer,
 		dbtParameterLayer,
@@ -156,7 +158,7 @@ func NewSqlCommand(
 
 func (s *SqlCommand) RunIntoGlazeProcessor(
 	ctx context.Context,
-	parsedLayers *layers.ParsedLayers,
+	parsedValues *values.Values,
 	gp middlewares.Processor,
 ) error {
 	if s.dbConnectionFactory == nil {
@@ -164,7 +166,7 @@ func (s *SqlCommand) RunIntoGlazeProcessor(
 	}
 
 	// at this point, the factory can probably be passed the sql-connection parsed layer
-	db, err := s.dbConnectionFactory(ctx, parsedLayers)
+	db, err := s.dbConnectionFactory(ctx, parsedValues)
 	if err != nil {
 		return err
 	}
@@ -177,11 +179,13 @@ func (s *SqlCommand) RunIntoGlazeProcessor(
 		return errors.Wrapf(err, "Could not ping database")
 	}
 
-	dataMap := parsedLayers.GetDataMap()
+	dataMap := parsedValues.AllFieldValues().ToMap()
 
 	printQuery := false
-	if printQuery_, ok := parsedLayers.GetParameter("sql-helpers", "print-query"); ok {
-		printQuery = printQuery_.Value.(bool)
+	if printQuery_, ok := parsedValues.GetField(flags.SqlHelpersSlug, "print-query"); ok {
+		if printQueryValue, ok := printQuery_.Value.(bool); ok {
+			printQuery = printQueryValue
+		}
 	}
 
 	if printQuery {
@@ -228,14 +232,14 @@ func (s *SqlCommand) RunIntoGlazeProcessorWithDB(
 
 func (s *SqlCommand) RenderQueryFull(
 	ctx context.Context,
-	parsedLayers *layers.ParsedLayers,
+	parsedValues *values.Values,
 ) (string, error) {
 	if s.dbConnectionFactory == nil {
 		return "", errors.Errorf("dbConnectionFactory is not set")
 	}
 
 	// at this point, the factory can probably be passed the sql-connection parsed layer
-	db, err := s.dbConnectionFactory(ctx, parsedLayers)
+	db, err := s.dbConnectionFactory(ctx, parsedValues)
 	if err != nil {
 		return "", err
 	}
@@ -248,7 +252,7 @@ func (s *SqlCommand) RenderQueryFull(
 		return "", errors.Wrapf(err, "Could not ping database")
 	}
 
-	query, err := s.RenderQuery(ctx, db, parsedLayers.GetDataMap())
+	query, err := s.RenderQuery(ctx, db, parsedValues.AllFieldValues().ToMap())
 	if err != nil {
 		return "", errors.Wrapf(err, "Could not generate query")
 	}

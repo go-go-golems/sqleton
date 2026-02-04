@@ -3,7 +3,7 @@ package codegen
 import (
 	"github.com/dave/jennifer/jen"
 	cmds2 "github.com/go-go-golems/glazed/pkg/cmds"
-	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
+	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/codegen"
 	"github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/iancoleman/strcase"
@@ -44,15 +44,15 @@ func (s *SqlCommandCodeGenerator) defineParametersStruct(
 ) {
 	structName := strcase.ToCamel(cmdName) + "CommandParameters"
 	f.Type().Id(structName).StructFunc(func(g *jen.Group) {
-		cmd.GetDefaultFlags().ForEach(func(flag *parameters.ParameterDefinition) {
+		cmd.GetDefaultFlags().ForEach(func(flag *fields.Definition) {
 			s := g.Id(strcase.ToCamel(flag.Name))
 			s = codegen.FlagTypeToGoType(s, flag.Type)
-			s.Tag(map[string]string{"glazed.parameter": strcase.ToSnake(flag.Name)})
+			s.Tag(map[string]string{"glazed": strcase.ToSnake(flag.Name)})
 		})
-		cmd.GetDefaultArguments().ForEach(func(arg *parameters.ParameterDefinition) {
+		cmd.GetDefaultArguments().ForEach(func(arg *fields.Definition) {
 			s := g.Id(strcase.ToCamel(arg.Name))
 			s = codegen.FlagTypeToGoType(s, arg.Type)
-			s.Tag(map[string]string{"glazed.parameter": strcase.ToSnake(arg.Name)})
+			s.Tag(map[string]string{"glazed": strcase.ToSnake(arg.Name)})
 		})
 	})
 }
@@ -107,10 +107,10 @@ func (s *SqlCommandCodeGenerator) defineNewFunction(f *jen.File, cmdName string,
 			// TODO(manuel, 2023-12-07) Can be refactored since this is duplicated in geppetto/codegen.go
 			jen.Var().Id("flagDefs").Op("=").
 				Index().Op("*").
-				Qual(codegen.GlazedParametersPath, "ParameterDefinition").
+				Qual(codegen.GlazedFieldsPath, "Definition").
 				ValuesFunc(func(g *jen.Group) {
-					err_ = cmd.GetDefaultFlags().ForEachE(func(flag *parameters.ParameterDefinition) error {
-						dict, err := codegen.ParameterDefinitionToDict(flag)
+					err_ = cmd.GetDefaultFlags().ForEachE(func(flag *fields.Definition) error {
+						dict, err := codegen.FieldDefinitionToDict(flag)
 						if err != nil {
 							return err
 						}
@@ -121,10 +121,10 @@ func (s *SqlCommandCodeGenerator) defineNewFunction(f *jen.File, cmdName string,
 			jen.Line(),
 			jen.Var().Id("argDefs").Op("=").
 				Index().Op("*").
-				Qual(codegen.GlazedParametersPath, "ParameterDefinition").
+				Qual(codegen.GlazedFieldsPath, "Definition").
 				ValuesFunc(func(g *jen.Group) {
-					err_ = cmd.GetDefaultArguments().ForEachE(func(arg *parameters.ParameterDefinition) error {
-						dict, err := codegen.ParameterDefinitionToDict(arg)
+					err_ = cmd.GetDefaultArguments().ForEachE(func(arg *fields.Definition) error {
+						dict, err := codegen.FieldDefinitionToDict(arg)
 						if err != nil {
 							return err
 						}

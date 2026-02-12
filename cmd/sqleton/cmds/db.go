@@ -11,6 +11,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/middlewares/row"
 	"github.com/go-go-golems/glazed/pkg/types"
+	sqleton_cmds "github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/jmoiron/sqlx"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -48,7 +49,7 @@ func createConfigFromCobra(cmd *cobra.Command) (*sqlx.DB, *sql2.DatabaseConfig, 
 	parser, err := cli.NewCobraParserFromSections(
 		description.Schema,
 		&cli.CobraParserConfig{
-			MiddlewaresFunc: sql2.GetCobraCommandSqletonMiddlewares,
+			MiddlewaresFunc: sqleton_cmds.GetCobraCommandSqletonMiddlewares,
 		},
 	)
 	if err != nil {

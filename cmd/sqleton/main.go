@@ -105,7 +105,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		cobraCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(glazeCommand)
+		cobraCommand, err := sqleton_cmds.BuildCobraCommandWithSqletonMiddlewares(glazeCommand)
 		if err != nil {
 			fmt.Printf("Could not build cobra command: %v\n", err)
 			os.Exit(1)
@@ -220,7 +220,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		return err
 	}
 
-	cobraRunCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(runCommand)
+	cobraRunCommand, err := sqleton_cmds.BuildCobraCommandWithSqletonMiddlewares(runCommand)
 	if err != nil {
 		return err
 	}
@@ -234,7 +234,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	if err != nil {
 		return err
 	}
-	cobraSelectCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(selectCommand,
+	cobraSelectCommand, err := sqleton_cmds.BuildCobraCommandWithSqletonMiddlewares(selectCommand,
 		cli.WithCobraShortHelpSections(cmds.SelectSlug),
 	)
 	if err != nil {
@@ -251,7 +251,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	if err != nil {
 		return err
 	}
-	cobraQueryCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(queryCommand)
+	cobraQueryCommand, err := sqleton_cmds.BuildCobraCommandWithSqletonMiddlewares(queryCommand)
 	if err != nil {
 		return err
 	}
@@ -303,7 +303,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		helpSystem,
 		rootCmd,
 		repositories_,
-		cli.WithCobraMiddlewaresFunc(sql.GetCobraCommandSqletonMiddlewares),
+		cli.WithCobraMiddlewaresFunc(sqleton_cmds.GetCobraCommandSqletonMiddlewares),
 		cli.WithCobraShortHelpSections(schema.DefaultSlug, sql.DbtSlug, sql.SqlConnectionSlug, flags.SqlHelpersSlug),
 		cli.WithCreateCommandSettingsSection(),
 		cli.WithProfileSettingsSection(),
@@ -323,7 +323,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	if err != nil {
 		return err
 	}
-	cobraServeCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(serveCommand)
+	cobraServeCommand, err := sqleton_cmds.BuildCobraCommandWithSqletonMiddlewares(serveCommand)
 	if err != nil {
 		return err
 	}

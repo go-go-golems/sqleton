@@ -21,6 +21,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
+	sqleton_cmds "github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/go-go-golems/sqleton/pkg/flags"
 	"github.com/spf13/cobra"
 )
@@ -142,7 +143,7 @@ func createCommandMiddlewares(
 		),
 	}
 
-	sqletonMiddlewares, err := sql.GetSqletonMiddlewares(parsedValues)
+	sqletonMiddlewares, err := sqleton_cmds.GetSqletonMiddlewares(parsedValues)
 	if err != nil {
 		return nil, err
 	}
@@ -309,7 +310,7 @@ func (c *RunCommand) Run(ctx context.Context, parsedValues *values.Values) error
 		}
 	}
 
-	sqletonMiddlewares, err := sql.GetSqletonMiddlewares(parsedValues)
+	sqletonMiddlewares, err := sqleton_cmds.GetSqletonMiddlewares(parsedValues)
 	if err != nil {
 		return fmt.Errorf("failed to get sqleton middlewares: %w", err)
 	}

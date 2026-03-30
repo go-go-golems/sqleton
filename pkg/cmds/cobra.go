@@ -61,15 +61,10 @@ func GetCobraCommandSqletonMiddlewares(
 func GetSqletonMiddlewares(
 	parsedCommandValues *values.Values,
 ) ([]sources.Middleware, error) {
-	commandSettings := &cli.CommandSettings{}
-	err := parsedCommandValues.DecodeSectionInto(cli.CommandSettingsSlug, commandSettings)
-	if err != nil {
-		return nil, err
-	}
 	middlewares_ := []sources.Middleware{}
 
 	profileSettings := &cli.ProfileSettings{}
-	err = parsedCommandValues.DecodeSectionInto(cli.ProfileSettingsSlug, profileSettings)
+	err := parsedCommandValues.DecodeSectionInto(cli.ProfileSettingsSlug, profileSettings)
 	if err != nil {
 		return nil, err
 	}

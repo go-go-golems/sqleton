@@ -2,6 +2,8 @@ module github.com/go-go-golems/sqleton
 
 go 1.25.7
 
+toolchain go1.25.8
+
 require (
 	github.com/dave/jennifer v1.7.0
 	github.com/go-go-golems/clay v0.4.0

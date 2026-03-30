@@ -4,10 +4,11 @@ import (
 	"context"
 	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
-	"github.com/go-go-golems/glazed/pkg/cmds/layers"
-	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
+	"github.com/go-go-golems/glazed/pkg/cmds/fields"
+	"github.com/go-go-golems/glazed/pkg/cmds/schema"
+	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
-	cli "github.com/go-go-golems/glazed/pkg/settings"
+	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/sqleton/pkg/flags"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
@@ -25,26 +26,26 @@ type RunCommand struct {
 var _ cmds.GlazeCommand = (*RunCommand)(nil)
 
 type RunSettings struct {
-	InputFiles []string `glazed.parameter:"input-files"`
+	InputFiles []string `glazed:"input-files"`
 }
 
 func (c *RunCommand) RunIntoGlazeProcessor(
 	ctx context.Context,
-	parsedLayers *layers.ParsedLayers,
+	parsedValues *values.Values,
 	gp middlewares.Processor) error {
 
 	s := &RunSettings{}
-	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
+	err := parsedValues.DecodeSectionInto(schema.DefaultSlug, s)
 	if err != nil {
 		return err
 	}
 	ss := &flags.SqlHelpersSettings{}
-	err = parsedLayers.InitializeStruct(flags.SqlHelpersSlug, ss)
+	err = parsedValues.DecodeSectionInto(flags.SqlHelpersSlug, ss)
 	if err != nil {
 		return errors.Wrap(err, "could not initialize sql-helpers settings")
 	}
 
-	db, err := c.dbConnectionFactory(ctx, parsedLayers)
+	db, err := c.dbConnectionFactory(ctx, parsedValues)
 	if err != nil {
 		return errors.Wrap(err, "could not open database")
 	}
@@ -89,7 +90,7 @@ func NewRunCommand(
 	dbConnectionFactory sql.DBConnectionFactory,
 	options ...cmds.CommandDescriptionOption,
 ) (*RunCommand, error) {
-	glazedParameterLayer, err := cli.NewGlazedParameterLayers()
+	glazedSection, err := settings.NewGlazedSection()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create Glazed parameter layer")
 	}
@@ -101,14 +102,14 @@ func NewRunCommand(
 	options_ := append([]cmds.CommandDescriptionOption{
 		cmds.WithShort("Run a SQL query from sql files"),
 		cmds.WithArguments(
-			parameters.NewParameterDefinition(
+			fields.New(
 				"input-files",
-				parameters.ParameterTypeStringList,
-				parameters.WithRequired(true),
+				fields.TypeStringList,
+				fields.WithRequired(true),
 			),
 		),
-		cmds.WithLayersList(
-			glazedParameterLayer,
+		cmds.WithSections(
+			glazedSection,
 			sqlHelpersParameterLayer,
 		),
 	}, options...)

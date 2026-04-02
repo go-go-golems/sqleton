@@ -154,9 +154,7 @@ func initRootCmd() (*help.HelpSystem, error) {
 
 func buildSqletonCobraCommand(command glazed_cmds.Command, options ...cli.CobraOption) (*cobra.Command, error) {
 	baseOptions := []cli.CobraOption{
-		cli.WithParserConfig(cli.CobraParserConfig{
-			AppName: "sqleton",
-		}),
+		cli.WithParserConfig(cmds.NewSqletonParserConfig()),
 	}
 	baseOptions = append(baseOptions, options...)
 	return cli.BuildCobraCommand(command, baseOptions...)
@@ -269,9 +267,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		helpSystem,
 		rootCmd,
 		repositories_,
-		cli.WithParserConfig(cli.CobraParserConfig{
-			AppName: "sqleton",
-		}),
+		cli.WithParserConfig(cmds.NewSqletonParserConfig()),
 		cli.WithCobraShortHelpSections(schema.DefaultSlug, sql.DbtSlug, sql.SqlConnectionSlug, flags.SqlHelpersSlug),
 		cli.WithCreateCommandSettingsSection(),
 		cli.WithProfileSettingsSection(),

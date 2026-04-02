@@ -108,6 +108,66 @@ func TestConfiguredRepositoryDiscoverySmoke(t *testing.T) {
 	})
 }
 
+func TestConfiguredRepositoryDiscoveryFromConfigFileSmoke(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	repoDir := filepath.Join(tmpDir, "repo")
+	dbPath := filepath.Join(tmpDir, "discovery.db")
+	commandPath := filepath.Join(repoDir, "smoke-widgets.sql")
+
+	homeDir := filepath.Join(tmpDir, "home")
+	configDir := filepath.Join(homeDir, ".sqleton")
+	require.NoError(t, os.MkdirAll(configDir, 0o755))
+	require.NoError(t, os.MkdirAll(repoDir, 0o755))
+
+	createSmokeSQLiteDB(t, dbPath)
+	writeSmokeCommandFile(t, commandPath)
+
+	err := os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte("repositories:\n  - "+repoDir+"\n"), 0o644)
+	require.NoError(t, err)
+
+	rows := runSqletonJSON(t, homeDir,
+		"smoke-widgets",
+		"--db-type", "sqlite",
+		"--database", dbPath,
+		"--output", "json",
+	)
+
+	require.Len(t, rows, 3)
+	require.Equal(t, "alpha", rows[0]["name"])
+	require.Equal(t, "beta", rows[1]["name"])
+	require.Equal(t, "gamma", rows[2]["name"])
+}
+
+func TestRunCommandExplicitConfigFileSmoke(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "smoke.db")
+	commandPath := filepath.Join(tmpDir, "active-widgets.sql")
+	configPath := filepath.Join(tmpDir, "command-config.yaml")
+
+	createSmokeSQLiteDB(t, dbPath)
+	writeSmokeCommandFile(t, commandPath)
+
+	err := os.WriteFile(configPath, []byte("sql-connection:\n  db-type: sqlite\n  database: "+dbPath+"\n"), 0o644)
+	require.NoError(t, err)
+
+	rows := runSqletonJSON(t, tmpDir,
+		"run-command",
+		commandPath,
+		"--",
+		"--config-file", configPath,
+		"--output", "json",
+		"--only-active",
+	)
+
+	require.Len(t, rows, 2)
+	require.Equal(t, "alpha", rows[0]["name"])
+	require.Equal(t, "gamma", rows[1]["name"])
+}
+
 func TestCLIHelperProcess(t *testing.T) {
 	if os.Getenv("SQLETON_TEST_SUBPROCESS") != "1" {
 		return

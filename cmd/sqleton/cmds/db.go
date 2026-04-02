@@ -9,11 +9,11 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	schema "github.com/go-go-golems/glazed/pkg/cmds/schema"
+	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/middlewares/row"
 	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/jmoiron/sqlx"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 
 	_ "github.com/go-sql-driver/mysql" // MySQL driver for database/sql
 )
@@ -29,7 +29,7 @@ var DbCmd = &cobra.Command{
 	Short: "Manage databases",
 }
 
-func createConfigFromCobra(cmd *cobra.Command) (*sqlx.DB, *sql2.DatabaseConfig, error) {
+func parseConfigFromCobra(cmd *cobra.Command) (*values.Values, *sql2.DatabaseConfig, error) {
 	connectionSectionOptions := []schema.SectionOption{}
 	if cmd.Use == "test-prefix" {
 		connectionSectionOptions = append(connectionSectionOptions, schema.WithPrefix("test-"))
@@ -50,11 +50,10 @@ func createConfigFromCobra(cmd *cobra.Command) (*sqlx.DB, *sql2.DatabaseConfig, 
 		cmds.WithSections(connectionLayer, dbtLayer),
 	)
 
+	parserConfig := NewSqletonParserConfig()
 	parser, err := cli.NewCobraParserFromSections(
 		description.Schema,
-		&cli.CobraParserConfig{
-			AppName: "sqleton",
-		},
+		&parserConfig,
 	)
 	if err != nil {
 		return nil, nil, err
@@ -74,6 +73,15 @@ func createConfigFromCobra(cmd *cobra.Command) (*sqlx.DB, *sql2.DatabaseConfig, 
 		return nil, nil, fmt.Errorf("missing %s section", dbtLayer.GetSlug())
 	}
 	config, err := sql2.NewConfigFromParsedLayers(dbtParsedLayer, sqlParsedLayer)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return parsedLayers, config, nil
+}
+
+func createConfigFromCobra(cmd *cobra.Command) (*sqlx.DB, *sql2.DatabaseConfig, error) {
+	parsedLayers, config, err := parseConfigFromCobra(cmd)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -348,14 +356,20 @@ var dbLsCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := cmd.Context()
 
-		useDbtProfiles := viper.GetBool("use-dbt-profiles")
+		_, config, err := parseConfigFromCobra(cmd)
+		if err != nil {
+			fmt.Printf("Error creating config: %v\n", err)
+			return
+		}
+
+		useDbtProfiles := config.UseDbtProfiles
 
 		if !useDbtProfiles {
 			cmd.PrintErrln("Not using dbt profiles")
 			return
 		}
 
-		dbtProfilesPath := viper.GetString("dbt-profiles-path")
+		dbtProfilesPath := config.DbtProfilesPath
 
 		sources, err := sql2.ParseDbtProfiles(dbtProfilesPath)
 		cobra.CheckErr(err)

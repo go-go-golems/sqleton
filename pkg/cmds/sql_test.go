@@ -4,8 +4,9 @@ import (
 	"context"
 	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
-	"github.com/go-go-golems/glazed/pkg/cmds/layers"
-	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
+	fields "github.com/go-go-golems/glazed/pkg/cmds/fields"
+	schema "github.com/go-go-golems/glazed/pkg/cmds/schema"
+	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	assert2 "github.com/go-go-golems/glazed/pkg/helpers/assert"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/middlewares/table"
@@ -21,7 +22,7 @@ import (
 
 // Here we do a bunch of unit tests in a pretty end to end style by using an in memory SQLite database.
 
-func createDB(_ context.Context, _ *layers.ParsedLayers) (*sqlx.DB, error) {
+func createDB(_ context.Context, _ *values.Values) (*sqlx.DB, error) {
 	db, err := sqlx.Connect("sqlite3", ":memory:")
 	if err != nil {
 		return nil, err
@@ -113,7 +114,7 @@ func TestSimpleRun(t *testing.T) {
 	require.NoError(t, err)
 	gp.AddTableMiddleware(&table.NullTableMiddleware{})
 	ctx := context.Background()
-	err = s.RunIntoGlazeProcessor(ctx, layers.NewParsedLayers(), gp)
+	err = s.RunIntoGlazeProcessor(ctx, values.New(), gp)
 	require.NoError(t, err)
 
 	err = gp.Close(ctx)
@@ -139,26 +140,23 @@ func TestSimpleRun(t *testing.T) {
 	assert2.EqualRows(t, expected, table_.Rows)
 }
 
-func makeSimpleDefaultLayer(options ...layers.ParsedLayerOption) (*layers.ParsedLayers, error) {
-	defaultLayer, err := layers.NewParameterLayer("default", "Default",
-		layers.WithParameterDefinitions(
-			parameters.NewParameterDefinition(
-				"name",
-				parameters.ParameterTypeString,
-			),
-			parameters.NewParameterDefinition(
-				"test",
-				parameters.ParameterTypeString,
-			)),
+func makeSimpleDefaultLayer(options ...values.SectionValuesOption) (*values.Values, error) {
+	defaultLayer, err := schema.NewSection(
+		schema.DefaultSlug,
+		"Default",
+		schema.WithFields(
+			fields.New("name", fields.TypeString),
+			fields.New("test", fields.TypeString),
+		),
 	)
 	if err != nil {
 		return nil, err
 	}
-	parsedDefaultLayer, err := layers.NewParsedLayer(defaultLayer, options...)
+	parsedDefaultLayer, err := values.NewSectionValues(defaultLayer, options...)
 	if err != nil {
 		return nil, err
 	}
-	parsedLayers := layers.NewParsedLayers(layers.WithParsedLayer(layers.DefaultSlug, parsedDefaultLayer))
+	parsedLayers := values.New(values.WithSectionValues(schema.DefaultSlug, parsedDefaultLayer))
 	return parsedLayers, nil
 
 }
@@ -196,7 +194,7 @@ func TestSimpleSubQuery(t *testing.T) {
 `), s_)
 
 	parsedLayers, err := makeSimpleDefaultLayer(
-		layers.WithParsedParameterValue("name", "test2_3"),
+		values.WithFieldValue("name", "test2_3"),
 	)
 	require.NoError(t, err)
 
@@ -233,7 +231,7 @@ func TestSimpleSubQuerySingle(t *testing.T) {
 	}(db)
 
 	parsedLayers, err := makeSimpleDefaultLayer(
-		layers.WithParsedParameterValue("name", "test1_1"),
+		values.WithFieldValue("name", "test1_1"),
 	)
 	require.NoError(t, err)
 
@@ -295,7 +293,7 @@ func TestSimpleSubQueryWithArguments(t *testing.T) {
 	}(db)
 
 	parsedLayers, err := makeSimpleDefaultLayer(
-		layers.WithParsedParameterValue("name", "test1_2"),
+		values.WithFieldValue("name", "test1_2"),
 	)
 	require.NoError(t, err)
 
@@ -360,7 +358,7 @@ func TestSliceSubQueryWithArguments(t *testing.T) {
 	}(db)
 
 	parsedLayers, err := makeSimpleDefaultLayer(
-		layers.WithParsedParameterValue("test", "test1_2"),
+		values.WithFieldValue("test", "test1_2"),
 	)
 	require.NoError(t, err)
 
@@ -394,7 +392,7 @@ func TestMapSubQueryWithArguments(t *testing.T) {
 	}(db)
 
 	parsedLayers, err := makeSimpleDefaultLayer(
-		layers.WithParsedParameterValue("name", "test1_2"),
+		values.WithFieldValue("name", "test1_2"),
 	)
 	require.NoError(t, err)
 
@@ -432,7 +430,7 @@ func TestMapSubQuery(t *testing.T) {
 	}(db)
 
 	parsedLayers, err := makeSimpleDefaultLayer(
-		layers.WithParsedParameterValue("name", "test1_2"),
+		values.WithFieldValue("name", "test1_2"),
 	)
 	require.NoError(t, err)
 

@@ -8,7 +8,7 @@ import (
 	sql2 "github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds"
-	"github.com/go-go-golems/glazed/pkg/cmds/layers"
+	schema "github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/middlewares/row"
 	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/jmoiron/sqlx"
@@ -30,7 +30,12 @@ var DbCmd = &cobra.Command{
 }
 
 func createConfigFromCobra(cmd *cobra.Command) (*sqlx.DB, *sql2.DatabaseConfig, error) {
-	connectionLayer, err := sql2.NewSqlConnectionParameterLayer()
+	connectionSectionOptions := []schema.SectionOption{}
+	if cmd.Use == "test-prefix" {
+		connectionSectionOptions = append(connectionSectionOptions, schema.WithPrefix("test-"))
+	}
+
+	connectionLayer, err := sql2.NewSqlConnectionParameterLayer(connectionSectionOptions...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -42,13 +47,13 @@ func createConfigFromCobra(cmd *cobra.Command) (*sqlx.DB, *sql2.DatabaseConfig, 
 
 	description := cmds.NewCommandDescription(
 		cmd.Name(),
-		cmds.WithLayersList(connectionLayer, dbtLayer),
+		cmds.WithSections(connectionLayer, dbtLayer),
 	)
 
-	parser, err := cli.NewCobraParserFromLayers(
-		description.Layers,
+	parser, err := cli.NewCobraParserFromSections(
+		description.Schema,
 		&cli.CobraParserConfig{
-			MiddlewaresFunc: sql2.GetCobraCommandSqletonMiddlewares,
+			AppName: "sqleton",
 		},
 	)
 	if err != nil {
@@ -60,8 +65,14 @@ func createConfigFromCobra(cmd *cobra.Command) (*sqlx.DB, *sql2.DatabaseConfig, 
 		return nil, nil, err
 	}
 
-	sqlParsedLayer := parsedLayers.GetOrCreate(connectionLayer)
-	dbtParsedLayer := parsedLayers.GetOrCreate(dbtLayer)
+	sqlParsedLayer, ok := parsedLayers.Get(connectionLayer.GetSlug())
+	if !ok {
+		return nil, nil, fmt.Errorf("missing %s section", connectionLayer.GetSlug())
+	}
+	dbtParsedLayer, ok := parsedLayers.Get(dbtLayer.GetSlug())
+	if !ok {
+		return nil, nil, fmt.Errorf("missing %s section", dbtLayer.GetSlug())
+	}
 	config, err := sql2.NewConfigFromParsedLayers(dbtParsedLayer, sqlParsedLayer)
 	if err != nil {
 		return nil, nil, err
@@ -387,27 +398,27 @@ func init() {
 	dbtParameterLayer, err := sql2.NewDbtParameterLayer()
 	cobra.CheckErr(err)
 
-	err = connectionLayer.AddLayerToCobraCommand(dbTestConnectionCmd)
+	err = connectionLayer.AddSectionToCobraCommand(dbTestConnectionCmd)
 	cobra.CheckErr(err)
 	DbCmd.AddCommand(dbTestConnectionCmd)
 
-	err = dbtParameterLayer.AddLayerToCobraCommand(dbTestConnectionCmd)
+	err = dbtParameterLayer.AddSectionToCobraCommand(dbTestConnectionCmd)
 	cobra.CheckErr(err)
 
-	err = connectionLayer.AddLayerToCobraCommand(dbPrintEvidenceSettingsCmd)
+	err = connectionLayer.AddSectionToCobraCommand(dbPrintEvidenceSettingsCmd)
 	cobra.CheckErr(err)
 	dbPrintEvidenceSettingsCmd.Flags().String("git-repo", "", "Git repo to use for evidence.dev")
 	DbCmd.AddCommand(dbPrintEvidenceSettingsCmd)
 
-	err = connectionLayer.AddLayerToCobraCommand(dbPrintEnvCmd)
+	err = connectionLayer.AddSectionToCobraCommand(dbPrintEnvCmd)
 	cobra.CheckErr(err)
 	dbPrintEnvCmd.Flags().Bool("envrc", false, "Output as an .envrc file")
 	dbPrintEnvCmd.Flags().String("env-prefix", "SQLETON_", "Prefix for environment variables")
 	DbCmd.AddCommand(dbPrintEnvCmd)
 
-	err = connectionLayer.AddLayerToCobraCommand(dbPrintSettingsCmd)
+	err = connectionLayer.AddSectionToCobraCommand(dbPrintSettingsCmd)
 	cobra.CheckErr(err)
-	err = dbtParameterLayer.AddLayerToCobraCommand(dbPrintSettingsCmd)
+	err = dbtParameterLayer.AddSectionToCobraCommand(dbPrintSettingsCmd)
 	cobra.CheckErr(err)
 
 	dbPrintSettingsCmd.Flags().Bool("individual-rows", false, "Output as individual rows")
@@ -418,10 +429,10 @@ func init() {
 	DbCmd.AddCommand(dbPrintSettingsCmd)
 
 	connectionLayer, err = sql2.NewSqlConnectionParameterLayer(
-		layers.WithPrefix("test-"),
+		schema.WithPrefix("test-"),
 	)
 	cobra.CheckErr(err)
-	err = connectionLayer.AddLayerToCobraCommand(dbTestConnectionCmdWithPrefix)
+	err = connectionLayer.AddSectionToCobraCommand(dbTestConnectionCmdWithPrefix)
 	cobra.CheckErr(err)
 	DbCmd.AddCommand(dbTestConnectionCmdWithPrefix)
 }

@@ -14,8 +14,9 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cli"
 	glazed_cmds "github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
-	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
+	"github.com/go-go-golems/glazed/pkg/cmds/schema"
+	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/help"
 	help_cmd "github.com/go-go-golems/glazed/pkg/help/cmd"
 	"github.com/go-go-golems/glazed/pkg/types"
@@ -103,7 +104,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		cobraCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(glazeCommand)
+		cobraCommand, err := buildSqletonCobraCommand(glazeCommand)
 		if err != nil {
 			fmt.Printf("Could not build cobra command: %v\n", err)
 			os.Exit(1)
@@ -155,12 +156,23 @@ func initRootCmd() (*help.HelpSystem, error) {
 
 	help_cmd.SetupCobraRootCommand(helpSystem, rootCmd)
 
+	//nolint:staticcheck // Root config/repository discovery still depends on Viper; migrate separately.
 	err = clay.InitViper("sqleton", rootCmd)
 	cobra.CheckErr(err)
 	rootCmd.AddCommand(runCommandCmd)
 
 	rootCmd.AddCommand(cmds.NewCodegenCommand())
 	return helpSystem, nil
+}
+
+func buildSqletonCobraCommand(command glazed_cmds.Command, options ...cli.CobraOption) (*cobra.Command, error) {
+	baseOptions := []cli.CobraOption{
+		cli.WithParserConfig(cli.CobraParserConfig{
+			AppName: "sqleton",
+		}),
+	}
+	baseOptions = append(baseOptions, options...)
+	return cli.BuildCobraCommand(command, baseOptions...)
 }
 
 func initAllCommands(helpSystem *help.HelpSystem) error {
@@ -176,7 +188,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	}
 
 	runCommand, err := cmds.NewRunCommand(sql.OpenDatabaseFromDefaultSqlConnectionLayer,
-		glazed_cmds.WithLayersList(
+		glazed_cmds.WithSections(
 			dbtParameterLayer,
 			sqlConnectionParameterLayer,
 		))
@@ -184,22 +196,22 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		return err
 	}
 
-	cobraRunCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(runCommand)
+	cobraRunCommand, err := buildSqletonCobraCommand(runCommand)
 	if err != nil {
 		return err
 	}
 	rootCmd.AddCommand(cobraRunCommand)
 
 	selectCommand, err := cmds.NewSelectCommand(sql.OpenDatabaseFromDefaultSqlConnectionLayer,
-		glazed_cmds.WithLayersList(
+		glazed_cmds.WithSections(
 			dbtParameterLayer,
 			sqlConnectionParameterLayer,
 		))
 	if err != nil {
 		return err
 	}
-	cobraSelectCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(selectCommand,
-		cli.WithCobraShortHelpLayers(cmds.SelectSlug),
+	cobraSelectCommand, err := buildSqletonCobraCommand(selectCommand,
+		cli.WithCobraShortHelpSections(cmds.SelectSlug),
 	)
 	if err != nil {
 		return err
@@ -208,14 +220,14 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 
 	queryCommand, err := cmds.NewQueryCommand(
 		sql.OpenDatabaseFromDefaultSqlConnectionLayer,
-		glazed_cmds.WithLayersList(
+		glazed_cmds.WithSections(
 			dbtParameterLayer,
 			sqlConnectionParameterLayer,
 		))
 	if err != nil {
 		return err
 	}
-	cobraQueryCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(queryCommand)
+	cobraQueryCommand, err := buildSqletonCobraCommand(queryCommand)
 	if err != nil {
 		return err
 	}
@@ -267,10 +279,12 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		helpSystem,
 		rootCmd,
 		repositories_,
-		cli.WithCobraMiddlewaresFunc(sql.GetCobraCommandSqletonMiddlewares),
-		cli.WithCobraShortHelpLayers(layers.DefaultSlug, sql.DbtSlug, sql.SqlConnectionSlug, flags.SqlHelpersSlug),
-		cli.WithCreateCommandSettingsLayer(),
-		cli.WithProfileSettingsLayer(),
+		cli.WithParserConfig(cli.CobraParserConfig{
+			AppName: "sqleton",
+		}),
+		cli.WithCobraShortHelpSections(schema.DefaultSlug, sql.DbtSlug, sql.SqlConnectionSlug, flags.SqlHelpersSlug),
+		cli.WithCreateCommandSettingsSection(),
+		cli.WithProfileSettingsSection(),
 	)
 	if err != nil {
 		return err
@@ -287,7 +301,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	if err != nil {
 		return err
 	}
-	cobraServeCommand, err := sql.BuildCobraCommandWithSqletonMiddlewares(serveCommand)
+	cobraServeCommand, err := buildSqletonCobraCommand(serveCommand)
 	if err != nil {
 		return err
 	}
@@ -300,7 +314,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		clay_commandmeta.WithListAddCommandToRowFunc(func(
 			command glazed_cmds.Command,
 			row types.Row,
-			parsedLayers *layers.ParsedLayers,
+			_ *values.Values,
 		) ([]types.Row, error) {
 			// Example: Set 'type' and 'query' based on command type
 			switch c := command.(type) {

@@ -2,19 +2,21 @@ package cmds
 
 import (
 	"context"
+	"io"
+	"os"
+
 	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
-	"github.com/go-go-golems/glazed/pkg/cmds/layers"
-	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
+	fields "github.com/go-go-golems/glazed/pkg/cmds/fields"
+	schema "github.com/go-go-golems/glazed/pkg/cmds/schema"
+	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
-	cli "github.com/go-go-golems/glazed/pkg/settings"
+	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/sqleton/pkg/flags"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 
 	"github.com/spf13/cobra"
-	"io"
-	"os"
 )
 
 type RunCommand struct {
@@ -25,26 +27,25 @@ type RunCommand struct {
 var _ cmds.GlazeCommand = (*RunCommand)(nil)
 
 type RunSettings struct {
-	InputFiles []string `glazed.parameter:"input-files"`
+	InputFiles []string `glazed:"input-files"`
 }
 
 func (c *RunCommand) RunIntoGlazeProcessor(
 	ctx context.Context,
-	parsedLayers *layers.ParsedLayers,
-	gp middlewares.Processor) error {
+	parsedValues *values.Values,
+	gp middlewares.Processor,
+) error {
 
 	s := &RunSettings{}
-	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
-	if err != nil {
+	if err := parsedValues.DecodeSectionInto(schema.DefaultSlug, s); err != nil {
 		return err
 	}
 	ss := &flags.SqlHelpersSettings{}
-	err = parsedLayers.InitializeStruct(flags.SqlHelpersSlug, ss)
-	if err != nil {
+	if err := parsedValues.DecodeSectionInto(flags.SqlHelpersSlug, ss); err != nil {
 		return errors.Wrap(err, "could not initialize sql-helpers settings")
 	}
 
-	db, err := c.dbConnectionFactory(ctx, parsedLayers)
+	db, err := c.dbConnectionFactory(ctx, parsedValues)
 	if err != nil {
 		return errors.Wrap(err, "could not open database")
 	}
@@ -89,27 +90,27 @@ func NewRunCommand(
 	dbConnectionFactory sql.DBConnectionFactory,
 	options ...cmds.CommandDescriptionOption,
 ) (*RunCommand, error) {
-	glazedParameterLayer, err := cli.NewGlazedParameterLayers()
+	glazedSection, err := settings.NewGlazedSection()
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create Glazed parameter layer")
+		return nil, errors.Wrap(err, "could not create glazed section")
 	}
-	sqlHelpersParameterLayer, err := flags.NewSqlHelpersParameterLayer()
+	sqlHelpersSection, err := flags.NewSqlHelpersParameterLayer()
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create SQL helpers parameter layer")
+		return nil, errors.Wrap(err, "could not create SQL helpers section")
 	}
 
 	options_ := append([]cmds.CommandDescriptionOption{
 		cmds.WithShort("Run a SQL query from sql files"),
 		cmds.WithArguments(
-			parameters.NewParameterDefinition(
+			fields.New(
 				"input-files",
-				parameters.ParameterTypeStringList,
-				parameters.WithRequired(true),
+				fields.TypeStringList,
+				fields.WithRequired(true),
 			),
 		),
-		cmds.WithLayersList(
-			glazedParameterLayer,
-			sqlHelpersParameterLayer,
+		cmds.WithSections(
+			glazedSection,
+			sqlHelpersSection,
 		),
 	}, options...)
 

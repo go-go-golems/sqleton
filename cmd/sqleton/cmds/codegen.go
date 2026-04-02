@@ -17,7 +17,7 @@ import (
 func NewCodegenCommand() *cobra.Command {
 	ret := &cobra.Command{
 		Use:   "codegen [file...]",
-		Short: "A program to convert Sqleton YAML commands into Go code",
+		Short: "A program to convert Sqleton SQL commands into Go code",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			packageName := cmd.Flag("package-name").Value.String()
@@ -50,8 +50,8 @@ func NewCodegenCommand() *cobra.Command {
 				}
 
 				s := f.GoString()
-				// store in path.go after removing .yaml
-				p, _ := strings.CutSuffix(path.Base(fileName), ".yaml")
+				// Store in path.go after removing the `.sql` suffix.
+				p, _ := strings.CutSuffix(path.Base(fileName), ".sql")
 				p = p + ".go"
 				p = path.Join(outputDir, p)
 

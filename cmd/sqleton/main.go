@@ -29,7 +29,6 @@ import (
 	"github.com/pkg/profile"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 
 	// #nosec G108 - pprof is imported for profiling and debugging in development environments only.
 	// This is gated behind the --mem-profile flag and not enabled by default.
@@ -145,8 +144,7 @@ func initRootCmd() (*help.HelpSystem, error) {
 
 	help_cmd.SetupCobraRootCommand(helpSystem, rootCmd)
 
-	//nolint:staticcheck // Root config/repository discovery still depends on Viper; migrate separately.
-	err = clay.InitViper("sqleton", rootCmd)
+	err = clay.InitGlazed("sqleton", rootCmd)
 	cobra.CheckErr(err)
 	rootCmd.AddCommand(runCommandCmd)
 
@@ -222,7 +220,10 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	}
 	rootCmd.AddCommand(cobraQueryCommand)
 
-	repositoryPaths := viper.GetStringSlice("repositories")
+	repositoryPaths, err := collectRepositoryPaths("sqleton")
+	if err != nil {
+		return err
+	}
 
 	defaultDirectory := "$HOME/.sqleton/queries"
 	_, err = os.Stat(os.ExpandEnv(defaultDirectory))

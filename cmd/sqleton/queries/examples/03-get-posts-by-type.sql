@@ -1,3 +1,4 @@
+/* sqleton
 name: ls-posts-type [types...]
 short: "Show all WP posts, limited, by type (default: post, page)"
 long: Show all posts and their ID
@@ -23,11 +24,12 @@ arguments:
       - page
     help: Select posts by type
     required: false
-query: |
-  SELECT wp.ID, wp.post_title, wp.post_type, wp.post_status, wp.post_date FROM wp_posts wp
-  WHERE post_type IN ({{ .types | sqlStringIn }})
-  {{ if .status -}}
-  AND post_status IN ({{ .status | sqlStringIn }})
-  {{- end }}
-  ORDER BY {{ .order_by }}
-  LIMIT {{ .limit }}
+*/
+SELECT wp.ID, wp.post_title, wp.post_type, wp.post_status, wp.post_date FROM wp_posts wp
+WHERE post_type IN ({{ .types | sqlStringIn }})
+{{ if .status -}}
+AND post_status IN ({{ .status | sqlStringIn }})
+{{- end }}
+ORDER BY {{ .order_by }}
+LIMIT {{ .limit }}
+

@@ -1,3 +1,4 @@
+/* sqleton
 name: ls-posts-limit
 short: Show all WP posts, limited
 long: Show all posts and their ID
@@ -11,10 +12,11 @@ flags:
     type: stringList
     help: Select posts by status
     required: false
-query: |
-  SELECT wp.ID, wp.post_title, wp.post_status FROM wp_posts wp
-  WHERE post_type = 'post'
-  {{ if .status -}}
-  AND post_status IN ({{ .status | sqlStringIn }})
-  {{- end }}
-  LIMIT {{ .limit }} 
+*/
+SELECT wp.ID, wp.post_title, wp.post_status FROM wp_posts wp
+WHERE post_type = 'post'
+{{ if .status -}}
+AND post_status IN ({{ .status | sqlStringIn }})
+{{- end }}
+LIMIT {{ .limit }} 
+

@@ -3,8 +3,7 @@ Title: Adding query commands
 Slug: query-commands
 Short: |
    You can add commands to the `sqleton` program in a variety of ways:
-   - using YAML files 
-   - using SQL files and metadata (TODO)
+   - using `.sql` files with a sqleton metadata preamble
    - using Markdown files
 Topics:
 - queries
@@ -16,11 +15,14 @@ ShowPerDefault: true
 SectionType: GeneralTopic
 ---
 
-## Using YAML files
+## Using SQL files
 
-YAML files can be used to add commands to sqleton by using the following layout:
+SQL command files are regular `.sql` files with a sqleton-only preamble stored in
+an opening block comment. SQL engines ignore the comment, while sqleton parses the
+metadata before executing the remaining SQL body.
 
-```yaml
+```sql
+/* sqleton
 name: ls-posts-type
 short: Show all WP posts, limited, by type
 long: Show all posts and their ID
@@ -37,10 +39,10 @@ arguments:
      type: int
      default: 10
      help: Limit the number of posts
-query: |
-   SELECT wp.ID, wp.post_title, wp.post_type, wp.post_status FROM wp_posts wp
-   WHERE post_type IN ({{ .types | sqlStringIn }})
-   LIMIT {{ .limit }}
+*/
+SELECT wp.ID, wp.post_title, wp.post_type, wp.post_status FROM wp_posts wp
+WHERE post_type IN ({{ .types | sqlStringIn }})
+LIMIT {{ .limit }}
 ```
 
 ## Query repository
@@ -51,9 +53,9 @@ These files can be stored in a repository directory that has the following forma
 repository/
    subCommand/
       subsubsCommand/
-         query.yaml
+         query.sql
    subCommand2/
-      query2.yaml
+      query2.sql
 ```
 
 This will result in the following commands being added (including their subcommands):
@@ -81,7 +83,8 @@ repositories:
 
 ## Using query parameters
 
-A query can also provide parameters, which are mapped to command line flags and arguments
+Parameters are still declared in YAML, but only inside the sqleton preamble.
+They are mapped to command-line flags and arguments.
 
 Parameters have the following structure:
 
@@ -103,7 +106,8 @@ Valid types for a parameter are:
 - `stringList`
 - `intList`
 
-These are then specified in the `flags` and `arguments` section respectively.
+These are then specified in the `flags` and `arguments` sections inside the
+SQL preamble.
 
 Arguments have to obey a few rules:
 - optional arguments can't follow required arguments

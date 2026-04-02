@@ -76,64 +76,53 @@ var rootCmd = &cobra.Command{
 }
 
 func main() {
-	// first, check if the args are "run-command file.yaml",
-	// because we need to load the file and then run the command itself.
-	// we need to do this before cobra, because we don't know which flags to load yet
-	if len(os.Args) >= 3 && os.Args[1] == "run-command" && os.Args[2] != "--help" {
-		// load the command
-		loader := &sqleton_cmds.SqlCommandLoader{
-			DBConnectionFactory: sql.OpenDatabaseFromDefaultSqlConnectionLayer,
-		}
-		fs_, filePath, err := loaders.FileNameToFsFilePath(os.Args[2])
-		if err != nil {
-			fmt.Printf("Could not get absolute path: %v\n", err)
-			os.Exit(1)
-		}
-		cmds, err := loader.LoadCommands(fs_, filePath, []glazed_cmds.CommandDescriptionOption{}, []alias.Option{})
-		if err != nil {
-			fmt.Printf("Could not load command: %v\n", err)
-			os.Exit(1)
-		}
-		if len(cmds) != 1 {
-			fmt.Printf("Expected exactly one command, got %d", len(cmds))
-		}
+	helpSystem, err := initRootCmd()
+	cobra.CheckErr(err)
 
-		glazeCommand, ok := cmds[0].(glazed_cmds.GlazeCommand)
-		if !ok {
-			fmt.Printf("Expected GlazeCommand, got %T", cmds[0])
-			os.Exit(1)
-		}
+	err = initAllCommands(helpSystem)
+	cobra.CheckErr(err)
 
-		cobraCommand, err := buildSqletonCobraCommand(glazeCommand)
-		if err != nil {
-			fmt.Printf("Could not build cobra command: %v\n", err)
-			os.Exit(1)
-		}
-
-		_, err = initRootCmd()
-		cobra.CheckErr(err)
-
-		rootCmd.AddCommand(cobraCommand)
-		restArgs := os.Args[3:]
-		os.Args = append([]string{os.Args[0], cobraCommand.Use}, restArgs...)
-	} else {
-		helpSystem, err := initRootCmd()
-		cobra.CheckErr(err)
-
-		err = initAllCommands(helpSystem)
-		cobra.CheckErr(err)
-	}
-
-	err := rootCmd.Execute()
+	err = rootCmd.Execute()
 	cobra.CheckErr(err)
 }
 
 var runCommandCmd = &cobra.Command{
-	Use:   "run-command",
-	Short: "Run a command from a file",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		panic(errors.Errorf("not implemented"))
+	Use:   "run-command <file> [args...]",
+	Short: "Run a command from a local .sql file",
+	Args:  cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		filePath := args[0]
+		commandArgs := args[1:]
+
+		loader := &sqleton_cmds.SqlCommandLoader{
+			DBConnectionFactory: sql.OpenDatabaseFromDefaultSqlConnectionLayer,
+		}
+		fs_, resolvedPath, err := loaders.FileNameToFsFilePath(filePath)
+		if err != nil {
+			return errors.Wrap(err, "could not resolve command file path")
+		}
+
+		loadedCommands, err := loader.LoadCommands(fs_, resolvedPath, []glazed_cmds.CommandDescriptionOption{}, []alias.Option{})
+		if err != nil {
+			return errors.Wrap(err, "could not load command")
+		}
+		if len(loadedCommands) != 1 {
+			return errors.Errorf("expected exactly one command, got %d", len(loadedCommands))
+		}
+
+		glazeCommand, ok := loadedCommands[0].(glazed_cmds.GlazeCommand)
+		if !ok {
+			return errors.Errorf("expected GlazeCommand, got %T", loadedCommands[0])
+		}
+
+		cobraCommand, err := buildSqletonCobraCommand(glazeCommand)
+		if err != nil {
+			return errors.Wrap(err, "could not build cobra command")
+		}
+
+		cobraCommand.SetArgs(commandArgs)
+		cobraCommand.SetContext(cmd.Context())
+		return cobraCommand.ExecuteContext(cmd.Context())
 	},
 }
 

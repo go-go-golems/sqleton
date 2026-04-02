@@ -43,7 +43,7 @@ type ServeSettings struct {
 	ServePort   int      `glazed:"serve-port"`
 	ServeHost   string   `glazed:"serve-host"`
 	ContentDirs []string `glazed:"content-dirs"`
-	ConfigFile  string   `glazed:"config-file"`
+	ConfigFile  string   `glazed:"serve-config-file"`
 }
 
 func NewServeCommand(
@@ -66,7 +66,6 @@ func NewServeCommand(
 			fields.New(
 				"serve-port",
 				fields.TypeInteger,
-				fields.WithShortFlag("p"),
 				fields.WithHelp("Port to serve the API on"),
 				fields.WithDefault(8080),
 			),
@@ -95,7 +94,7 @@ func NewServeCommand(
 				fields.WithDefault([]string{}),
 			),
 			fields.New(
-				"config-file",
+				"serve-config-file",
 				fields.TypeString,
 				fields.WithHelp("Config file to configure the serve functionality"),
 			),

@@ -1,6 +1,6 @@
+/* sqleton
 name: ps
 short: Show full MySQL processlist
-
 flags:
   - name: mysql_user
     type: stringList
@@ -36,39 +36,40 @@ flags:
   - name: foobar
     type: intList
     help: Filter by foobar
-    default: [1,2,3]
-query: |
-  SELECT 
-  Id,User,Host,db,Command,Time,State
-  {{ if .short_info -}}
-  ,LEFT(info,50) AS info
-  {{ end -}}
-  {{ if .medium_info -}}
-  ,LEFT(info,80) AS info
-  {{ end -}}
-  {{ if .full_info -}}
-  ,info
-  {{ end -}}
-   FROM information_schema.processlist
-  WHERE 1=1
-  {{ if .user_like -}}
-  AND User LIKE {{ .user_like | sqlLike }}
-  {{ end -}}
-  {{ if .mysql_user -}}
-  AND User IN ({{ .mysql_user | sqlStringIn }})
-  {{ end -}}
-  {{ if .state -}}
-  AND State IN ({{ .state | sqlStringIn }})
-  {{ end -}}
-  {{ if .db -}}
-  AND db = {{ .db | sqlString }}
-  {{ end -}}
-  {{ if .db_like -}}
-  AND db LIKE {{ .db_like | sqlLike }}
-  {{ end -}}
-  {{ if .hostname -}}
-  AND host = {{ .hostname | sqlString }}
-  {{ end -}}
-  {{ if .info_like -}}
-  AND info LIKE {{ .info_like | sqlLike }}
-  {{ end -}}
+    default: [1, 2, 3]
+*/
+SELECT 
+Id,User,Host,db,Command,Time,State
+{{ if .short_info -}}
+,LEFT(info,50) AS info
+{{ end -}}
+{{ if .medium_info -}}
+,LEFT(info,80) AS info
+{{ end -}}
+{{ if .full_info -}}
+,info
+{{ end -}}
+ FROM information_schema.processlist
+WHERE 1=1
+{{ if .user_like -}}
+AND User LIKE {{ .user_like | sqlLike }}
+{{ end -}}
+{{ if .mysql_user -}}
+AND User IN ({{ .mysql_user | sqlStringIn }})
+{{ end -}}
+{{ if .state -}}
+AND State IN ({{ .state | sqlStringIn }})
+{{ end -}}
+{{ if .db -}}
+AND db = {{ .db | sqlString }}
+{{ end -}}
+{{ if .db_like -}}
+AND db LIKE {{ .db_like | sqlLike }}
+{{ end -}}
+{{ if .hostname -}}
+AND host = {{ .hostname | sqlString }}
+{{ end -}}
+{{ if .info_like -}}
+AND info LIKE {{ .info_like | sqlLike }}
+{{ end -}}
+

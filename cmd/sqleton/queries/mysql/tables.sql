@@ -1,3 +1,4 @@
+/* sqleton
 name: tables
 short: Get all tables from the database.
 flags:
@@ -23,29 +24,30 @@ flags:
     type: int
     help: Offset
     default: 0
-query: |
-  {{ if .explain }}
-    EXPLAIN
-  {{ end }}
-  SELECT
-    TABLE_SCHEMA,
-    TABLE_NAME,
-    ENGINE
-  FROM INFORMATION_SCHEMA.TABLES
-  WHERE 1=1
-  {{ if .db_schema }}
-    AND TABLE_SCHEMA IN ({{ .db_schema | sqlStringIn }})
-  {{ end }}
-  {{ if .table }}
-    AND TABLE_NAME IN ({{ .table | sqlStringIn }})
-  {{ end }}
-  {{ if .engine }}
-    AND ENGINE IN ({{ .engine | sqlStringIn }})
-  {{ end }}
-  ORDER BY {{ .order_by }}
-  {{ if .limit }}
-    LIMIT {{ .limit }}
-  {{ if .offset }}
-    OFFSET {{ .offset }}
-  {{ end }}
-  {{ end }}
+*/
+{{ if .explain }}
+  EXPLAIN
+{{ end }}
+SELECT
+  TABLE_SCHEMA,
+  TABLE_NAME,
+  ENGINE
+FROM INFORMATION_SCHEMA.TABLES
+WHERE 1=1
+{{ if .db_schema }}
+  AND TABLE_SCHEMA IN ({{ .db_schema | sqlStringIn }})
+{{ end }}
+{{ if .table }}
+  AND TABLE_NAME IN ({{ .table | sqlStringIn }})
+{{ end }}
+{{ if .engine }}
+  AND ENGINE IN ({{ .engine | sqlStringIn }})
+{{ end }}
+ORDER BY {{ .order_by }}
+{{ if .limit }}
+  LIMIT {{ .limit }}
+{{ if .offset }}
+  OFFSET {{ .offset }}
+{{ end }}
+{{ end }}
+

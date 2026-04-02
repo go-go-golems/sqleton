@@ -83,7 +83,6 @@ func TestConfiguredRepositoryDiscoverySmoke(t *testing.T) {
 			"smoke-widgets",
 			"--db-type", "sqlite",
 			"--database", dbPath,
-			"--only-active=false",
 			"--output", "json",
 		)
 

@@ -84,10 +84,12 @@ func (c *SqlCommandCompiler) Compile(
 		return nil, err
 	}
 
+	normalizedFlags := normalizeOptionalBoolFlags(spec.Flags)
+
 	options_ := []cmds.CommandDescriptionOption{
 		cmds.WithShort(spec.Short),
 		cmds.WithLong(spec.Long),
-		cmds.WithFlags(spec.Flags...),
+		cmds.WithFlags(normalizedFlags...),
 		cmds.WithArguments(spec.Arguments...),
 		cmds.WithTags(spec.Tags...),
 		cmds.WithMetadata(spec.Metadata),
@@ -106,6 +108,29 @@ func (c *SqlCommandCompiler) Compile(
 	}
 
 	return cmd, nil
+}
+
+func normalizeOptionalBoolFlags(flags []*fields.Definition) []*fields.Definition {
+	if len(flags) == 0 {
+		return nil
+	}
+
+	ret := make([]*fields.Definition, 0, len(flags))
+	for _, flag := range flags {
+		if flag == nil {
+			ret = append(ret, nil)
+			continue
+		}
+
+		cloned := flag.Clone()
+		if cloned.Type == fields.TypeBool && !cloned.Required && cloned.Default == nil {
+			defaultValue := interface{}(false)
+			cloned.Default = &defaultValue
+		}
+		ret = append(ret, cloned)
+	}
+
+	return ret
 }
 
 func ParseSQLFileSpec(path string, contents []byte) (*SqlCommandSpec, error) {

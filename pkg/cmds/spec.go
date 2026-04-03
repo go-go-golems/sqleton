@@ -184,6 +184,21 @@ func splitSqletonSQLPreamble(contents []byte) (string, string, error) {
 	return metadata, body, nil
 }
 
+func LooksLikeSqletonSQLCommand(contents []byte) bool {
+	s := strings.TrimLeft(string(contents), "\ufeff\r\n\t ")
+	if !strings.HasPrefix(s, "/*") {
+		return false
+	}
+
+	end := strings.Index(s, "*/")
+	if end == -1 {
+		return false
+	}
+
+	raw := strings.TrimSpace(s[2:end])
+	return strings.HasPrefix(raw, "sqleton")
+}
+
 func MarshalSpecToSQLFile(spec *SqlCommandSpec) (string, error) {
 	if spec == nil {
 		return "", errors.New("sql command spec is nil")

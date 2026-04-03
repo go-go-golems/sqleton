@@ -1,6 +1,7 @@
 package cmds
 
 import (
+	"io"
 	"io/fs"
 
 	"github.com/go-go-golems/clay/pkg/sql"
@@ -13,6 +14,8 @@ import (
 type SqlCommandLoader struct {
 	DBConnectionFactory sql.DBConnectionFactory
 }
+
+const sqletonSQLDetectionReadLimit = 64 * 1024
 
 var _ loaders.CommandLoader = (*SqlCommandLoader)(nil)
 
@@ -62,11 +65,30 @@ func (scl *SqlCommandLoader) LoadCommands(
 
 func (scl *SqlCommandLoader) IsFileSupported(f fs.FS, fileName string) bool {
 	switch DetectSourceKind(fileName) {
-	case SourceSQLCommand, SourceYAMLAlias:
+	case SourceYAMLAlias:
 		return true
+	case SourceSQLCommand:
+		return hasSqletonSQLPreamble(f, fileName)
 	case SourceUnknown:
 		return false
 	}
 
 	return false
+}
+
+func hasSqletonSQLPreamble(fsys fs.FS, fileName string) bool {
+	file, err := fsys.Open(fileName)
+	if err != nil {
+		return false
+	}
+	defer func(file fs.File) {
+		_ = file.Close()
+	}(file)
+
+	prefix, err := io.ReadAll(io.LimitReader(file, sqletonSQLDetectionReadLimit))
+	if err != nil {
+		return false
+	}
+
+	return LooksLikeSqletonSQLCommand(prefix)
 }

@@ -11,14 +11,21 @@ permissions:
 
 
 jobs:
-  goreleaser:
-    runs-on: ubuntu-latest
+  release-linux:
+    runs-on: ubuntu-24.04
     env:
       DOCKER_CLI_EXPERIMENTAL: "enabled"
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Install cross-compilers
+        run: |
+          sudo apt-get update && sudo apt-get install -y \
+            build-essential \
+            gcc-aarch64-linux-gnu \
+            gcc-x86-64-linux-gnu
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -36,7 +43,7 @@ jobs:
       - run: git fetch --force --tags
       - uses: actions/setup-go@v5
         with:
-          go-version: '>=1.19.5'
+          go-version: '>=1.22.0'
           cache: true
 
       - name: Import GPG key
@@ -51,7 +58,41 @@ jobs:
         with:
           distribution: goreleaser
           version: latest
-          args: release --clean 
+          args: release --clean --skip=publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COSIGN_PWD: ${{ secrets.COSIGN_PWD }}
+          TAP_GITHUB_TOKEN: ${{ secrets.RELEASE_ACTION_PAT }}
+          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+          FURY_TOKEN: ${{ secrets.FURY_TOKEN }}
+
+  release-darwin:
+    runs-on: macos-14
+    needs: release-linux
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - run: git fetch --force --tags
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.22.0'
+          cache: true
+
+      - name: Import GPG key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GO_GO_GOLEMS_SIGN_KEY }}
+          passphrase: ${{ secrets.GO_GO_GOLEMS_SIGN_PASSPHRASE }}
+          fingerprint: "6EBE1DF0BDF48A1BBA381B5B79983EF218C6ED7E"
+
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COSIGN_PWD: ${{ secrets.COSIGN_PWD }}

@@ -153,11 +153,7 @@ func initRootCmd() (*help.HelpSystem, error) {
 }
 
 func buildSqletonCobraCommand(command glazed_cmds.Command, options ...cli.CobraOption) (*cobra.Command, error) {
-	baseOptions := []cli.CobraOption{
-		cli.WithParserConfig(cmds.NewSqletonParserConfig()),
-	}
-	baseOptions = append(baseOptions, options...)
-	return cli.BuildCobraCommand(command, baseOptions...)
+	return sqleton_cmds.BuildCobraCommandWithSqletonMiddlewares(command, options...)
 }
 
 func initAllCommands(helpSystem *help.HelpSystem) error {

@@ -13,14 +13,15 @@ import (
 	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds"
-	fields "github.com/go-go-golems/glazed/pkg/cmds/fields"
+	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/cmds/runner"
-	schema "github.com/go-go-golems/glazed/pkg/cmds/schema"
-	cmd_middlewares "github.com/go-go-golems/glazed/pkg/cmds/sources"
+	"github.com/go-go-golems/glazed/pkg/cmds/schema"
+	"github.com/go-go-golems/glazed/pkg/cmds/sources"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
+	sqleton_cmds "github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/go-go-golems/sqleton/pkg/flags"
 	"github.com/spf13/cobra"
 )
@@ -99,8 +100,13 @@ func (c *ListToolsCommand) RunIntoGlazeProcessor(
 
 		var inputSchema_ interface{}
 
-		output, ok := parsedValues.GetField(settings.GlazedSlug, "output")
-		if ok && output.Value == "json" {
+		outputValue := ""
+		if outputField, ok := parsedValues.GetField(settings.GlazedSlug, "output"); ok {
+			if outputString, ok := outputField.Value.(string); ok {
+				outputValue = outputString
+			}
+		}
+		if outputValue == "json" {
 			inputSchema_ = tool.InputSchema
 		} else {
 			inputSchema_ = prettySchema.String()
@@ -122,28 +128,32 @@ func (c *ListToolsCommand) RunIntoGlazeProcessor(
 
 // createCommandMiddlewares creates the common middleware chain used by MCP commands
 func createCommandMiddlewares(
-	_ *values.Values,
+	parsedValues *values.Values,
 	cmd *cobra.Command,
 	args []string,
-	outputOverride cmd_middlewares.Middleware,
-) ([]cmd_middlewares.Middleware, error) {
-	middlewares_ := []cmd_middlewares.Middleware{
-		cmd_middlewares.FromCobra(cmd,
+	outputOverride sources.Middleware,
+) ([]sources.Middleware, error) {
+	// Start with cobra-specific middlewares
+	middlewares_ := []sources.Middleware{
+		sources.FromCobra(cmd,
 			fields.WithSource("cobra"),
 		),
-		cmd_middlewares.FromArgs(args,
+		sources.FromArgs(args,
 			fields.WithSource("arguments"),
-		),
-		cmd_middlewares.FromEnv("SQLETON",
-			fields.WithSource("env"),
 		),
 	}
 
+	sqletonMiddlewares, err := sqleton_cmds.GetSqletonMiddlewares(parsedValues)
+	if err != nil {
+		return nil, err
+	}
+	middlewares_ = append(middlewares_, sqletonMiddlewares...)
+
+	// Add output override if provided
 	if outputOverride != nil {
 		middlewares_ = append(middlewares_, outputOverride)
 	}
 
-	middlewares_ = append(middlewares_, cmd_middlewares.FromDefaults(fields.WithSource(fields.SourceDefaults)))
 	return middlewares_, nil
 }
 
@@ -158,10 +168,10 @@ func (mc *McpCommands) CreateToolsCmd() *cobra.Command {
 		panic(err)
 	}
 
-	// Create middleware to override output format to YAML
-	outputOverride := cmd_middlewares.FromMap(
+	// Create middleware to override output format to JSON
+	outputOverride := sources.FromMap(
 		map[string]map[string]interface{}{
-			"glazed": {
+			settings.GlazedSlug: {
 				"output": "json",
 			},
 		},
@@ -174,7 +184,7 @@ func (mc *McpCommands) CreateToolsCmd() *cobra.Command {
 			parsedValues *values.Values,
 			cmd *cobra.Command,
 			args []string,
-		) ([]cmd_middlewares.Middleware, error) {
+		) ([]sources.Middleware, error) {
 			return createCommandMiddlewares(parsedValues, cmd, args, outputOverride)
 		}),
 		cli.WithCobraShortHelpSections(
@@ -204,7 +214,7 @@ func (mc *McpCommands) CreateToolsCmd() *cobra.Command {
 			parsedValues *values.Values,
 			cmd *cobra.Command,
 			args []string,
-		) ([]cmd_middlewares.Middleware, error) {
+		) ([]sources.Middleware, error) {
 			return createCommandMiddlewares(parsedValues, cmd, args, nil)
 		}),
 		cli.WithCobraShortHelpSections(
@@ -300,12 +310,18 @@ func (c *RunCommand) Run(ctx context.Context, parsedValues *values.Values) error
 		}
 	}
 
-	parsedToolLayers, err := runner.ParseCommandValues(
+	sqletonMiddlewares, err := sqleton_cmds.GetSqletonMiddlewares(parsedValues)
+	if err != nil {
+		return fmt.Errorf("failed to get sqleton middlewares: %w", err)
+	}
+
+	// Parse parameters using runner
+	parsedToolValues, err := runner.ParseCommandValues(
 		foundCmd,
 		runner.WithValuesForSections(map[string]map[string]interface{}{
 			schema.DefaultSlug: argsMap,
 		}),
-		runner.WithEnvMiddleware("SQLETON"),
+		runner.WithAdditionalMiddlewares(sqletonMiddlewares...),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to parse tool parameters: %w", err)
@@ -315,7 +331,7 @@ func (c *RunCommand) Run(ctx context.Context, parsedValues *values.Values) error
 	err = runner.RunCommand(
 		ctx,
 		foundCmd,
-		parsedToolLayers,
+		parsedToolValues,
 		runner.WithWriter(os.Stdout), // For WriterCommand
 	)
 	if err != nil {
@@ -337,7 +353,7 @@ func (mc *McpCommands) CreateRunCmd() *cobra.Command {
 			parsedValues *values.Values,
 			cmd *cobra.Command,
 			args []string,
-		) ([]cmd_middlewares.Middleware, error) {
+		) ([]sources.Middleware, error) {
 			return createCommandMiddlewares(parsedValues, cmd, args, nil)
 		}),
 		cli.WithCobraShortHelpSections(

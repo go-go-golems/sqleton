@@ -65,20 +65,44 @@ sqleton subCommand subsubsCommand query
 sqleton subCommand2 query2
 ```
 
-A repository can be loaded at compile time as an `embed.FS` by using the
-`sqleton.LoadSqlCommandsFromEmbedFS`, and at runtime from a directory by using
-`sqleton.LoadSqlCommandsFromDirectory`.
+A repository can be loaded from an embedded query tree or from a filesystem
+directory. In normal sqleton usage, query repositories are discovered from the
+application config and environment.
 
-The configuration flag or variable `repository` can be set to specify a custom
-repository, by default, the queries in `$HOME/.sqleton/queries` are loaded.
+By default, queries in `$HOME/.sqleton/queries` are loaded when that directory
+exists.
 
-You can specify more repositories to be loaded in addition to the default by 
-specifying a list in `config.yaml`:
+You can specify more repositories to be loaded in addition to the default by
+listing them in `~/.sqleton/config.yaml`:
 
 ```yaml
 repositories:
   - /Users/manuel/code/ttc/ttc-dbt/sqleton-queries
   - .sqleton/queries
+```
+
+You can also add repositories temporarily with the `SQLETON_REPOSITORIES`
+environment variable. It uses the normal OS path-list separator, so on Unix-like
+systems it looks like:
+
+```bash
+export SQLETON_REPOSITORIES=/path/to/repo-a:/path/to/repo-b
+```
+
+This application config is only for repository discovery. Command-section config
+such as `sql-connection` or `dbt` should be passed explicitly with
+`--config-file`.
+
+For example:
+
+```yaml
+sql-connection:
+  db-type: sqlite
+  database: ./local.db
+```
+
+```bash
+sqleton run-command ./queries/ls-posts.sql -- --config-file ./db-config.yaml
 ```
 
 ## Using query parameters

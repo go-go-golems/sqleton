@@ -52,6 +52,9 @@ sqleton ttc wp posts --limit 10 --from "last week" \
    --status draft --filter post_status,post_type
 ```
 
+The keys inside `flags:` use the normal Cobra flag spellings, not internal field
+ids. For example, use `key-like`, not `key_like`.
+
 In order to help with the arduous task of writing YAML file, you can 
 automatically emit the alias file by using the `--create-alias [name]` flag:
 

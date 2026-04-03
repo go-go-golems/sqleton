@@ -247,11 +247,29 @@ export SQLETON_DATABASE=mydb
 sqleton query "SELECT * FROM users WHERE created_at > '2024-01-01'"
 ```
 
-### Configuration File
-Create `~/.sqleton/config.yaml`:
+### Application Configuration
+Create `~/.sqleton/config.yaml` to configure app-level settings such as extra
+query repositories:
 ```yaml
-database:
-  type: mysql
+repositories:
+  - /Users/manuel/code/ttc/ttc-dbt/sqleton-queries
+  - /Users/manuel/.sqleton/queries
+```
+
+Sqleton always loads commands from `$HOME/.sqleton/queries` when that directory
+exists. The `repositories:` list adds additional repository roots.
+
+You can also add repository roots temporarily with:
+```bash
+export SQLETON_REPOSITORIES=/path/to/repo-a:/path/to/repo-b
+```
+
+### Explicit Command Configuration
+Use `--config-file` when you want to load command-section settings such as
+`sql-connection` or `dbt`:
+```yaml
+sql-connection:
+  db-type: mysql
   host: localhost
   user: root
   password: mypass
@@ -259,9 +277,9 @@ database:
   port: 3306
 ```
 
-Then use without connection flags:
+Then run:
 ```bash
-sqleton query "SELECT COUNT(*) FROM users"
+sqleton query --config-file ./db-config.yaml "SELECT COUNT(*) FROM users"
 ```
 
 ### DBT Profiles Integration
@@ -310,7 +328,8 @@ sqleton user-report --limit 100 --min-orders 5 active premium
 sqleton commands list --fields name,source
 
 # Run a command from a local SQL command file
-sqleton run-command ~/.sqleton/queries/user-stats.sql
+sqleton run-command ~/.sqleton/queries/user-stats.sql -- \
+  --db-type sqlite --database ./local.db
 ```
 
 ## Output Customization
@@ -379,7 +398,7 @@ sqleton query "SELECT * FROM orders" \
 ### Command Repositories
 Share and version-control your SQL commands by storing `.sql` command files in a
 local repository directory such as `~/.sqleton/queries` or another configured
-path.
+path. Store aliases next to them as `.alias.yaml` files.
 
 ### Template Functions
 Powerful templating with SQL-specific helpers:
@@ -436,7 +455,7 @@ sqleton help print-settings
 
 **Online Documentation:**
 - [Database Connection Guide](cmd/sqleton/doc/topics/02-database-sources.md)
-- [YAML Command Reference](cmd/sqleton/doc/topics/06-query-commands.md)
+- [SQL Command File Reference](cmd/sqleton/doc/topics/06-query-commands.md)
 - [Output Format Options](cmd/sqleton/doc/topics/05-print-settings.md)
 - [Examples and Tutorials](cmd/sqleton/doc/examples/)
 

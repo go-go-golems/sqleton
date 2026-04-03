@@ -2,10 +2,13 @@ package cmds
 
 import (
 	"context"
+	"io"
+	"os"
+
 	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
-	"github.com/go-go-golems/glazed/pkg/cmds/fields"
-	"github.com/go-go-golems/glazed/pkg/cmds/schema"
+	fields "github.com/go-go-golems/glazed/pkg/cmds/fields"
+	schema "github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
@@ -14,8 +17,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/spf13/cobra"
-	"io"
-	"os"
 )
 
 type RunCommand struct {
@@ -32,16 +33,15 @@ type RunSettings struct {
 func (c *RunCommand) RunIntoGlazeProcessor(
 	ctx context.Context,
 	parsedValues *values.Values,
-	gp middlewares.Processor) error {
+	gp middlewares.Processor,
+) error {
 
 	s := &RunSettings{}
-	err := parsedValues.DecodeSectionInto(schema.DefaultSlug, s)
-	if err != nil {
+	if err := parsedValues.DecodeSectionInto(schema.DefaultSlug, s); err != nil {
 		return err
 	}
 	ss := &flags.SqlHelpersSettings{}
-	err = parsedValues.DecodeSectionInto(flags.SqlHelpersSlug, ss)
-	if err != nil {
+	if err := parsedValues.DecodeSectionInto(flags.SqlHelpersSlug, ss); err != nil {
 		return errors.Wrap(err, "could not initialize sql-helpers settings")
 	}
 
@@ -92,11 +92,11 @@ func NewRunCommand(
 ) (*RunCommand, error) {
 	glazedSection, err := settings.NewGlazedSection()
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create Glazed parameter layer")
+		return nil, errors.Wrap(err, "could not create glazed section")
 	}
-	sqlHelpersParameterLayer, err := flags.NewSqlHelpersParameterLayer()
+	sqlHelpersSection, err := flags.NewSqlHelpersParameterLayer()
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create SQL helpers parameter layer")
+		return nil, errors.Wrap(err, "could not create SQL helpers section")
 	}
 
 	options_ := append([]cmds.CommandDescriptionOption{
@@ -110,7 +110,7 @@ func NewRunCommand(
 		),
 		cmds.WithSections(
 			glazedSection,
-			sqlHelpersParameterLayer,
+			sqlHelpersSection,
 		),
 	}, options...)
 

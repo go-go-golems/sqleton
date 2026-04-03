@@ -24,13 +24,15 @@ Due to the very flexible glazed output system and the flags available for each c
 it is useful to be able to create aliases to save on typing and having to remember
 all variations. 
 
-An alias is just a yaml file stored along the query yaml definition. Aliases can be 
-located in an `embed.FS` repository, or in a filesystem repository. 
+An alias is a `.alias.yaml` file stored alongside the `.sql` command files in a
+repository. Aliases can be located in an `embed.FS` repository or in a filesystem
+repository.
 
-For a query `ttc/wp/posts.yaml`, aliases can be stored in the directory `ttc/wp/posts/`.
+For a query `ttc/wp/posts.sql`, you can store an alias next to it as
+`ttc/wp/newest-drafts.alias.yaml`.
 
 For example, we could have the following alias to show the newest drafts, 
-in `newest-drafts.yaml`:
+in `newest-drafts.alias.yaml`:
 
 ```yaml
 name: newest-drafts
@@ -42,13 +44,16 @@ flags:
   filter: post_status,post_type
 ```
 
-This command can then be executed by running `sqleton ttc wp posts newest-drafts`,
+This command can then be executed by running `sqleton ttc wp newest-drafts`,
 and will be equivalent to running 
 
 ```
 sqleton ttc wp posts --limit 10 --from "last week" \
    --status draft --filter post_status,post_type
 ```
+
+The keys inside `flags:` use the normal Cobra flag spellings, not internal field
+ids. For example, use `key-like`, not `key_like`.
 
 In order to help with the arduous task of writing YAML file, you can 
 automatically emit the alias file by using the `--create-alias [name]` flag:
@@ -64,4 +69,3 @@ flags:
     key-like: refund_reason
     order-by: post_id DESC
 ```
-

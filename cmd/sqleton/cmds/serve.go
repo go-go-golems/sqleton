@@ -9,8 +9,8 @@ import (
 
 	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
-	"github.com/go-go-golems/glazed/pkg/cmds/fields"
-	"github.com/go-go-golems/glazed/pkg/cmds/schema"
+	fields "github.com/go-go-golems/glazed/pkg/cmds/fields"
+	schema "github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/parka/pkg/glazed/handlers/datatables"
 	"github.com/go-go-golems/parka/pkg/handlers"
@@ -43,7 +43,7 @@ type ServeSettings struct {
 	ServePort   int      `glazed:"serve-port"`
 	ServeHost   string   `glazed:"serve-host"`
 	ContentDirs []string `glazed:"content-dirs"`
-	ConfigFile  string   `glazed:"config-file"`
+	ConfigFile  string   `glazed:"serve-config-file"`
 }
 
 func NewServeCommand(
@@ -51,23 +51,21 @@ func NewServeCommand(
 	repositoryPaths []string,
 	options ...cmds.CommandDescriptionOption,
 ) (*ServeCommand, error) {
-	sqlConnectionParameterLayer, err := sql.NewSqlConnectionParameterLayer()
+	sqlConnectionSection, err := sql.NewSqlConnectionParameterLayer()
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create SQL connection parameter layer")
+		return nil, errors.Wrap(err, "could not create SQL connection section")
 	}
-	dbtParameterLayer, err := sql.NewDbtParameterLayer()
+	dbtSection, err := sql.NewDbtParameterLayer()
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create dbt parameter layer")
+		return nil, errors.Wrap(err, "could not create dbt section")
 	}
 
 	options_ := append(options,
 		cmds.WithShort("Serve the API"),
-		cmds.WithArguments(),
 		cmds.WithFlags(
 			fields.New(
 				"serve-port",
 				fields.TypeInteger,
-				fields.WithShortFlag("p"),
 				fields.WithHelp("Port to serve the API on"),
 				fields.WithDefault(8080),
 			),
@@ -96,12 +94,12 @@ func NewServeCommand(
 				fields.WithDefault([]string{}),
 			),
 			fields.New(
-				"config-file",
+				"serve-config-file",
 				fields.TypeString,
 				fields.WithHelp("Config file to configure the serve functionality"),
 			),
 		),
-		cmds.WithSections(sqlConnectionParameterLayer, dbtParameterLayer),
+		cmds.WithSections(sqlConnectionSection, dbtSection),
 	)
 	return &ServeCommand{
 		dbConnectionFactory: dbConnectionFactory,
@@ -125,8 +123,7 @@ func (s *ServeCommand) runWithConfigFile(
 	serverOptions []server.ServerOption,
 ) error {
 	ss := &ServeSettings{}
-	err := parsedValues.DecodeSectionInto(schema.DefaultSlug, ss)
-	if err != nil {
+	if err := parsedValues.DecodeSectionInto(schema.DefaultSlug, ss); err != nil {
 		return err
 	}
 
@@ -152,13 +149,13 @@ func (s *ServeCommand) runWithConfigFile(
 	commandDirHandlerOptions := []command_dir.CommandDirHandlerOption{}
 	templateDirHandlerOptions := []template_dir.TemplateDirHandlerOption{}
 
-	sqlConnectionValues, ok := parsedValues.Get(sql.SqlConnectionSlug)
-	if !ok || sqlConnectionValues == nil {
-		return errors.New("sql-connection layer not found")
+	sqlConnectionLayer, ok := parsedValues.Get(sql.SqlConnectionSlug)
+	if !ok || sqlConnectionLayer == nil {
+		return errors.New("sql-connection section not found")
 	}
-	dbtConnectionValues, ok := parsedValues.Get(sql.DbtSlug)
-	if !ok || dbtConnectionValues == nil {
-		return errors.New("dbt layer not found")
+	dbtConnectionLayer, ok := parsedValues.Get(sql.DbtSlug)
+	if !ok || dbtConnectionLayer == nil {
+		return errors.New("dbt section not found")
 	}
 
 	// TODO(manuel, 2023-06-20): These should be able to be set from the config file itself.
@@ -172,12 +169,12 @@ func (s *ServeCommand) runWithConfigFile(
 			generic_command.WithParameterFilterOptions(
 				// I think this is correct and sets the connection settings?
 				config.WithMergeOverrideLayer(
-					sqlConnectionValues.Section.GetSlug(),
-					sqlConnectionValues.Fields.ToMap(),
+					sqlConnectionLayer.Section.GetSlug(),
+					sqlConnectionLayer.Fields.ToMap(),
 				),
 				config.WithMergeOverrideLayer(
-					dbtConnectionValues.Section.GetSlug(),
-					dbtConnectionValues.Fields.ToMap(),
+					dbtConnectionLayer.Section.GetSlug(),
+					dbtConnectionLayer.Fields.ToMap(),
 				),
 			),
 			generic_command.WithDefaultTemplateName("data-tables.tmpl.html"),
@@ -300,13 +297,13 @@ func (s *ServeCommand) Run(
 	}
 
 	// This section configures the command directory default setting specific to sqleton
-	sqlConnectionValues, ok := parsedValues.Get(sql.SqlConnectionSlug)
-	if !ok || sqlConnectionValues == nil {
-		return errors.Errorf("sql-connection layer is required")
+	sqlConnectionLayer, ok := parsedValues.Get(sql.SqlConnectionSlug)
+	if !ok || sqlConnectionLayer == nil {
+		return errors.Errorf("sql-connection section is required")
 	}
-	dbtConnectionValues, ok := parsedValues.Get(sql.DbtSlug)
-	if !ok || dbtConnectionValues == nil {
-		return errors.Errorf("dbt layer is required")
+	dbtConnectionLayer, ok := parsedValues.Get(sql.DbtSlug)
+	if !ok || dbtConnectionLayer == nil {
+		return errors.Errorf("dbt section is required")
 	}
 
 	// commandDirHandlerOptions will apply to all command dirs loaded by the server
@@ -315,12 +312,12 @@ func (s *ServeCommand) Run(
 			generic_command.WithTemplateLookup(datatables.NewDataTablesLookupTemplate()),
 			generic_command.WithParameterFilterOptions(
 				config.WithReplaceOverrideLayer(
-					dbtConnectionValues.Section.GetSlug(),
-					dbtConnectionValues.Fields.ToMap(),
+					dbtConnectionLayer.Section.GetSlug(),
+					dbtConnectionLayer.Fields.ToMap(),
 				),
 				config.WithReplaceOverrideLayer(
-					sqlConnectionValues.Section.GetSlug(),
-					sqlConnectionValues.Fields.ToMap(),
+					sqlConnectionLayer.Section.GetSlug(),
+					sqlConnectionLayer.Fields.ToMap(),
 				),
 			),
 			generic_command.WithDefaultTemplateName("data-tables.tmpl.html"),
@@ -334,12 +331,12 @@ func (s *ServeCommand) Run(
 			generic_command.WithTemplateLookup(datatables.NewDataTablesLookupTemplate()),
 			generic_command.WithParameterFilterOptions(
 				config.WithReplaceOverrideLayer(
-					dbtConnectionValues.Section.GetSlug(),
-					dbtConnectionValues.Fields.ToMap(),
+					dbtConnectionLayer.Section.GetSlug(),
+					dbtConnectionLayer.Fields.ToMap(),
 				),
 				config.WithReplaceOverrideLayer(
-					sqlConnectionValues.Section.GetSlug(),
-					sqlConnectionValues.Fields.ToMap(),
+					sqlConnectionLayer.Section.GetSlug(),
+					sqlConnectionLayer.Fields.ToMap(),
 				),
 			),
 			generic_command.WithDefaultTemplateName("data-tables.tmpl.html"),

@@ -2,7 +2,7 @@ package flags
 
 import (
 	_ "embed"
-	"github.com/go-go-golems/glazed/pkg/cmds/schema"
+	schema "github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/pkg/errors"
 )
 

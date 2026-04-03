@@ -3,7 +3,7 @@ package codegen
 import (
 	"github.com/dave/jennifer/jen"
 	cmds2 "github.com/go-go-golems/glazed/pkg/cmds"
-	"github.com/go-go-golems/glazed/pkg/cmds/fields"
+	fields "github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/codegen"
 	"github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/iancoleman/strcase"

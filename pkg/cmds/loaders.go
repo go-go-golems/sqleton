@@ -1,23 +1,21 @@
 package cmds
 
 import (
-	"fmt"
 	"io"
 	"io/fs"
 
 	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
-	"github.com/go-go-golems/glazed/pkg/cmds/layout"
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
-	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
 )
 
 type SqlCommandLoader struct {
 	DBConnectionFactory sql.DBConnectionFactory
 }
+
+const sqletonSQLDetectionReadLimit = 64 * 1024
 
 var _ loaders.CommandLoader = (*SqlCommandLoader)(nil)
 
@@ -34,80 +32,63 @@ func (scl *SqlCommandLoader) LoadCommands(
 		_ = r.Close()
 	}(r)
 
-	return loaders.LoadCommandOrAliasFromReader(
-		r,
-		scl.loadSqlCommandFromReader,
-		options,
-		aliasOptions)
+	sourceKind := DetectSourceKind(entryName)
+	switch sourceKind {
+	case SourceSQLCommand:
+		spec, err := ParseSQLFileSpecFromReader(entryName, r)
+		if err != nil {
+			return nil, err
+		}
+
+		compiler := &SqlCommandCompiler{
+			DBConnectionFactory: scl.DBConnectionFactory,
+		}
+		cmd, err := compiler.Compile(spec, options...)
+		if err != nil {
+			return nil, err
+		}
+		return []cmds.Command{cmd}, nil
+
+	case SourceYAMLAlias:
+		a, err := alias.NewCommandAliasFromYAML(r, aliasOptions...)
+		if err != nil {
+			return nil, err
+		}
+		return []cmds.Command{a}, nil
+
+	case SourceUnknown:
+		return nil, errors.Errorf("unsupported sqleton source kind for %s", entryName)
+	}
+
+	return nil, errors.Errorf("unsupported sqleton source kind for %s", entryName)
 }
 
 func (scl *SqlCommandLoader) IsFileSupported(f fs.FS, fileName string) bool {
-	return loaders.CheckYamlFileType(f, fileName, "sqleton")
+	switch DetectSourceKind(fileName) {
+	case SourceYAMLAlias:
+		return true
+	case SourceSQLCommand:
+		return hasSqletonSQLPreamble(f, fileName)
+	case SourceUnknown:
+		return false
+	}
+
+	return false
 }
 
-func (scl *SqlCommandLoader) loadSqlCommandFromReader(
-	s io.Reader,
-	options []cmds.CommandDescriptionOption,
-	_ []alias.Option,
-) ([]cmds.Command, error) {
-	scd := &SqlCommandDescription{}
-	err := yaml.NewDecoder(s).Decode(scd)
+func hasSqletonSQLPreamble(fsys fs.FS, fileName string) bool {
+	file, err := fsys.Open(fileName)
 	if err != nil {
-		return nil, err
+		return false
 	}
+	defer func(file fs.File) {
+		_ = file.Close()
+	}(file)
 
-	if scd.Type == "" {
-		scd.Type = "sqleton"
-	} else if scd.Type != "sqleton" {
-		return nil, fmt.Errorf("invalid type: %s", scd.Type)
-	}
-
-	sectionList := scd.Sections
-	if len(sectionList) == 0 {
-		sectionList = scd.Layers
-	}
-	sections := make([]schema.Section, 0, len(sectionList))
-	for _, section := range sectionList {
-		if section == nil {
-			continue
-		}
-		sections = append(sections, section)
-	}
-
-	options_ := []cmds.CommandDescriptionOption{
-		cmds.WithShort(scd.Short),
-		cmds.WithLong(scd.Long),
-		cmds.WithFlags(scd.Flags...),
-		cmds.WithArguments(scd.Arguments...),
-		cmds.WithSections(sections...),
-		cmds.WithType(scd.Type),
-		cmds.WithTags(scd.Tags...),
-		cmds.WithMetadata(scd.Metadata),
-		cmds.WithLayout(&layout.Layout{
-			Sections: scd.Layout,
-		}),
-	}
-	options_ = append(options_, options...)
-
-	sq, err := NewSqlCommand(
-		cmds.NewCommandDescription(
-			scd.Name,
-		),
-		WithDbConnectionFactory(scl.DBConnectionFactory),
-		WithQuery(scd.Query),
-		WithSubQueries(scd.SubQueries),
-	)
+	prefix, err := io.ReadAll(io.LimitReader(file, sqletonSQLDetectionReadLimit))
 	if err != nil {
-		return nil, err
+		return false
 	}
 
-	for _, option := range options_ {
-		option(sq.Description())
-	}
-
-	if !sq.IsValid() {
-		return nil, errors.New("Invalid command")
-	}
-
-	return []cmds.Command{sq}, nil
+	return LooksLikeSqletonSQLCommand(prefix)
 }

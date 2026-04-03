@@ -1,0 +1,8 @@
+/* sqleton
+name: ls-posts
+short: Show all WP posts
+long: Show all posts and their ID
+*/
+SELECT wp.ID, wp.post_title, wp.post_status FROM wp_posts wp
+WHERE post_type = 'post'
+

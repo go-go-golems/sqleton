@@ -17,7 +17,6 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
-	glazed_config "github.com/go-go-golems/glazed/pkg/config"
 	"github.com/go-go-golems/glazed/pkg/help"
 	help_cmd "github.com/go-go-golems/glazed/pkg/help/cmd"
 	"github.com/go-go-golems/glazed/pkg/types"
@@ -30,7 +29,6 @@ import (
 	"github.com/pkg/profile"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 
 	// #nosec G108 - pprof is imported for profiling and debugging in development environments only.
 	// This is gated behind the --mem-profile flag and not enabled by default.
@@ -77,64 +75,53 @@ var rootCmd = &cobra.Command{
 }
 
 func main() {
-	// first, check if the args are "run-command file.yaml",
-	// because we need to load the file and then run the command itself.
-	// we need to do this before cobra, because we don't know which flags to load yet
-	if len(os.Args) >= 3 && os.Args[1] == "run-command" && os.Args[2] != "--help" {
-		// load the command
-		loader := &sqleton_cmds.SqlCommandLoader{
-			DBConnectionFactory: sql.OpenDatabaseFromDefaultSqlConnectionLayer,
-		}
-		fs_, filePath, err := loaders.FileNameToFsFilePath(os.Args[2])
-		if err != nil {
-			fmt.Printf("Could not get absolute path: %v\n", err)
-			os.Exit(1)
-		}
-		cmds, err := loader.LoadCommands(fs_, filePath, []glazed_cmds.CommandDescriptionOption{}, []alias.Option{})
-		if err != nil {
-			fmt.Printf("Could not load command: %v\n", err)
-			os.Exit(1)
-		}
-		if len(cmds) != 1 {
-			fmt.Printf("Expected exactly one command, got %d", len(cmds))
-		}
+	helpSystem, err := initRootCmd()
+	cobra.CheckErr(err)
 
-		glazeCommand, ok := cmds[0].(glazed_cmds.GlazeCommand)
-		if !ok {
-			fmt.Printf("Expected GlazeCommand, got %T", cmds[0])
-			os.Exit(1)
-		}
+	err = initAllCommands(helpSystem)
+	cobra.CheckErr(err)
 
-		cobraCommand, err := sqleton_cmds.BuildCobraCommandWithSqletonMiddlewares(glazeCommand)
-		if err != nil {
-			fmt.Printf("Could not build cobra command: %v\n", err)
-			os.Exit(1)
-		}
-
-		_, err = initRootCmd()
-		cobra.CheckErr(err)
-
-		rootCmd.AddCommand(cobraCommand)
-		restArgs := os.Args[3:]
-		os.Args = append([]string{os.Args[0], cobraCommand.Use}, restArgs...)
-	} else {
-		helpSystem, err := initRootCmd()
-		cobra.CheckErr(err)
-
-		err = initAllCommands(helpSystem)
-		cobra.CheckErr(err)
-	}
-
-	err := rootCmd.Execute()
+	err = rootCmd.Execute()
 	cobra.CheckErr(err)
 }
 
 var runCommandCmd = &cobra.Command{
-	Use:   "run-command",
-	Short: "Run a command from a file",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		panic(errors.Errorf("not implemented"))
+	Use:   "run-command <file> [args...]",
+	Short: "Run a command from a local .sql file",
+	Args:  cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		filePath := args[0]
+		commandArgs := args[1:]
+
+		loader := &sqleton_cmds.SqlCommandLoader{
+			DBConnectionFactory: sql.OpenDatabaseFromDefaultSqlConnectionLayer,
+		}
+		fs_, resolvedPath, err := loaders.FileNameToFsFilePath(filePath)
+		if err != nil {
+			return errors.Wrap(err, "could not resolve command file path")
+		}
+
+		loadedCommands, err := loader.LoadCommands(fs_, resolvedPath, []glazed_cmds.CommandDescriptionOption{}, []alias.Option{})
+		if err != nil {
+			return errors.Wrap(err, "could not load command")
+		}
+		if len(loadedCommands) != 1 {
+			return errors.Errorf("expected exactly one command, got %d", len(loadedCommands))
+		}
+
+		glazeCommand, ok := loadedCommands[0].(glazed_cmds.GlazeCommand)
+		if !ok {
+			return errors.Errorf("expected GlazeCommand, got %T", loadedCommands[0])
+		}
+
+		cobraCommand, err := buildSqletonCobraCommand(glazeCommand)
+		if err != nil {
+			return errors.Wrap(err, "could not build cobra command")
+		}
+
+		cobraCommand.SetArgs(commandArgs)
+		cobraCommand.SetContext(cmd.Context())
+		return cobraCommand.ExecuteContext(cmd.Context())
 	},
 }
 
@@ -165,38 +152,8 @@ func initRootCmd() (*help.HelpSystem, error) {
 	return helpSystem, nil
 }
 
-// loadRepositoriesFromConfig reads repository paths from the sqleton config file.
-func loadRepositoriesFromConfig() []string {
-	configPath, err := glazed_config.ResolveAppConfigPath("sqleton", "")
-	if err != nil || configPath == "" {
-		return []string{}
-	}
-
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		log.Debug().Err(err).Str("config", configPath).Msg("Could not read config file for repositories")
-		return []string{}
-	}
-
-	var config map[string]interface{}
-	if err := yaml.Unmarshal(data, &config); err != nil {
-		log.Debug().Err(err).Str("config", configPath).Msg("Could not parse config file")
-		return []string{}
-	}
-
-	repos, ok := config["repositories"].([]interface{})
-	if !ok {
-		return []string{}
-	}
-
-	repositoryPaths := make([]string, 0, len(repos))
-	for _, repo := range repos {
-		if repoStr, ok := repo.(string); ok {
-			repositoryPaths = append(repositoryPaths, repoStr)
-		}
-	}
-
-	return repositoryPaths
+func buildSqletonCobraCommand(command glazed_cmds.Command, options ...cli.CobraOption) (*cobra.Command, error) {
+	return sqleton_cmds.BuildCobraCommandWithSqletonMiddlewares(command, options...)
 }
 
 func initAllCommands(helpSystem *help.HelpSystem) error {
@@ -220,7 +177,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		return err
 	}
 
-	cobraRunCommand, err := sqleton_cmds.BuildCobraCommandWithSqletonMiddlewares(runCommand)
+	cobraRunCommand, err := buildSqletonCobraCommand(runCommand)
 	if err != nil {
 		return err
 	}
@@ -234,7 +191,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	if err != nil {
 		return err
 	}
-	cobraSelectCommand, err := sqleton_cmds.BuildCobraCommandWithSqletonMiddlewares(selectCommand,
+	cobraSelectCommand, err := buildSqletonCobraCommand(selectCommand,
 		cli.WithCobraShortHelpSections(cmds.SelectSlug),
 	)
 	if err != nil {
@@ -251,13 +208,16 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	if err != nil {
 		return err
 	}
-	cobraQueryCommand, err := sqleton_cmds.BuildCobraCommandWithSqletonMiddlewares(queryCommand)
+	cobraQueryCommand, err := buildSqletonCobraCommand(queryCommand)
 	if err != nil {
 		return err
 	}
 	rootCmd.AddCommand(cobraQueryCommand)
 
-	repositoryPaths := loadRepositoriesFromConfig()
+	repositoryPaths, err := collectRepositoryPaths("sqleton")
+	if err != nil {
+		return err
+	}
 
 	defaultDirectory := "$HOME/.sqleton/queries"
 	_, err = os.Stat(os.ExpandEnv(defaultDirectory))
@@ -303,7 +263,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		helpSystem,
 		rootCmd,
 		repositories_,
-		cli.WithCobraMiddlewaresFunc(sqleton_cmds.GetCobraCommandSqletonMiddlewares),
+		cli.WithParserConfig(cmds.NewSqletonParserConfig()),
 		cli.WithCobraShortHelpSections(schema.DefaultSlug, sql.DbtSlug, sql.SqlConnectionSlug, flags.SqlHelpersSlug),
 		cli.WithCreateCommandSettingsSection(),
 		cli.WithProfileSettingsSection(),
@@ -323,7 +283,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 	if err != nil {
 		return err
 	}
-	cobraServeCommand, err := sqleton_cmds.BuildCobraCommandWithSqletonMiddlewares(serveCommand)
+	cobraServeCommand, err := buildSqletonCobraCommand(serveCommand)
 	if err != nil {
 		return err
 	}
@@ -336,7 +296,7 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		clay_commandmeta.WithListAddCommandToRowFunc(func(
 			command glazed_cmds.Command,
 			row types.Row,
-			parsedValues *values.Values,
+			_ *values.Values,
 		) ([]types.Row, error) {
 			// Example: Set 'type' and 'query' based on command type
 			switch c := command.(type) {

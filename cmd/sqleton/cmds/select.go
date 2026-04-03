@@ -4,10 +4,12 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"strings"
+
 	sql2 "github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
-	"github.com/go-go-golems/glazed/pkg/cmds/fields"
-	"github.com/go-go-golems/glazed/pkg/cmds/schema"
+	fields "github.com/go-go-golems/glazed/pkg/cmds/fields"
+	schema "github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
@@ -16,8 +18,6 @@ import (
 	"github.com/huandu/go-sqlbuilder"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
-	"strings"
 )
 
 //go:embed "flags/select.yaml"
@@ -28,7 +28,7 @@ const SelectSlug = "select"
 func NewSelectSection() (*schema.SectionImpl, error) {
 	ret, err := schema.NewSectionFromYAML(selectFlagsYaml)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to initialize select section")
+		return nil, errors.Wrap(err, "Failed to initialize select parameter layer")
 	}
 	return ret, nil
 }
@@ -58,14 +58,12 @@ func (sc *SelectCommand) RunIntoGlazeProcessor(
 	gp middlewares.Processor,
 ) error {
 	s := &SelectCommandSettings{}
-	err := parsedValues.DecodeSectionInto(SelectSlug, s)
-	if err != nil {
+	if err := parsedValues.DecodeSectionInto(SelectSlug, s); err != nil {
 		return err
 	}
 
 	ss := &flags.SqlHelpersSettings{}
-	err = parsedValues.DecodeSectionInto(flags.SqlHelpersSlug, ss)
-	if err != nil {
+	if err := parsedValues.DecodeSectionInto(flags.SqlHelpersSlug, ss); err != nil {
 		return errors.Wrap(err, "could not initialize sql-helpers settings")
 	}
 
@@ -111,24 +109,24 @@ func (sc *SelectCommand) RunIntoGlazeProcessor(
 			short = fmt.Sprintf("Select"+" from %s where %s", s.Table, strings.Join(s.Where, " AND "))
 		}
 
-		flags := []*fields.Definition{}
+		queryFlags := []*fields.Definition{}
 		if len(s.Where) == 0 {
-			flags = append(flags, fields.New("where", fields.TypeStringList))
+			queryFlags = append(queryFlags, fields.New("where", fields.TypeStringList))
 		}
 		if !s.Count {
-			flags = append(flags, fields.New(
+			queryFlags = append(queryFlags, fields.New(
 				"limit",
 				fields.TypeInteger,
 				fields.WithHelp(fmt.Sprintf("Limit the number of rows (default: %d), set to 0 to disable", s.Limit)),
 				fields.WithDefault(s.Limit),
 			))
-			flags = append(flags, fields.New(
+			queryFlags = append(queryFlags, fields.New(
 				"offset",
 				fields.TypeInteger,
 				fields.WithHelp(fmt.Sprintf("Offset the number of rows (default: %d)", s.Offset)),
 				fields.WithDefault(s.Offset),
 			))
-			flags = append(flags, fields.New(
+			queryFlags = append(queryFlags, fields.New(
 				"distinct",
 				fields.TypeBool,
 				fields.WithHelp(fmt.Sprintf("Whether to select distinct rows (default: %t)", s.Distinct)),
@@ -136,20 +134,14 @@ func (sc *SelectCommand) RunIntoGlazeProcessor(
 			))
 
 			orderByHelp := "Order by"
-			var orderDefault string
+			orderByOptions := []fields.Option{
+				fields.WithHelp(orderByHelp),
+			}
 			if s.OrderBy != "" {
 				orderByHelp = fmt.Sprintf("Order by (default: %s)", s.OrderBy)
-				orderDefault = s.OrderBy
+				orderByOptions = append(orderByOptions, fields.WithHelp(orderByHelp), fields.WithDefault(s.OrderBy))
 			}
-			orderOptions := []fields.Option{fields.WithHelp(orderByHelp)}
-			if orderDefault != "" {
-				orderOptions = append(orderOptions, fields.WithDefault(orderDefault))
-			}
-			flags = append(flags, fields.New(
-				"order_by",
-				fields.TypeString,
-				orderOptions...,
-			))
+			queryFlags = append(queryFlags, fields.New("order_by", fields.TypeString, orderByOptions...))
 		}
 
 		sb := &strings.Builder{}
@@ -169,23 +161,17 @@ func (sc *SelectCommand) RunIntoGlazeProcessor(
 		_, _ = fmt.Fprintf(sb, "\nOFFSET {{ .offset }}")
 
 		query := sb.String()
-		sqlCommand, err := cmds2.NewSqlCommand(
-			cmds.NewCommandDescription(s.CreateQuery,
-				cmds.WithShort(short), cmds.WithFlags(flags...)),
-			cmds2.WithDbConnectionFactory(sql2.OpenDatabaseFromDefaultSqlConnectionLayer),
-			cmds2.WithQuery(query),
-		)
+		sqlFile, err := cmds2.MarshalSpecToSQLFile(&cmds2.SqlCommandSpec{
+			Name:  s.CreateQuery,
+			Short: short,
+			Flags: queryFlags,
+			Query: query,
+		})
 		if err != nil {
 			return err
 		}
 
-		// marshal to yaml
-		yamlBytes, err := yaml.Marshal(sqlCommand)
-		if err != nil {
-			return err
-		}
-
-		fmt.Println(string(yamlBytes))
+		fmt.Print(sqlFile)
 		return nil
 	}
 
@@ -226,15 +212,15 @@ func NewSelectCommand(
 ) (*SelectCommand, error) {
 	glazedSection, err := settings.NewGlazedSection()
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create Glazed parameter layer")
+		return nil, errors.Wrap(err, "could not create glazed section")
 	}
-	sqlHelpersParameterLayer, err := flags.NewSqlHelpersParameterLayer()
+	sqlHelpersSection, err := flags.NewSqlHelpersParameterLayer()
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create SQL helpers parameter layer")
+		return nil, errors.Wrap(err, "could not create SQL helpers section")
 	}
 	selectSection, err := NewSelectSection()
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create select parameter layer")
+		return nil, errors.Wrap(err, "could not create select section")
 	}
 
 	options_ := append([]cmds.CommandDescriptionOption{
@@ -242,7 +228,7 @@ func NewSelectCommand(
 		cmds.WithSections(
 			selectSection,
 			glazedSection,
-			sqlHelpersParameterLayer,
+			sqlHelpersSection,
 		),
 	}, options...)
 

@@ -4,8 +4,8 @@ import (
 	"context"
 	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
-	"github.com/go-go-golems/glazed/pkg/cmds/fields"
-	"github.com/go-go-golems/glazed/pkg/cmds/schema"
+	fields "github.com/go-go-golems/glazed/pkg/cmds/fields"
+	schema "github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	assert2 "github.com/go-go-golems/glazed/pkg/helpers/assert"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
@@ -140,8 +140,10 @@ func TestSimpleRun(t *testing.T) {
 	assert2.EqualRows(t, expected, table_.Rows)
 }
 
-func makeSimpleDefaultValues(valuesMap map[string]interface{}) (*values.Values, error) {
-	defaultSection, err := schema.NewSection(schema.DefaultSlug, "Default",
+func makeSimpleDefaultLayer(options ...values.SectionValuesOption) (*values.Values, error) {
+	defaultLayer, err := schema.NewSection(
+		schema.DefaultSlug,
+		"Default",
 		schema.WithFields(
 			fields.New("name", fields.TypeString),
 			fields.New("test", fields.TypeString),
@@ -150,18 +152,12 @@ func makeSimpleDefaultValues(valuesMap map[string]interface{}) (*values.Values, 
 	if err != nil {
 		return nil, err
 	}
-	parsedValues := values.New()
-	defaultValues := parsedValues.GetOrCreate(defaultSection)
-	fieldValues, err := defaultSection.GetDefinitions().GatherFieldsFromMap(valuesMap, true, fields.WithSource("test"))
+	parsedDefaultLayer, err := values.NewSectionValues(defaultLayer, options...)
 	if err != nil {
 		return nil, err
 	}
-	_, err = defaultValues.Fields.Merge(fieldValues)
-	if err != nil {
-		return nil, err
-	}
-
-	return parsedValues, nil
+	parsedLayers := values.New(values.WithSectionValues(schema.DefaultSlug, parsedDefaultLayer))
+	return parsedLayers, nil
 
 }
 func TestSimpleSubQuery(t *testing.T) {
@@ -197,14 +193,14 @@ func TestSimpleSubQuery(t *testing.T) {
 	)
 `), s_)
 
-	parsedValues, err := makeSimpleDefaultValues(map[string]interface{}{
-		"name": "test2_3",
-	})
+	parsedLayers, err := makeSimpleDefaultLayer(
+		values.WithFieldValue("name", "test2_3"),
+	)
 	require.NoError(t, err)
 
 	gp := middlewares.NewTableProcessor()
 	gp.AddTableMiddleware(&table.NullTableMiddleware{})
-	err = s.RunIntoGlazeProcessor(ctx, parsedValues, gp)
+	err = s.RunIntoGlazeProcessor(ctx, parsedLayers, gp)
 	require.NoError(t, err)
 
 	err = gp.Close(ctx)
@@ -234,12 +230,12 @@ func TestSimpleSubQuerySingle(t *testing.T) {
 		_ = db.Close()
 	}(db)
 
-	parsedValues, err := makeSimpleDefaultValues(map[string]interface{}{
-		"name": "test1_1",
-	})
+	parsedLayers, err := makeSimpleDefaultLayer(
+		values.WithFieldValue("name", "test1_1"),
+	)
 	require.NoError(t, err)
 
-	s_, err := s.RenderQuery(context.Background(), db, parsedValues.GetDataMap())
+	s_, err := s.RenderQuery(context.Background(), db, parsedLayers.GetDataMap())
 	require.NoError(t, err)
 	assert.Equal(t, sql.CleanQuery(`
 	SELECT * FROM test
@@ -258,7 +254,7 @@ func TestSimpleSubQuerySingle(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	_, err = s.RenderQuery(context.Background(), db, parsedValues.GetDataMap())
+	_, err = s.RenderQuery(context.Background(), db, parsedLayers.GetDataMap())
 	assert.Error(t, err)
 
 	// fail if there are more than 2 fields
@@ -273,7 +269,7 @@ func TestSimpleSubQuerySingle(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	_, err = s.RenderQuery(context.Background(), db, parsedValues.GetDataMap())
+	_, err = s.RenderQuery(context.Background(), db, parsedLayers.GetDataMap())
 	assert.Error(t, err)
 }
 
@@ -296,13 +292,13 @@ func TestSimpleSubQueryWithArguments(t *testing.T) {
 		_ = db.Close()
 	}(db)
 
-	parsedValues, err := makeSimpleDefaultValues(map[string]interface{}{
-		"name": "test1_2",
-	})
+	parsedLayers, err := makeSimpleDefaultLayer(
+		values.WithFieldValue("name", "test1_2"),
+	)
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	s_, err := s.RenderQuery(ctx, db, parsedValues.GetDataMap())
+	s_, err := s.RenderQuery(ctx, db, parsedLayers.GetDataMap())
 	require.NoError(t, err)
 	assert.Equal(t, sql.CleanQuery(`
 	SELECT * FROM test
@@ -313,7 +309,7 @@ func TestSimpleSubQueryWithArguments(t *testing.T) {
 
 	gp := middlewares.NewTableProcessor()
 	gp.AddTableMiddleware(&table.NullTableMiddleware{})
-	err = s.RunIntoGlazeProcessor(ctx, parsedValues, gp)
+	err = s.RunIntoGlazeProcessor(ctx, parsedLayers, gp)
 	require.NoError(t, err)
 
 	err = gp.Close(ctx)
@@ -361,12 +357,12 @@ func TestSliceSubQueryWithArguments(t *testing.T) {
 		_ = db.Close()
 	}(db)
 
-	parsedValues, err := makeSimpleDefaultValues(map[string]interface{}{
-		"test": "test1_2",
-	})
+	parsedLayers, err := makeSimpleDefaultLayer(
+		values.WithFieldValue("test", "test1_2"),
+	)
 	require.NoError(t, err)
 
-	s_, err := s.RenderQuery(context.Background(), db, parsedValues.GetDataMap())
+	s_, err := s.RenderQuery(context.Background(), db, parsedLayers.GetDataMap())
 	require.NoError(t, err)
 	assert.Equal(t, sql.CleanQuery(`
 	SELECT * FROM test
@@ -395,12 +391,12 @@ func TestMapSubQueryWithArguments(t *testing.T) {
 		_ = db.Close()
 	}(db)
 
-	parsedValues, err := makeSimpleDefaultValues(map[string]interface{}{
-		"name": "test1_2",
-	})
+	parsedLayers, err := makeSimpleDefaultLayer(
+		values.WithFieldValue("name", "test1_2"),
+	)
 	require.NoError(t, err)
 
-	s_, err := s.RenderQuery(context.Background(), db, parsedValues.GetDataMap())
+	s_, err := s.RenderQuery(context.Background(), db, parsedLayers.GetDataMap())
 	require.NoError(t, err)
 	assert.Equal(t, sql.CleanQuery(`
 	SELECT * FROM test
@@ -433,13 +429,13 @@ func TestMapSubQuery(t *testing.T) {
 		_ = db.Close()
 	}(db)
 
-	parsedValues, err := makeSimpleDefaultValues(map[string]interface{}{
-		"name": "test1_2",
-	})
+	parsedLayers, err := makeSimpleDefaultLayer(
+		values.WithFieldValue("name", "test1_2"),
+	)
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	s_, err := s.RenderQuery(ctx, db, parsedValues.GetDataMap())
+	s_, err := s.RenderQuery(ctx, db, parsedLayers.GetDataMap())
 	require.NoError(t, err)
 	assert.Equal(t, sql.CleanQuery(`
 	SELECT * FROM test
@@ -450,7 +446,7 @@ func TestMapSubQuery(t *testing.T) {
 
 	gp := middlewares.NewTableProcessor()
 	gp.AddTableMiddleware(&table.NullTableMiddleware{})
-	err = s.RunIntoGlazeProcessor(ctx, parsedValues, gp)
+	err = s.RunIntoGlazeProcessor(ctx, parsedLayers, gp)
 	require.NoError(t, err)
 
 	err = gp.Close(ctx)

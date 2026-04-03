@@ -1,0 +1,158 @@
+/* sqleton
+name: ls-posts
+short: "Show all WP posts"
+long: Show all posts and their ID
+flags:
+  - name: limit
+    shortFlag: l
+    type: int
+    default: 10
+    help: Limit the number of posts
+  - name: offset
+    type: int
+    help: Offset
+    default: 0
+  - name: status
+    type: stringList
+    help: Select posts by status
+    required: false
+  - name: order_by
+    type: string
+    help: Order by column
+  - name: ids
+    type: intList
+    help: Select posts by id
+    required: false
+  - name: types
+    type: stringList
+    default:
+      - post
+      - page
+    help: Select posts by type
+    required: false
+  - name: body_like
+    type: stringList
+    help: Select posts by body
+    required: false
+  - name: from
+    type: date
+    help: Select posts from date
+    required: false
+  - name: to
+    type: date
+    help: Select posts to date
+    required: false
+  - name: title_like
+    type: string
+    help: Select posts by title
+    required: false
+  - name: slugs_like
+    type: stringList
+    help: Select posts by slug patterns
+    required: false
+  - name: templates_like
+    type: stringList
+    help: Select posts by template patterns
+    required: false
+  - name: slugs
+    type: stringList
+    help: Select posts by slug
+    required: false
+  - name: templates
+    type: stringList
+    help: Select posts by template
+    required: false
+  - name: group_by
+    type: choiceList
+    choices:
+      - status
+      - type
+      - template
+      - date
+      - slug
+    help: Group and count posts by selected field
+    required: false
+*/
+{{ if not .group_by }}
+SELECT
+  wp.ID,
+  wp.post_title AS title,
+  wp.post_name AS slug,
+  wp.post_type AS type,
+  wp.post_status AS status,
+  wpm.meta_value AS template,
+  wp.post_date AS date
+FROM wp_posts wp
+LEFT JOIN wp_postmeta wpm ON wp.ID = wpm.post_id AND wpm.meta_key = '_wp_page_template'
+{{ else }}
+SELECT
+  {{ if has "status" .group_by }}wp.post_status AS status,{{ end }}
+  {{ if has "type" .group_by  }}wp.post_type AS type,{{ end }}
+  {{ if has "template" .group_by  }}wpm.meta_value AS template,{{ end }}
+  {{ if has "date" .group_by  }}wp.post_date AS date,{{ end }}
+  {{ if has "slug" .group_by  }}wp.post_name AS slug,{{ end }}
+  COUNT(*) AS count
+FROM wp_posts wp
+LEFT JOIN wp_postmeta wpm ON wp.ID = wpm.post_id AND wpm.meta_key = '_wp_page_template'
+{{ end }}
+WHERE
+  post_type IN ({{ .types | sqlStringIn }})
+
+{{ if .status -}} AND post_status IN ({{ .status | sqlStringIn }}) {{- end -}}
+
+{{ if .from -}} AND post_date >= {{ .from | sqlDate }} {{- end -}}
+
+{{ if .to -}} AND post_date <= {{ .to | sqlDate }} {{- end -}}
+
+{{ if .title_like -}} AND post_title LIKE {{ .title_like | sqlLike }} {{- end -}}
+
+{{- if .slugs_like }}
+AND (
+  {{- range $index, $slug_pattern := .slugs_like }}
+    {{- if $index }} OR {{end -}} wp.post_name LIKE {{ $slug_pattern | sqlLike }}
+  {{- end }}
+)
+{{- end }}
+
+{{- if .templates_like }}
+AND (
+  {{- range $index, $template_pattern := .templates_like }}
+    {{- if $index }} OR {{ end -}}
+    wpm.meta_value LIKE {{ $template_pattern | sqlLike }}
+  {{- end }}
+)
+{{- end }}
+
+{{- if .body_like }}
+  AND (
+      {{- range $index, $body_pattern := .body_like }}
+      {{- if $index }} OR {{ end -}}
+      wp.post_content LIKE {{ $body_pattern | sqlLike }}
+      {{- end }}
+  )
+  {{- end }}
+
+{{ if .slugs -}} AND post_name IN ({{ .slugs | sqlStringIn }}) {{- end -}}
+
+{{ if .templates -}} AND wpm.meta_value IN ({{ .templates | sqlStringIn }}) {{- end -}}
+
+{{ if .ids -}} AND ID IN ({{ .ids | sqlIntIn }}) {{- end -}}
+
+{{ if .group_by -}} 
+GROUP BY {{ .group_by | join ", " }} 
+{{ end }}
+
+{{ if not .order_by -}} 
+  {{if .group_by }}
+     ORDER BY count DESC 
+  {{else -}}
+     ORDER BY post_date DESC
+  {{ end }}
+{{ else }}
+  ORDER BY {{ .order_by }}
+{{end}}
+{{ if .limit }}
+LIMIT {{ .limit }}
+OFFSET {{ .offset }}
+{{ end }}
+

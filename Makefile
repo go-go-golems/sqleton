@@ -1,4 +1,4 @@
-.PHONY: gifs test build lint lintmax docker-lint gosec govulncheck goreleaser tag-major tag-minor tag-patch release bump-glazed install codeql-local
+.PHONY: test build lint lintmax docker-lint gosec govulncheck goreleaser tag-major tag-minor tag-patch release bump-glazed install codeql-local
 
 VERSION ?= $(shell svu)
 COMMIT ?= $(shell git rev-parse --short HEAD)
@@ -6,10 +6,6 @@ DIRTY ?= $(shell git diff --quiet || echo "dirty")
 LDFLAGS=-ldflags "-X main.version=$(VERSION)-$(COMMIT)-$(DIRTY)"
 
 all: test build
-
-TAPES=$(shell ls doc/vhs/*tape)
-gifs: $(TAPES)
-	for i in $(TAPES); do vhs < $$i; done
 
 docker-lint:
 	docker run --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:v2.3.0 golangci-lint run -v

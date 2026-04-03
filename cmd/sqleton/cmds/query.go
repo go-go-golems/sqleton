@@ -2,10 +2,11 @@ package cmds
 
 import (
 	"context"
+
 	"github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds"
-	"github.com/go-go-golems/glazed/pkg/cmds/fields"
-	"github.com/go-go-golems/glazed/pkg/cmds/schema"
+	fields "github.com/go-go-golems/glazed/pkg/cmds/fields"
+	schema "github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
@@ -23,7 +24,7 @@ func NewQueryCommand(
 	dbConnectionFactory sql.DBConnectionFactory,
 	options ...cmds.CommandDescriptionOption,
 ) (*QueryCommand, error) {
-	glazeSection, err := settings.NewGlazedSection()
+	glazedSection, err := settings.NewGlazedSection()
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +37,7 @@ func NewQueryCommand(
 			fields.WithRequired(true),
 		),
 		),
-		cmds.WithSections(glazeSection),
+		cmds.WithSections(glazedSection),
 	}, options...)
 
 	return &QueryCommand{
@@ -55,8 +56,7 @@ func (q *QueryCommand) RunIntoGlazeProcessor(
 	gp middlewares.Processor,
 ) error {
 	s := &QuerySettings{}
-	err := parsedValues.DecodeSectionInto(schema.DefaultSlug, s)
-	if err != nil {
+	if err := parsedValues.DecodeSectionInto(schema.DefaultSlug, s); err != nil {
 		return err
 	}
 

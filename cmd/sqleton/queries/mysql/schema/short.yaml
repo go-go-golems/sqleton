@@ -1,4 +1,0 @@
-name: short
-aliasFor: schema
-flags:
-  fields: database_name,table_name,column_name,column_type

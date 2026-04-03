@@ -3,8 +3,7 @@ Title: Adding query commands
 Slug: query-commands
 Short: |
    You can add commands to the `sqleton` program in a variety of ways:
-   - using YAML files 
-   - using SQL files and metadata (TODO)
+   - using `.sql` files with a sqleton metadata preamble
    - using Markdown files
 Topics:
 - queries
@@ -16,11 +15,14 @@ ShowPerDefault: true
 SectionType: GeneralTopic
 ---
 
-## Using YAML files
+## Using SQL files
 
-YAML files can be used to add commands to sqleton by using the following layout:
+SQL command files are regular `.sql` files with a sqleton-only preamble stored in
+an opening block comment. SQL engines ignore the comment, while sqleton parses the
+metadata before executing the remaining SQL body.
 
-```yaml
+```sql
+/* sqleton
 name: ls-posts-type
 short: Show all WP posts, limited, by type
 long: Show all posts and their ID
@@ -37,10 +39,10 @@ arguments:
      type: int
      default: 10
      help: Limit the number of posts
-query: |
-   SELECT wp.ID, wp.post_title, wp.post_type, wp.post_status FROM wp_posts wp
-   WHERE post_type IN ({{ .types | sqlStringIn }})
-   LIMIT {{ .limit }}
+*/
+SELECT wp.ID, wp.post_title, wp.post_type, wp.post_status FROM wp_posts wp
+WHERE post_type IN ({{ .types | sqlStringIn }})
+LIMIT {{ .limit }}
 ```
 
 ## Query repository
@@ -51,9 +53,9 @@ These files can be stored in a repository directory that has the following forma
 repository/
    subCommand/
       subsubsCommand/
-         query.yaml
+         query.sql
    subCommand2/
-      query2.yaml
+      query2.sql
 ```
 
 This will result in the following commands being added (including their subcommands):
@@ -63,15 +65,15 @@ sqleton subCommand subsubsCommand query
 sqleton subCommand2 query2
 ```
 
-A repository can be loaded at compile time as an `embed.FS` by using the
-`sqleton.LoadSqlCommandsFromEmbedFS`, and at runtime from a directory by using
-`sqleton.LoadSqlCommandsFromDirectory`.
+A repository can be loaded from an embedded query tree or from a filesystem
+directory. In normal sqleton usage, query repositories are discovered from the
+application config and environment.
 
-The configuration flag or variable `repository` can be set to specify a custom
-repository, by default, the queries in `$HOME/.sqleton/queries` are loaded.
+By default, queries in `$HOME/.sqleton/queries` are loaded when that directory
+exists.
 
-You can specify more repositories to be loaded in addition to the default by 
-specifying a list in `config.yaml`:
+You can specify more repositories to be loaded in addition to the default by
+listing them in `~/.sqleton/config.yaml`:
 
 ```yaml
 repositories:
@@ -79,9 +81,34 @@ repositories:
   - .sqleton/queries
 ```
 
+You can also add repositories temporarily with the `SQLETON_REPOSITORIES`
+environment variable. It uses the normal OS path-list separator, so on Unix-like
+systems it looks like:
+
+```bash
+export SQLETON_REPOSITORIES=/path/to/repo-a:/path/to/repo-b
+```
+
+This application config is only for repository discovery. Command-section config
+such as `sql-connection` or `dbt` should be passed explicitly with
+`--config-file`.
+
+For example:
+
+```yaml
+sql-connection:
+  db-type: sqlite
+  database: ./local.db
+```
+
+```bash
+sqleton run-command ./queries/ls-posts.sql -- --config-file ./db-config.yaml
+```
+
 ## Using query parameters
 
-A query can also provide parameters, which are mapped to command line flags and arguments
+Parameters are still declared in YAML, but only inside the sqleton preamble.
+They are mapped to command-line flags and arguments.
 
 Parameters have the following structure:
 
@@ -103,7 +130,8 @@ Valid types for a parameter are:
 - `stringList`
 - `intList`
 
-These are then specified in the `flags` and `arguments` section respectively.
+These are then specified in the `flags` and `arguments` sections inside the
+SQL preamble.
 
 Arguments have to obey a few rules:
 - optional arguments can't follow required arguments

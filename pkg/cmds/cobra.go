@@ -63,8 +63,14 @@ func GetSqletonMiddlewares(
 ) ([]sources.Middleware, error) {
 	middlewares_ := []sources.Middleware{}
 
+	commandSettings := &cli.CommandSettings{}
+	err := parsedCommandValues.DecodeSectionInto(cli.CommandSettingsSlug, commandSettings)
+	if err != nil {
+		return nil, err
+	}
+
 	profileSettings := &cli.ProfileSettings{}
-	err := parsedCommandValues.DecodeSectionInto(cli.ProfileSettingsSlug, profileSettings)
+	err = parsedCommandValues.DecodeSectionInto(cli.ProfileSettingsSlug, profileSettings)
 	if err != nil {
 		return nil, err
 	}
@@ -82,6 +88,27 @@ func GetSqletonMiddlewares(
 		profileSettings.Profile = "default"
 	}
 	middlewares_ = append(middlewares_,
+		sources.WrapWithWhitelistedSections(
+			[]string{
+				clay_sql.DbtSlug,
+				clay_sql.SqlConnectionSlug,
+			},
+			sources.FromEnv(strings.ToUpper("sqleton"),
+				fields.WithSource("env"),
+			),
+		),
+	)
+
+	if commandSettings.ConfigFile != "" {
+		middlewares_ = append(middlewares_,
+			sources.FromFiles(
+				[]string{commandSettings.ConfigFile},
+				sources.WithParseOptions(fields.WithSource("config")),
+			),
+		)
+	}
+
+	middlewares_ = append(middlewares_,
 		sources.GatherFlagsFromProfiles(
 			defaultProfileFile,
 			profileSettings.ProfileFile,
@@ -92,18 +119,6 @@ func GetSqletonMiddlewares(
 				"profileFile": profileSettings.ProfileFile,
 				"profile":     profileSettings.Profile,
 			}),
-		),
-	)
-
-	middlewares_ = append(middlewares_,
-		sources.WrapWithWhitelistedSections(
-			[]string{
-				clay_sql.DbtSlug,
-				clay_sql.SqlConnectionSlug,
-			},
-			sources.FromEnv(strings.ToUpper("sqleton"),
-				fields.WithSource("env"),
-			),
 		),
 		sources.FromDefaults(fields.WithSource(fields.SourceDefaults)),
 	)

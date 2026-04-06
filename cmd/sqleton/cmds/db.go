@@ -15,7 +15,8 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/spf13/cobra"
 
-	_ "github.com/go-sql-driver/mysql" // MySQL driver for database/sql
+	_ "github.com/go-sql-driver/mysql"  // MySQL driver for database/sql
+	_ "github.com/marcboeker/go-duckdb" // DuckDB driver for database/sql
 )
 
 // From chatGPT:

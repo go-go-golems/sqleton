@@ -31,3 +31,5 @@ sqleton is a tool to make it easy to run SQL commands against databases.
 sqleton uses the [glazed](https://github.com/go-go-golems/glazed) help system.
 
 sqleton allows you to use the `dbt` profiles file for quickly referencing databases.
+It also supports DuckDB for querying local JSON, CSV, and Parquet files directly
+through SQL when you want a lightweight analytics workflow from the command line.

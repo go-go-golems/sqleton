@@ -1,0 +1,16 @@
+topics:
+    - slug: backend
+      description: Backend code and infrastructure
+    - slug: database
+      description: Database integration and connectivity
+    - slug: duckdb
+      description: DuckDB analytical database engine
+docTypes:
+    - slug: index
+      description: Ticket index document
+intent:
+    - slug: long-term
+      description: Long-term reference document
+status:
+    - slug: active
+      description: Actively being worked on

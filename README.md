@@ -251,6 +251,10 @@ sqleton query --db-type duckdb --database '' \
 # DuckDB (persistent database file)
 sqleton query --db-type duckdb --database ./analytics.duckdb \
   "SELECT * FROM my_cached_table LIMIT 10"
+
+# DuckDB (URI-style DSN)
+sqleton query --driver duckdb --dsn 'duckdb:///tmp/app.db' \
+  "SELECT * FROM my_cached_table LIMIT 10"
 ```
 
 ### Environment Variables

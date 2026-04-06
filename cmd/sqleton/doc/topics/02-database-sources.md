@@ -153,6 +153,20 @@ sqleton query --db-type duckdb --database ./analytics.duckdb \
   "SELECT * FROM my_table LIMIT 10"
 ```
 
+DuckDB URI-style DSNs are also supported when you want to be explicit about the
+driver/DSN split:
+
+```bash
+# Absolute path
+sqleton query --driver duckdb --dsn 'duckdb:///tmp/app.db' "SELECT 1"
+
+# In-memory database
+sqleton query --driver duckdb --dsn 'duckdb:///:memory:' "SELECT 1"
+
+# File path with driver options preserved
+sqleton query --driver duckdb --dsn 'duckdb:///tmp/app.db?access_mode=read_only' "SELECT 1"
+```
+
 To query raw files directly, keep the file path or glob inside the SQL itself:
 
 ```bash

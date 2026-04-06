@@ -73,6 +73,8 @@ DuckDB in sqleton does **not** treat a JSON/CSV/Parquet glob as the sqleton
 
 - `--database ''` means: create an in-memory DuckDB connection.
 - `--database ./analytics.duckdb` means: open a persistent DuckDB database file.
+- `--dsn duckdb:///tmp/app.db` means: open `/tmp/app.db` using a URI-style DSN.
+- `--dsn duckdb:///:memory:` means: open an in-memory DuckDB connection using a URI-style DSN.
 - `read_json_auto('./events/*.json')` means: read external files from SQL.
 
 So this is the intended pattern:
@@ -89,6 +91,33 @@ and **not** this:
 sqleton query --db-type duckdb --database './data/*.csv' "SELECT ..."
 ```
 
+## Supported DuckDB connection styles
+
+The preferred DuckDB connection styles are:
+
+```bash
+# Preferred: in-memory
+sqleton query --db-type duckdb --database '' "SELECT 1"
+
+# Preferred: persistent DuckDB file
+sqleton query --db-type duckdb --database ./analytics.duckdb "SELECT 1"
+```
+
+URI-style DSNs are also supported:
+
+```bash
+# URI-style absolute path
+sqleton query --driver duckdb --dsn 'duckdb:///tmp/app.db' "SELECT 1"
+
+# URI-style in-memory DuckDB
+sqleton query --driver duckdb --dsn 'duckdb:///:memory:' "SELECT 1"
+
+# URI-style path with query options preserved
+sqleton query --driver duckdb --dsn 'duckdb:///tmp/app.db?access_mode=read_only' "SELECT 1"
+```
+
+When sqleton sees a `duckdb://` DSN, it normalizes the URI into the file-path form
+expected by the DuckDB Go driver while preserving query parameters.
 ## When to use in-memory vs persistent DuckDB
 
 ### In-memory DuckDB

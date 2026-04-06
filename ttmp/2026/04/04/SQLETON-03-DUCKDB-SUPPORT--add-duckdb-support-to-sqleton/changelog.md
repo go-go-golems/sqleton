@@ -26,3 +26,15 @@ Committed remaining DuckDB code/docs state and ran a clean smoke test proving sq
 - /home/manuel/workspaces/2026-04-04/sqleton-duckdb-glm/sqleton/cmd/sqleton/cmds/db.go — Sqleton-side DuckDB blank import
 - /home/manuel/workspaces/2026-04-04/sqleton-duckdb-glm/sqleton/ttmp/2026/04/04/SQLETON-03-DUCKDB-SUPPORT--add-duckdb-support-to-sqleton/reference/01-investigation-diary.md — Smoke test evidence and commit log
 
+
+## 2026-04-06
+
+Updated public sqleton documentation for DuckDB usage and added a dedicated ticket playbook for DuckDB file-query smoke tests and operator workflows.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-04/sqleton-duckdb-glm/sqleton/README.md — DuckDB examples and docs links
+- /home/manuel/workspaces/2026-04-04/sqleton-duckdb-glm/sqleton/cmd/sqleton/doc/topics/02-database-sources.md — DuckDB connection semantics
+- /home/manuel/workspaces/2026-04-04/sqleton-duckdb-glm/sqleton/cmd/sqleton/doc/topics/07-duckdb-file-queries.md — New dedicated DuckDB topic
+- /home/manuel/workspaces/2026-04-04/sqleton-duckdb-glm/sqleton/ttmp/2026/04/04/SQLETON-03-DUCKDB-SUPPORT--add-duckdb-support-to-sqleton/playbook/01-duckdb-file-query-smoke-test-and-usage.md — Reusable playbook
+

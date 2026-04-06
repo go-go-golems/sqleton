@@ -23,12 +23,21 @@ sqleton query --db-type postgres --host localhost --database analytics \
 # Generate CSV report for Excel
 sqleton query --db-type sqlite --database ./data.db \
   --output csv "SELECT date, orders_count, revenue FROM daily_stats" > report.csv
+
+# Query a directory of JSON files with DuckDB
+sqleton query --db-type duckdb --database '' --output json \
+  "SELECT user_id, COUNT(*) AS events
+   FROM read_json_auto('./events/*.json', format='array')
+   GROUP BY user_id
+   ORDER BY events DESC"
 ```
 
 ## Core Features
 
 ### Multiple Database Support
-Connect to MySQL, PostgreSQL, and SQLite databases with consistent interface and authentication options.
+Connect to MySQL, PostgreSQL, SQLite, and DuckDB databases with a consistent interface and authentication/connection model appropriate for each backend.
+
+DuckDB support is especially useful for local analytics workflows because sqleton can use DuckDB to query external JSON, CSV, and Parquet files directly from SQL without importing them into another server database first.
 
 ### Rich Output Formats
 Professional formatting for every use case:
@@ -234,6 +243,14 @@ sqleton query --db-type postgres --host localhost --user postgres \
 
 # SQLite
 sqleton query --db-type sqlite --database ./local.db "SELECT * FROM logs"
+
+# DuckDB (in-memory engine reading local files)
+sqleton query --db-type duckdb --database '' \
+  "SELECT * FROM read_csv_auto('./exports/*.csv') LIMIT 10"
+
+# DuckDB (persistent database file)
+sqleton query --db-type duckdb --database ./analytics.duckdb \
+  "SELECT * FROM my_cached_table LIMIT 10"
 ```
 
 ### Environment Variables
@@ -306,6 +323,29 @@ sqleton run queries/user-analysis.sql
 # Execute SQL from stdin
 cat report.sql | sqleton run -
 ```
+
+### Query files directly with DuckDB
+```bash
+# Query a set of JSON arrays directly
+sqleton query --db-type duckdb --database '' \
+  "SELECT user_id, SUM(amount) AS total_amount
+   FROM read_json_auto('./events/*.json', format='array')
+   GROUP BY user_id"
+
+# Query a set of CSV files directly
+sqleton query --db-type duckdb --database '' \
+  "SELECT region, SUM(revenue) AS total_revenue
+   FROM read_csv_auto('./reports/*.csv')
+   GROUP BY region"
+
+# Query a parquet file directly
+sqleton query --db-type duckdb --database '' \
+  "SELECT product, SUM(amount) AS revenue
+   FROM read_parquet('./warehouse/sales.parquet')
+   GROUP BY product"
+```
+
+In these examples, the DuckDB connection itself is the sqleton database connection, while the file paths are passed inside the SQL through DuckDB functions such as `read_json_auto`, `read_csv_auto`, and `read_parquet`.
 
 ### Built-in Commands
 ```bash
@@ -386,6 +426,7 @@ sqleton query "SELECT * FROM orders" \
 - **JSON APIs**: Generate data feeds for web applications and microservices  
 - **Data pipeline**: Extract data for ETL processes and data warehousing
 - **Report automation**: Schedule automated report generation and distribution
+- **Local lakehouse exploration**: Use DuckDB to inspect JSON, CSV, and Parquet files directly from sqleton
 
 ### Database Administration
 - **Schema inspection**: Quickly examine table structures and relationships
@@ -448,6 +489,7 @@ sqleton help
 
 # Specific topics
 sqleton help database-sources
+sqleton help duckdb-file-queries
 sqleton help aliases  
 sqleton help query-commands
 sqleton help print-settings
@@ -455,6 +497,7 @@ sqleton help print-settings
 
 **Online Documentation:**
 - [Database Connection Guide](cmd/sqleton/doc/topics/02-database-sources.md)
+- [DuckDB File Query Guide](cmd/sqleton/doc/topics/07-duckdb-file-queries.md)
 - [SQL Command File Reference](cmd/sqleton/doc/topics/06-query-commands.md)
 - [Output Format Options](cmd/sqleton/doc/topics/05-print-settings.md)
 - [Examples and Tutorials](cmd/sqleton/doc/examples/)

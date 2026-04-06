@@ -26,21 +26,22 @@ SectionType: GeneralTopic
 
 A database source consists of the following variables:
 
-- type: postgresql, mysql
+- type: `mysql`, `postgres`, `sqlite`, `duckdb`, or another supported driver alias
 - hostname
 - port
 - username
 - password
 - database
 - schema (optional)
+- dsn / driver (optional advanced override)
 
 These values are combined to create a connection string that
 is passed to the `sqlx` package for connection.
 
-> TODO(2022-12-18): support for dsn/driver flags, sqlite connection are planned
-  See: 
-  https://github.com/wesen/sqleton/issues/19 - add sqlite support
-  https://github.com/wesen/sqleton/issues/21 - add dsn/driver flags
+For server databases such as MySQL and PostgreSQL, `host`, `port`, `user`, and
+`password` are usually the primary inputs. For file-based engines such as SQLite
+and DuckDB, the `database` value is usually a filesystem path or an empty string
+for an in-memory database.
 
 To test a connection, you can use the `db ping` command:
 
@@ -54,13 +55,15 @@ Connection successful
 
 You can pass the following flags for configuring a source
 
-      -D, --database string            Database name                                                      
+      -D, --database string            Database name or database file path                               
       -H, --host string                Database host                                                      
       -p, --password string            Database password                                                  
       -P, --port int                   Database port (default 3306)                                       
       -s, --schema string              Database schema (when applicable)                                  
-      -t, --type string                Database type (mysql, postgres, etc.) (default "mysql")            
-      -u, --user string                Database user                 
+      -t, --type string                Database type (mysql, postgres, sqlite, duckdb, etc.) (default "mysql")
+      -u, --user string                Database user                                                     
+          --dsn string                 Database DSN override                                              
+          --driver string              Database driver override                                           
 
 ## dbt support
 
@@ -130,3 +133,49 @@ password: somewordpress
 schema: wp
 database: wp
 ```
+
+## DuckDB file-query workflow
+
+DuckDB is slightly different from MySQL and PostgreSQL. You connect sqleton to a
+DuckDB engine, and then use SQL to read files directly.
+
+Use an in-memory DuckDB instance when you want to inspect files ad hoc:
+
+```bash
+sqleton query --db-type duckdb --database '' \
+  "SELECT * FROM read_csv_auto('./data/*.csv') LIMIT 10"
+```
+
+You can also point sqleton at a persistent DuckDB database file:
+
+```bash
+sqleton query --db-type duckdb --database ./analytics.duckdb \
+  "SELECT * FROM my_table LIMIT 10"
+```
+
+To query raw files directly, keep the file path or glob inside the SQL itself:
+
+```bash
+# JSON arrays
+sqleton query --db-type duckdb --database '' \
+  "SELECT user_id, COUNT(*)
+   FROM read_json_auto('./events/*.json', format='array')
+   GROUP BY user_id"
+
+# CSV files
+sqleton query --db-type duckdb --database '' \
+  "SELECT region, SUM(amount)
+   FROM read_csv_auto('./exports/*.csv')
+   GROUP BY region"
+
+# Parquet files
+sqleton query --db-type duckdb --database '' \
+  "SELECT product, SUM(revenue)
+   FROM read_parquet('./warehouse/*.parquet')
+   GROUP BY product"
+```
+
+The important distinction is that the DuckDB database connection is configured by
+`--db-type duckdb` and `--database ...`, while the external files are referenced
+inside the SQL using DuckDB functions such as `read_json_auto`, `read_csv_auto`,
+and `read_parquet`.

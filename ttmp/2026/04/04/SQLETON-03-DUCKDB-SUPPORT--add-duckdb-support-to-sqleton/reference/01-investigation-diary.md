@@ -336,3 +336,66 @@ The previous session’s smoke test attempt failed because tool reasoning spille
   - `COPY ... TO ... (FORMAT PARQUET)`
 
 ---
+
+## Step 6: Update public documentation and add a DuckDB playbook
+
+After validating the implementation, I updated the user-facing docs so the new DuckDB workflow is discoverable without reading the ticket. I also added a dedicated playbook in the ticket workspace that captures the exact operator flow for querying JSON, CSV, and Parquet files through sqleton.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Update the documentation, and add a duckdb specific playbook."
+
+**Assistant interpretation:** Refresh the public sqleton docs to explain DuckDB usage clearly, and create a repeatable DuckDB-specific playbook in the ticket workspace.
+
+**Inferred user intent:** Make the feature understandable and reusable for future operators and contributors, not just technically implemented.
+
+### What I did
+- Updated `sqleton/README.md` to mention DuckDB support, add file-query quick-start examples, and link to a DuckDB guide.
+- Expanded `cmd/sqleton/doc/topics/02-database-sources.md` to explain the DuckDB connection model and file-query workflow.
+- Added a new help topic: `cmd/sqleton/doc/topics/07-duckdb-file-queries.md`.
+- Updated `cmd/sqleton/doc/topics/01-sqleton.md` to mention DuckDB as a supported analytics workflow.
+- Added a ticket playbook at `playbook/01-duckdb-file-query-smoke-test-and-usage.md`.
+- Related the playbook to the public docs and updated the ticket changelog.
+
+### Why
+- The implementation was already working, but the docs still described sqleton as primarily a MySQL/Postgres/SQLite tool.
+- The DuckDB workflow is different enough from server databases that it deserves explicit examples and an operator-friendly runbook.
+
+### What worked
+- The README and help topics were straightforward to extend because the DuckDB user story is concrete: connect to DuckDB, then read files from SQL.
+- The playbook structure fit the smoke-test procedure naturally.
+
+### What didn't work
+- N/A
+
+### What I learned
+- The clearest way to explain DuckDB here is to separate the connection layer from the file-reading layer:
+  - sqleton flags configure the DuckDB engine
+  - DuckDB SQL functions reference the files
+
+### What was tricky to build
+- The most important documentation nuance was avoiding the wrong mental model that file globs belong in `--database`. The docs now make that distinction explicit.
+
+### What warrants a second pair of eyes
+- Review the README examples for shell portability around `--database ''`.
+- Review the new help topic slug and phrasing for consistency with the rest of the embedded doc set.
+
+### What should be done in the future
+- Add embedded sqleton SQL commands such as `read-json`, `read-csv`, and `read-parquet` if the DuckDB workflow becomes a core repeated use case.
+
+### Code review instructions
+- Start with:
+  - `/home/manuel/workspaces/2026-04-04/sqleton-duckdb-glm/sqleton/README.md`
+  - `/home/manuel/workspaces/2026-04-04/sqleton-duckdb-glm/sqleton/cmd/sqleton/doc/topics/02-database-sources.md`
+  - `/home/manuel/workspaces/2026-04-04/sqleton-duckdb-glm/sqleton/cmd/sqleton/doc/topics/07-duckdb-file-queries.md`
+  - `/home/manuel/workspaces/2026-04-04/sqleton-duckdb-glm/sqleton/ttmp/2026/04/04/SQLETON-03-DUCKDB-SUPPORT--add-duckdb-support-to-sqleton/playbook/01-duckdb-file-query-smoke-test-and-usage.md`
+- Validate by running:
+  - `cd /home/manuel/workspaces/2026-04-04/sqleton-duckdb-glm/sqleton && go build ./cmd/sqleton/...`
+  - `cd /home/manuel/workspaces/2026-04-04/sqleton-duckdb-glm/sqleton && go run ./cmd/sqleton help duckdb-file-queries`
+
+### Technical details
+- New public topic slug: `duckdb-file-queries`
+- New playbook path:
+  - `/home/manuel/workspaces/2026-04-04/sqleton-duckdb-glm/sqleton/ttmp/2026/04/04/SQLETON-03-DUCKDB-SUPPORT--add-duckdb-support-to-sqleton/playbook/01-duckdb-file-query-smoke-test-and-usage.md`
+
+---

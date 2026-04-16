@@ -1,0 +1,374 @@
+---
+Title: ""
+Ticket: ""
+Status: ""
+Topics: []
+DocType: ""
+Intent: ""
+Owners: []
+RelatedFiles:
+    - Path: ../../../../../../../glazed/pkg/config/plan.go
+      Note: Diary records the target declarative plan API adopted in the design
+    - Path: cmd/sqleton/config.go
+      Note: Diary records current app-config helper usage and the migration motivation
+    - Path: cmd/sqleton/main.go
+      Note: Diary records how repository loading is assembled during startup
+    - Path: pkg/cmds/cobra.go
+      Note: Diary records the legacy parser stack and manual config-file injection path
+ExternalSources: []
+Summary: ""
+LastUpdated: 0001-01-01T00:00:00Z
+WhatFor: ""
+WhenToUse: ""
+---
+
+
+# Diary
+
+## Goal
+
+This diary records the research and documentation work for moving sqleton to the newer declarative config-plan APIs and modern repository config handling.
+
+It is intended as a continuation-friendly log for future implementation work: what was investigated, what was discovered, what design choices were made, and how to re-validate the ticket deliverables.
+
+## Step 1: Create the sqleton ticket and map the current config architecture
+
+The first step was to create a sqleton-local ticket workspace and then gather evidence from the repo before writing any recommendations. The migration request sounds straightforward at a high level—move sqleton to the new config plan builder APIs—but sqleton already has a non-trivial split between app-owned repository config and explicit command config, so the real work was to map that split precisely and understand where the older APIs still remain.
+
+I also had to correct one workspace-level trap immediately: the shared `.ttmp.yaml` in the parent workspace points docmgr at `pinocchio/ttmp` by default. That meant a naive relative `docmgr` invocation would create the sqleton ticket in the wrong docs root. I fixed that by recreating the ticket with an absolute `--root /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp` and deleting the accidental duplicate under Pinocchio's docs root.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Create a new docmgr ticket to move sqleton to the new APIs, and then store a detailed analysis and implementation plan in the ticket and upload to remarkable.
+
+reate a detailed analysis / design / implementation guide that is very detailed for a new intern, explaining all the parts of the system needed to understand what it is, with prose paragraphs and bullet point sand pseudocode and diagrams and api references and file
+  references.
+  It should be very clear and detailed. Store in the ticket and the nupload to remarkable."
+
+**Assistant interpretation:** Create a new sqleton migration ticket, gather current-state evidence, write a detailed analysis/design/implementation-guide document set for a new engineer, and deliver the ticket bundle to reMarkable.
+
+**Inferred user intent:** Prepare sqleton migration work the same way Pinocchio was prepared: evidence first, implementation-friendly docs, clean ticket bookkeeping, and a shareable long-form bundle.
+
+**Commit (code):** pending at diary-writing time
+
+### What I did
+- Loaded the relevant skills and writing references:
+  - `ticket-research-docmgr-remarkable`
+  - `docmgr`
+  - `remarkable-upload`
+  - `diary`
+- Located the sqleton repo in the current workspace:
+  - `/home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton`
+- Confirmed docmgr's default root problem from the shared `.ttmp.yaml`.
+- First created the ticket in the wrong docs root by using a relative `--root ttmp`, then corrected it by creating the real ticket in:
+  - `/home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp`
+- Created the new ticket:
+  - `SQLETON-04-CONFIG-PLAN-MIGRATION`
+- Created the document set:
+  - analysis doc
+  - design doc
+  - implementation guide
+  - diary
+- Removed the accidental duplicate ticket directory from the Pinocchio docs root.
+- Read and mapped the core sqleton config files:
+  - `cmd/sqleton/config.go`
+  - `cmd/sqleton/main.go`
+  - `pkg/cmds/cobra.go`
+  - `cmd/sqleton/cmds/parser.go`
+  - `cmd/sqleton/cmds/db.go`
+  - `cmd/sqleton/cmds/mcp/mcp.go`
+  - `cmd/sqleton/config_test.go`
+  - `cmd/sqleton/main_test.go`
+  - `README.md`
+  - `cmd/sqleton/doc/topics/06-query-commands.md`
+- Read the current Glazed target APIs:
+  - `glazed/pkg/config/plan.go`
+  - `glazed/pkg/config/plan_sources.go`
+  - `glazed/pkg/cli/cobra-parser.go`
+  - `glazed/pkg/cmds/sources/load-fields-from-config.go`
+  - `glazed/pkg/doc/topics/27-declarative-config-plans.md`
+- Wrote the current-state analysis, design doc, and implementation guide based on that evidence.
+
+### Why
+- The migration request depends on understanding two different configuration categories in sqleton:
+  - app-owned repository discovery
+  - explicit command config for `sql-connection` / `dbt`
+- Without mapping those boundaries first, it would be too easy to recommend a migration that accidentally reintroduces the old ambiguity the earlier sqleton cleanup removed.
+- The docmgr root problem had to be fixed immediately so the new ticket lives with sqleton's own ticket history instead of polluting the Pinocchio docs root.
+
+### What worked
+- The evidence pass quickly confirmed the most important remaining old APIs:
+  - `ResolveAppConfigPath(...)` in `cmd/sqleton/config.go`
+  - manual `sources.FromFiles(...)` injection in `pkg/cmds/cobra.go`
+  - old parser/middleware reuse in `db.go` and `mcp.go`
+- The existing tests and docs made the current product behavior very clear:
+  - app config is for repositories
+  - explicit `--config-file` is for command-section settings
+- The local Glazed workspace already contains the target config-plan APIs, so the design can be concrete rather than speculative.
+
+### What didn't work
+- The first attempt to create the ticket used a relative `--root ttmp`, but docmgr still honored the workspace-level config and created the ticket under the Pinocchio docs root.
+- The correction was to recreate the ticket using an absolute sqleton docs root.
+- Exact evidence of the quirk:
+
+```text
+Docs root: `/home/manuel/workspaces/2026-04-10/pinocchiorc/pinocchio/ttmp`
+```
+
+- After switching to the absolute root, docmgr created the ticket in the correct location:
+
+```text
+Docs root: `/home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp`
+```
+
+### What I learned
+- The earlier sqleton cleanup already established the right ownership split. The new migration does not need to invent that separation; it needs to preserve it while replacing the old APIs.
+- Sqleton's parser behavior is more widely reused than it first appears. `main.go`, `db.go`, and `mcp.go` all need to be treated as one subsystem.
+- Declarative file discovery and app-owned env/default post-processing are different layers. Trying to force env-only repository rules into a file plan would be a conceptual mistake.
+
+### What was tricky to build
+- The subtle part was not the docs themselves but the migration boundary. Sqleton is not Pinocchio, and it likely does not need the full profile-first unified config document. The design had to stay specific to sqleton's needs: plan-based app config, plan-based explicit command config, but still a clean separation between repository config and command-section config.
+- The other tricky part was the docmgr root override. Because the workspace-wide `.ttmp.yaml` points elsewhere, it was necessary to use the absolute sqleton docs root consistently for ticket creation, doc creation, validation, and later upload.
+
+### What warrants a second pair of eyes
+- Whether sqleton should adopt `app.repositories` immediately or first migrate only the underlying discovery APIs while keeping top-level `repositories:` temporarily.
+- Whether sqleton profile handling should remain on the older helper path for now or be modernized in the same implementation tranche.
+- Whether the special `$HOME/.sqleton/queries` behavior should remain post-plan logic or be refactored further later.
+
+### What should be done in the future
+- Relate the key sqleton and glazed files to the new docs.
+- Run `docmgr doctor` against the sqleton docs root.
+- Upload the final bundle to reMarkable and verify the remote listing.
+- After documentation delivery, use the design doc's phased plan for the actual implementation.
+
+### Code review instructions
+- Start with:
+  - `/home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/analysis/01-current-sqleton-config-loading-and-repository-discovery-analysis.md`
+  - `/home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/design-doc/01-sqleton-config-plan-builder-migration-design-and-implementation-guide.md`
+  - `/home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/reference/01-implementation-guide-for-migrating-sqleton-to-declarative-config-plans.md`
+- Then compare the recommendations against the source files:
+  - `/home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/cmd/sqleton/config.go`
+  - `/home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/pkg/cmds/cobra.go`
+  - `/home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/cmd/sqleton/main.go`
+  - `/home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/cmd/sqleton/cmds/db.go`
+  - `/home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/cmd/sqleton/cmds/mcp/mcp.go`
+
+### Technical details
+
+Commands run during the ticket setup and evidence pass:
+
+```bash
+cd /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton
+
+docmgr ticket create-ticket \
+  --root /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp \
+  --ticket SQLETON-04-CONFIG-PLAN-MIGRATION \
+  --title "Migrate sqleton to config plan builder and repository config handling" \
+  --topics sqleton,config,migration,glazed,cleanup
+
+docmgr doc add --root /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp --ticket SQLETON-04-CONFIG-PLAN-MIGRATION --doc-type analysis --title "Current sqleton config loading and repository discovery analysis"
+docmgr doc add --root /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp --ticket SQLETON-04-CONFIG-PLAN-MIGRATION --doc-type design-doc --title "Sqleton config plan builder migration design and implementation guide"
+docmgr doc add --root /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp --ticket SQLETON-04-CONFIG-PLAN-MIGRATION --doc-type reference --title "Implementation guide for migrating sqleton to declarative config plans"
+docmgr doc add --root /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp --ticket SQLETON-04-CONFIG-PLAN-MIGRATION --doc-type reference --title "Investigation diary"
+
+rg -n 'ResolveAppConfigPath|ConfigFilesFunc|ConfigPath|repositories' cmd/sqleton pkg/cmds -S
+nl -ba cmd/sqleton/config.go | sed -n '1,140p'
+nl -ba pkg/cmds/cobra.go | sed -n '1,180p'
+nl -ba cmd/sqleton/main.go | sed -n '140,310p'
+nl -ba cmd/sqleton/cmds/db.go | sed -n '1,120p'
+nl -ba cmd/sqleton/cmds/mcp/mcp.go | sed -n '130,390p'
+nl -ba README.md | sed -n '265,315p'
+nl -ba cmd/sqleton/doc/topics/06-query-commands.md | sed -n '68,110p'
+```
+
+## Step 2: Validate the ticket and upload the design pack to reMarkable
+
+Once the ticket docs were written, the remaining work was delivery hygiene: relate the key source files, pass `docmgr doctor`, and upload the bundle to reMarkable in one PDF with a table of contents. This step was mostly operational, but it also surfaced one important docs-root detail: because the workspace still uses a shared Pinocchio vocabulary path, the sqleton ticket needed a small vocabulary update before doctor would pass cleanly.
+
+The upload itself succeeded on the first real attempt after a dry-run. The only small hiccup was the first verification listing path; the direct ticket path probe failed once, so I listed the parent date folder first and then confirmed the uploaded file inside the ticket directory.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Finish the ticket deliverables properly by validating the docs root, resolving vocabulary issues, and publishing the bundle to reMarkable.
+
+**Inferred user intent:** Do not stop at writing the docs—leave behind a verified, shareable ticket package.
+
+**Commit (code):** pending at diary-writing time
+
+### What I did
+- Related key sqleton and glazed files to the new analysis, design, implementation guide, and diary docs.
+- Added missing topic vocabulary entries used by the sqleton ticket:
+  - `sqleton`
+  - `migration`
+  - `cleanup`
+- Ran:
+  - `docmgr doctor --root /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp --ticket SQLETON-04-CONFIG-PLAN-MIGRATION --stale-after 30`
+- Ran the safe reMarkable upload workflow:
+  - `remarquee status`
+  - `remarquee cloud account --non-interactive`
+  - `remarquee upload bundle --dry-run ...`
+  - `remarquee upload bundle ...`
+  - `remarquee cloud ls /ai/2026/04/16 --long --non-interactive`
+  - `remarquee cloud ls /ai/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION --long --non-interactive`
+- Marked the remaining ticket deliverable tasks complete.
+
+### Why
+- The user explicitly asked not only for the docs but also for reMarkable delivery.
+- `docmgr doctor` passing cleanly is the minimum bar for a usable ticket workspace.
+- The upload verification matters because a successful upload command is not the same thing as confirming the final remote file is where a human expects it.
+
+### What worked
+- The doc relations and changelog updates succeeded once the diary had valid frontmatter.
+- The vocabulary additions fixed the sqleton ticket's topic warnings.
+- The bundle dry-run and real upload both succeeded.
+- The final remote listing confirmed the uploaded design pack exactly where expected.
+
+### What didn't work
+- The first `docmgr doc relate` attempt on the diary failed because the diary file was missing frontmatter. Exact error:
+
+```text
+Error: document has invalid frontmatter (fix before relating files): /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/reference/02-investigation-diary.md: taxonomy: docmgr.frontmatter.parse/yaml_syntax: /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/reference/02-investigation-diary.md frontmatter delimiters '---' not found
+```
+
+- The fix was to add proper frontmatter to the diary and rerun the relation/changelog commands.
+- The first remote verification path also failed once:
+
+```text
+Error: entry '16' doesnt exist
+```
+
+- The fix was to list `/ai/2026/04` first, then `/ai/2026/04/16`, then the ticket subdirectory.
+
+### What I learned
+- Even with an explicit docs root, docmgr still inherits the shared workspace vocabulary path from `.ttmp.yaml`, so topic hygiene can span repos in this workspace.
+- reMarkable upload verification is best done incrementally when a deeply nested path behaves unexpectedly.
+
+### What was tricky to build
+- The only tricky part in this step was the interaction between a repo-local docs root and a shared workspace vocabulary file. The ticket itself belonged under `sqleton/ttmp`, but vocabulary validation still flowed through the workspace-level configuration. Once that was clear, the fix was straightforward.
+
+### What warrants a second pair of eyes
+- Whether the shared workspace `.ttmp.yaml` should eventually be adjusted so sqleton-root docmgr work also uses sqleton's own vocabulary file rather than the Pinocchio one.
+
+### What should be done in the future
+- Use the new ticket docs as the implementation blueprint for the actual sqleton migration.
+- Consider normalizing the workspace-level docmgr configuration so future sqleton tickets need less root/vocabulary care.
+
+### Code review instructions
+- Review the ticket docs themselves and then confirm the delivery evidence with:
+
+```bash
+docmgr doctor --root /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp --ticket SQLETON-04-CONFIG-PLAN-MIGRATION --stale-after 30
+remarquee cloud ls /ai/2026/04/16 --long --non-interactive
+remarquee cloud ls /ai/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION --long --non-interactive
+```
+
+### Technical details
+
+Verified remote upload destination:
+
+```text
+/ai/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION
+  - SQLETON-04 Config Plan Migration - Design Pack
+```
+
+## Step 3: Move repository discovery onto declarative config plans
+
+This was the first actual implementation tranche. I started with repository discovery because it is the cleanest, lowest-risk migration seam in sqleton: it is app-owned, it is already distinct from command config, and it had one obvious legacy dependency (`ResolveAppConfigPath(...)`) to replace.
+
+The new implementation now resolves repository config files through a declarative Glazed config plan instead of a single helper path lookup. I kept sqleton's existing startup contract intact while broadening repository discovery in one useful way: sqleton now also checks for project-local `.sqleton.yml` files at both the git root and the current working directory. That gives sqleton the layered repository discovery model we wanted without yet broadening command config auto-loading.
+
+I also made one schema decision in this tranche: sqleton now supports the clearer `app.repositories` block, but the loader still accepts legacy top-level `repositories:` during the migration. That kept the first implementation step safe and testable while still letting the docs move toward the clearer app-owned shape.
+
+### Prompt Context
+
+**User prompt (verbatim):** "cool, add tasks to the ticket and the nwork task by task, keeping a detailed diary, and committing at appropriate intervals."
+
+**Assistant interpretation:** Turn the sqleton migration ticket into an implementation plan, work through the tasks in focused slices, keep a detailed diary, and commit after meaningful validated tranches.
+
+**Inferred user intent:** Start real code migration now, not just planning; keep the work continuation-friendly and auditable.
+
+**Commit (code):** pending at diary-writing time
+
+### What I did
+- Expanded the ticket task list for Phase 1 so the repository-discovery tranche had concrete sub-goals.
+- Rewrote `cmd/sqleton/config.go` to:
+  - define a layered app-config plan with:
+    - `SystemAppConfig("sqleton")`
+    - `HomeAppConfig("sqleton")`
+    - `XDGAppConfig("sqleton")`
+    - git-root `.sqleton.yml`
+    - cwd `.sqleton.yml`
+  - replace the old `ResolveAppConfigPath(...)` call entirely
+  - support both:
+    - legacy top-level `repositories:`
+    - newer `app.repositories`
+  - merge discovered repository lists across resolved files in layer order
+  - keep environment repositories appended afterward via `SQLETON_REPOSITORIES`
+- Rewrote `cmd/sqleton/config_test.go` to add focused coverage for:
+  - empty-path config decode
+  - mixed legacy + `app.repositories` decode in a single file
+  - layered merge behavior across home, XDG, repo-root, cwd, and env
+  - dedupe behavior when the same repository appears in more than one layer
+- Validated the tranche with:
+  - `cd /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton && go test ./cmd/sqleton -count=1`
+
+### Why
+- Repository discovery is the best first migration step because it is purely app-owned and therefore independent from the more complicated command parser and profile-helper stack.
+- Replacing `ResolveAppConfigPath(...)` immediately removes one legacy dependency without forcing the parser refactor to happen at the same time.
+- Adding local `.sqleton.yml` discovery at git-root and cwd is the main product improvement needed for the "global repositories plus project-local repositories" use case.
+- Supporting `app.repositories` now lets the schema get cleaner while the legacy top-level shape can still be read during the transition.
+
+### What worked
+- The app-config migration was straightforward once I treated it as a file-discovery problem plus a small typed app decoder.
+- The plan-based approach mapped cleanly onto sqleton's needs:
+  - user config still comes from the old home/XDG locations
+  - local project config comes from `.sqleton.yml`
+- The focused tests were enough to validate the full new layer order without needing to touch the rest of the command stack yet.
+
+### What didn't work
+- There was no real code dead-end in this tranche, but one subtle point had to be handled carefully: the git-root local config test needed a real temporary git repository. The sqleton repository tests could not simply fake repo-root discovery without either introducing more mocking or relying on the current workspace. I used `git init -q` in a temporary directory and changed into a nested working directory to exercise the actual plan behavior.
+
+### What I learned
+- Sqleton's repository config migration is much simpler than its parser migration because app config does not need to be projected into section layers.
+- Supporting both `repositories:` and `app.repositories` in the loader is a pragmatic bridge that keeps the first implementation step from becoming an all-or-nothing schema break.
+- The natural local filename for project-owned sqleton app config is `.sqleton.yml`, because it is a small app-owned document and does not need the older `config.yaml` directory layout.
+
+### What was tricky to build
+- The only tricky design choice was deciding whether to break the old `repositories:` shape immediately. I chose not to break it in this tranche. The new loader prefers the cleaner app-owned structure conceptually, but the implementation still accepts the legacy top-level list so repository discovery can be migrated first without forcing an immediate user-config rewrite.
+
+### What warrants a second pair of eyes
+- Whether the sqleton migration should later remove support for top-level `repositories:` once docs and examples have fully moved to `app.repositories`.
+- Whether the local `.sqleton.yml` filename is the final desired product choice or whether sqleton should eventually standardize on a different project-local config filename.
+
+### What should be done in the future
+- Migrate sqleton command config loading off manual `sources.FromFiles(...)` and onto a plan-builder helper for explicit `--config-file` handling.
+- Reuse that new helper across the main CLI, `db`, and MCP tool execution so sqleton has one command-config stack.
+- Update user-facing docs to teach the layered repository discovery model and the preferred `app.repositories` shape.
+
+### Code review instructions
+- Review this tranche in this order:
+  - `cmd/sqleton/config.go`
+  - `cmd/sqleton/config_test.go`
+  - `ttmp/.../tasks.md`
+- Re-run the focused validation with:
+
+```bash
+cd /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton
+go test ./cmd/sqleton -count=1
+```
+
+### Technical details
+
+The new repository discovery policy is effectively:
+
+```text
+system config.yaml
+  -> home ~/.sqleton/config.yaml
+  -> XDG $XDG_CONFIG_HOME/sqleton/config.yaml
+  -> git-root .sqleton.yml
+  -> cwd .sqleton.yml
+  -> SQLETON_REPOSITORIES env
+  -> $HOME/.sqleton/queries default directory (still appended later in main.go)
+```

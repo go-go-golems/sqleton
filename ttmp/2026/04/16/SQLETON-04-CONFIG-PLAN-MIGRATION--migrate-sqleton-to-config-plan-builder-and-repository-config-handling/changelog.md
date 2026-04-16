@@ -1,0 +1,40 @@
+# Changelog
+
+## 2026-04-16
+
+- Initial workspace created
+
+
+## 2026-04-16
+
+Created the sqleton migration research ticket, documented the current config and repository-loading architecture, wrote a detailed design and implementation guide for moving sqleton to declarative Glazed config plans, and prepared the ticket bundle for validation and reMarkable delivery.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/analysis/01-current-sqleton-config-loading-and-repository-discovery-analysis.md — Evidence-backed current-state map of sqleton config loading and migration gaps
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/design-doc/01-sqleton-config-plan-builder-migration-design-and-implementation-guide.md — Primary design proposal and phased migration plan
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/reference/01-implementation-guide-for-migrating-sqleton-to-declarative-config-plans.md — Intern-oriented implementation guide and validation checklist
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/reference/02-investigation-diary.md — Chronological diary of ticket creation
+
+
+## 2026-04-16
+
+Validated the sqleton ticket cleanly with docmgr doctor, added the needed vocabulary entries, uploaded the bundled design pack to reMarkable, and verified the final remote listing under /ai/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/reference/02-investigation-diary.md — Records validation issues and successful upload verification
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/tasks.md — Marks file relations
+
+
+## 2026-04-16
+
+Completed the first code tranche by moving sqleton repository discovery off ResolveAppConfigPath and onto a declarative config plan, adding git-root and cwd local .sqleton.yml layers, supporting app.repositories while preserving legacy repositories, and validating the new merge behavior with focused tests.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/cmd/sqleton/config.go — Replaces single-path app config lookup with layered plan-based repository discovery and merged app config decoding
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/cmd/sqleton/config_test.go — Focused tests for layered repository discovery and mixed legacy/app repository shapes
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/reference/02-investigation-diary.md — Records the first implementation tranche and validation command
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/tasks.md — Marks the repository-discovery phase complete
+

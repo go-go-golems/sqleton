@@ -1,6 +1,7 @@
 package cmds
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -12,24 +13,47 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/sources"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
+	glazed_config "github.com/go-go-golems/glazed/pkg/config"
 	"github.com/go-go-golems/sqleton/pkg/flags"
 	"github.com/spf13/cobra"
 )
+
+func NewSqletonParserConfig() cli.CobraParserConfig {
+	return cli.CobraParserConfig{
+		MiddlewaresFunc:                    GetCobraCommandSqletonMiddlewares,
+		EnableCreateCommandSettingsSection: true,
+		EnableProfileSettingsSection:       true,
+	}
+}
+
+func BuildSqletonCommandConfigPlan(parsedCommandValues *values.Values) (*glazed_config.Plan, error) {
+	commandSettings := &cli.CommandSettings{}
+	if err := parsedCommandValues.DecodeSectionInto(cli.CommandSettingsSlug, commandSettings); err != nil {
+		return nil, err
+	}
+
+	return glazed_config.NewPlan(
+		glazed_config.WithLayerOrder(glazed_config.LayerExplicit),
+		glazed_config.WithDedupePaths(),
+	).Add(
+		glazed_config.ExplicitFile(commandSettings.ConfigFile).
+			Named("explicit-command-config").
+			Kind("command-config"),
+	), nil
+}
 
 func BuildCobraCommandWithSqletonMiddlewares(
 	cmd cmds.Command,
 	options ...cli.CobraOption,
 ) (*cobra.Command, error) {
 	options_ := append([]cli.CobraOption{
-		cli.WithCobraMiddlewaresFunc(GetCobraCommandSqletonMiddlewares),
+		cli.WithParserConfig(NewSqletonParserConfig()),
 		cli.WithCobraShortHelpSections(
 			schema.DefaultSlug,
 			clay_sql.DbtSlug,
 			clay_sql.SqlConnectionSlug,
 			flags.SqlHelpersSlug,
 		),
-		cli.WithCreateCommandSettingsSection(),
-		cli.WithProfileSettingsSection(),
 	}, options...)
 
 	return cli.BuildCobraCommandFromCommand(cmd, options_...)
@@ -49,7 +73,7 @@ func GetCobraCommandSqletonMiddlewares(
 		),
 	}
 
-	additionalMiddlewares, err := GetSqletonMiddlewares(parsedCommandValues)
+	additionalMiddlewares, err := GetSqletonAdditionalMiddlewares(parsedCommandValues)
 	if err != nil {
 		return nil, err
 	}
@@ -58,19 +82,13 @@ func GetCobraCommandSqletonMiddlewares(
 	return middlewares_, nil
 }
 
-func GetSqletonMiddlewares(
+func GetSqletonAdditionalMiddlewares(
 	parsedCommandValues *values.Values,
 ) ([]sources.Middleware, error) {
 	middlewares_ := []sources.Middleware{}
 
-	commandSettings := &cli.CommandSettings{}
-	err := parsedCommandValues.DecodeSectionInto(cli.CommandSettingsSlug, commandSettings)
-	if err != nil {
-		return nil, err
-	}
-
 	profileSettings := &cli.ProfileSettings{}
-	err = parsedCommandValues.DecodeSectionInto(cli.ProfileSettingsSlug, profileSettings)
+	err := parsedCommandValues.DecodeSectionInto(cli.ProfileSettingsSlug, profileSettings)
 	if err != nil {
 		return nil, err
 	}
@@ -97,16 +115,13 @@ func GetSqletonMiddlewares(
 				fields.WithSource("env"),
 			),
 		),
+		sources.FromConfigPlanBuilder(
+			func(_ context.Context, _ *values.Values) (*glazed_config.Plan, error) {
+				return BuildSqletonCommandConfigPlan(parsedCommandValues)
+			},
+			sources.WithParseOptions(fields.WithSource("config")),
+		),
 	)
-
-	if commandSettings.ConfigFile != "" {
-		middlewares_ = append(middlewares_,
-			sources.FromFiles(
-				[]string{commandSettings.ConfigFile},
-				sources.WithParseOptions(fields.WithSource("config")),
-			),
-		)
-	}
 
 	middlewares_ = append(middlewares_,
 		sources.GatherFlagsFromProfiles(
@@ -124,4 +139,8 @@ func GetSqletonMiddlewares(
 	)
 
 	return middlewares_, nil
+}
+
+func GetSqletonMiddlewares(parsedCommandValues *values.Values) ([]sources.Middleware, error) {
+	return GetSqletonAdditionalMiddlewares(parsedCommandValues)
 }

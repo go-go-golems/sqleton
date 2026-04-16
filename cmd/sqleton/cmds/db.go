@@ -12,6 +12,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/middlewares/row"
 	"github.com/go-go-golems/glazed/pkg/types"
+	sqleton_cmds "github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/jmoiron/sqlx"
 	"github.com/spf13/cobra"
 
@@ -51,7 +52,7 @@ func parseConfigFromCobra(cmd *cobra.Command) (*values.Values, *sql2.DatabaseCon
 		cmds.WithSections(connectionLayer, dbtLayer),
 	)
 
-	parserConfig := NewSqletonParserConfig()
+	parserConfig := sqleton_cmds.NewSqletonParserConfig()
 	parser, err := cli.NewCobraParserFromSections(
 		description.Schema,
 		&parserConfig,

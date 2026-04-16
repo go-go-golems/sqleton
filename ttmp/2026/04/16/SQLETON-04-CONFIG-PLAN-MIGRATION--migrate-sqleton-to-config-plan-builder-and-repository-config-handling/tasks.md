@@ -23,20 +23,21 @@
 - [x] Preserve current repository merge behavior from app config + `SQLETON_REPOSITORIES` + default `$HOME/.sqleton/queries`
 - [x] Add focused tests for home/XDG/repo/cwd/env merge behavior under the new plan-based resolver
 
-### Phase 2 — move command config loading to `ConfigPlanBuilder`
+### Phase 2 — move command config loading to declarative explicit-file plans
 
-- [ ] Replace sqleton's custom `GetSqletonMiddlewares(...)` file-injection path with parser-level `ConfigPlanBuilder`
-- [ ] Keep sqleton command config explicit: only `--config-file` should load command-section config unless a later design change explicitly broadens the policy
-- [ ] Preserve env/default/profile behavior for `dbt` and `sql-connection`
-- [ ] Decide whether profile handling should stay on the current clay/glazed profile helpers or also be modernized in the same tranche
-- [ ] Update `cmd/sqleton/cmds/parser.go` and `pkg/cmds/cobra.go` to the new parser construction model
+- [x] Replace sqleton's custom `GetSqletonMiddlewares(...)` file-injection path with an explicit command-config plan builder used through shared sqleton middleware
+- [x] Keep sqleton command config explicit: only `--config-file` should load command-section config unless a later design change explicitly broadens the policy
+- [x] Preserve env/default/profile behavior for `dbt` and `sql-connection`
+- [x] Keep profile handling on the current clay/glazed profile helpers for this tranche
+- [x] Collapse the shared sqleton parser config into `pkg/cmds` and remove the thin local parser wrapper
+- [x] Add focused tests for the explicit command-config plan builder
 
 ### Phase 3 — update all sqleton command entry points
 
-- [ ] Migrate `cmd/sqleton/main.go` command wiring to the new helper(s)
-- [ ] Migrate `cmd/sqleton/cmds/db.go` parser construction path
-- [ ] Migrate `cmd/sqleton/cmds/mcp/mcp.go` helper and runner call sites
-- [ ] Revalidate loaded repository commands, `run-command`, `db`, `serve`, and MCP paths
+- [x] Migrate `cmd/sqleton/main.go` command wiring to the new shared parser helper(s)
+- [x] Migrate `cmd/sqleton/cmds/db.go` parser construction path
+- [x] Keep `cmd/sqleton/cmds/mcp/mcp.go` on the shared sqleton additional-middlewares helper so MCP tool execution inherits the new explicit config-plan behavior
+- [x] Revalidate loaded repository commands, `run-command`, `db`, `serve`, and MCP-adjacent paths via `go test ./...`
 
 ### Phase 4 — update tests and docs
 

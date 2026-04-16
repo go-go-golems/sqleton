@@ -372,3 +372,100 @@ system config.yaml
   -> SQLETON_REPOSITORIES env
   -> $HOME/.sqleton/queries default directory (still appended later in main.go)
 ```
+
+## Step 4: Move explicit command config loading onto declarative plans and collapse the shared parser helper
+
+The second code tranche moved sqleton's explicit command-config loading off the old `sources.FromFiles([configFile])` path and onto a declarative explicit-file plan. I intentionally did not try to force sqleton all the way onto `cli.CobraParserConfig.ConfigPlanBuilder` itself, because sqleton still has real application-specific parse behavior layered around command config: section-whitelisted env loading plus profile-file/profile-name overlays. Instead, I used the newer middleware-level plan API (`sources.FromConfigPlanBuilder(...)`) inside sqleton's shared helper. That gave us the plan-based config loading semantics we wanted without prematurely flattening sqleton-specific behavior into Glazed defaults that do not fit it yet.
+
+I also collapsed the shared parser configuration into `sqleton/pkg/cmds`, which let the main CLI and DB parser path use one shared source of truth. The thin local parser wrapper file in `cmd/sqleton/cmds/parser.go` was removed.
+
+### Prompt Context
+
+**User prompt (verbatim):** "cool, add tasks to the ticket and the nwork task by task, keeping a detailed diary, and committing at appropriate intervals."
+
+**Assistant interpretation:** Continue the migration in focused implementation slices, recording the exact design choices and validation details in the diary.
+
+**Inferred user intent:** Prefer real architectural progress over performative renaming; use the new plan APIs where they fit, but keep sqleton's behavior correct.
+
+**Commit (code):** pending at diary-writing time
+
+### What I did
+- Reworked `sqleton/pkg/cmds/cobra.go` to:
+  - add `NewSqletonParserConfig()` in the shared package
+  - add `BuildSqletonCommandConfigPlan(...)` for explicit command config
+  - replace manual `sources.FromFiles(...)` injection with `sources.FromConfigPlanBuilder(...)`
+  - preserve section-whitelisted env loading for:
+    - `dbt`
+    - `sql-connection`
+  - preserve profile loading through the existing Clay/Glazed profile helper path
+- Removed the now-redundant thin wrapper file:
+  - `cmd/sqleton/cmds/parser.go`
+- Updated parser consumers to use the shared parser config in `pkg/cmds`:
+  - `cmd/sqleton/main.go`
+  - `cmd/sqleton/cmds/db.go`
+- Added focused tests in:
+  - `pkg/cmds/cobra_test.go`
+  - proving the explicit command-config plan resolves a provided file
+  - proving an empty explicit path skips cleanly
+- Revalidated the repo with:
+  - `go test ./pkg/cmds ./cmd/sqleton/... -count=1`
+  - `go test ./... -count=1`
+  - `golangci-lint run ./...`
+
+### Why
+- The manual `FromFiles([commandSettings.ConfigFile])` path was the old, path-centric model. Replacing it with a `config.Plan` keeps the semantics explicit and aligned with the newer Glazed config APIs.
+- Sqleton still needs custom middleware behavior around that plan-based config step, so `sources.FromConfigPlanBuilder(...)` is the right integration seam for now.
+- Collapsing the parser helper into `pkg/cmds` reduces local duplication and keeps parser behavior shared across the entry points that matter.
+
+### What worked
+- The middleware-level plan integration fit sqleton's existing architecture very cleanly.
+- The existing smoke tests for explicit `--config-file` behavior kept passing after the migration.
+- The new focused parser tests made it easy to assert the exact plan semantics without needing to spin up a full Cobra command.
+
+### What didn't work
+- There was no serious implementation failure in this tranche, but there was one architectural decision to avoid: if I had tried to force sqleton onto the pure default `cli.CobraParserConfig.ConfigPlanBuilder` path immediately, I would have had to either lose sqleton's section-whitelisted env behavior or duplicate too much of the parser middleware stack elsewhere. The cleaner compromise was to keep the sqleton-specific middleware builder but swap in the newer plan-based config middleware inside it.
+
+### What I learned
+- The most useful modernization seam is not always the topmost API. In sqleton's case, `sources.FromConfigPlanBuilder(...)` is currently the right level of abstraction.
+- Moving the shared parser config into `pkg/cmds` makes the codebase's ownership story much clearer: sqleton-specific command parsing lives with sqleton's shared command helpers, not in a thin local command package wrapper.
+
+### What was tricky to build
+- The subtlety here was avoiding an over-eager cleanup. I wanted to adopt the new plan APIs without pretending sqleton no longer has custom parse behavior. The final design is simpler than before, but it is also honest about sqleton's real requirements.
+
+### What warrants a second pair of eyes
+- Whether sqleton should later grow a more generic Glazed bootstrap seam for whitelisted env + profiles + config-plan composition, if other apps end up needing the same shape.
+- Whether the compatibility wrapper `GetSqletonMiddlewares(...)` should be removed in a later cleanup pass once all call sites are clearly on the newer naming.
+
+### What should be done in the future
+- Update user-facing docs to show the new preferred config story:
+  - layered app config for repositories
+  - explicit config file for command settings
+  - local `.sqleton.yml` as the project-owned app config file
+- Decide later whether the remaining legacy helper naming in MCP should be cleaned up or left as a thin compatibility wrapper.
+
+### Code review instructions
+- Review this tranche in this order:
+  - `pkg/cmds/cobra.go`
+  - `pkg/cmds/cobra_test.go`
+  - `cmd/sqleton/main.go`
+  - `cmd/sqleton/cmds/db.go`
+  - deletion of `cmd/sqleton/cmds/parser.go`
+- Re-run validation with:
+
+```bash
+cd /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton
+go test ./... -count=1
+golangci-lint run ./...
+```
+
+### Technical details
+
+The effective command-config policy is now:
+
+```text
+cobra flags + args
+  -> sqleton env for dbt/sql-connection
+  -> explicit command-config plan (only --config-file)
+  -> profile-file/profile-name overlay
+  -> defaults
+```

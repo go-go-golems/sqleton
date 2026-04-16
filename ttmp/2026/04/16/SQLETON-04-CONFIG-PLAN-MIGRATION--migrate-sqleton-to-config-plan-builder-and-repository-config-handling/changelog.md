@@ -38,3 +38,17 @@ Completed the first code tranche by moving sqleton repository discovery off Reso
 - /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/reference/02-investigation-diary.md — Records the first implementation tranche and validation command
 - /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/tasks.md — Marks the repository-discovery phase complete
 
+
+## 2026-04-16
+
+Completed the second code tranche by replacing sqleton's manual explicit config-file injection with an explicit command-config plan used through shared sqleton middleware, collapsing the shared parser config into pkg/cmds, deleting the thin local parser wrapper, and validating the new parser path with focused tests plus full go test and lint runs.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/cmd/sqleton/cmds/db.go — DB parser construction now uses the shared parser config from pkg/cmds
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/cmd/sqleton/main.go — Main repository-loaded command wiring now uses the shared parser config from pkg/cmds
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/pkg/cmds/cobra.go — Shared sqleton parser helper now builds an explicit command-config plan and uses plan-based config middleware
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/pkg/cmds/cobra_test.go — Focused tests for explicit command-config plan resolution and empty-path skip behavior
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/reference/02-investigation-diary.md — Records the second implementation tranche and validation results
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/tasks.md — Marks the command-config and shared parser migration phases complete
+

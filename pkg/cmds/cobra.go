@@ -140,7 +140,3 @@ func GetSqletonAdditionalMiddlewares(
 
 	return middlewares_, nil
 }
-
-func GetSqletonMiddlewares(parsedCommandValues *values.Values) ([]sources.Middleware, error) {
-	return GetSqletonAdditionalMiddlewares(parsedCommandValues)
-}

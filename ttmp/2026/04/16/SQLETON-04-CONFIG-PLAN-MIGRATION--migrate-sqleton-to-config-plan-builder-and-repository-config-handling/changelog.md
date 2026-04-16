@@ -90,3 +90,17 @@ Added a dedicated user-facing migration/help page for moving from repositories t
 - /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/reference/02-investigation-diary.md — Records the help-page validation details and hermetic render command
 - /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/tasks.md — Marks the migration-page tasks complete
 
+
+## 2026-04-16
+
+Finished the follow-up cleanup batch by removing legacy top-level repositories support, adding and linking a dedicated app.repositories migration page, deleting the remaining GetSqletonMiddlewares compatibility alias, rerunning full repo validation successfully, and refreshing the reMarkable bundle.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/cmd/sqleton/cmds/mcp/mcp.go — MCP paths now use the modern GetSqletonAdditionalMiddlewares helper name
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/cmd/sqleton/config.go — Legacy top-level repositories support removed; app config now requires app.repositories
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/cmd/sqleton/doc/tutorials/02-migrating-repositories-to-app-repositories.md — Dedicated migration guide for the app.repositories transition
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/pkg/cmds/cobra.go — Compatibility alias removed after caller migration
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/reference/02-investigation-diary.md — Records the final follow-up cleanup batch and validation results
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/tasks.md — Marks the follow-up cleanup batch complete
+

@@ -143,7 +143,7 @@ func createCommandMiddlewares(
 		),
 	}
 
-	sqletonMiddlewares, err := sqleton_cmds.GetSqletonMiddlewares(parsedValues)
+	sqletonMiddlewares, err := sqleton_cmds.GetSqletonAdditionalMiddlewares(parsedValues)
 	if err != nil {
 		return nil, err
 	}
@@ -310,9 +310,9 @@ func (c *RunCommand) Run(ctx context.Context, parsedValues *values.Values) error
 		}
 	}
 
-	sqletonMiddlewares, err := sqleton_cmds.GetSqletonMiddlewares(parsedValues)
+	sqletonMiddlewares, err := sqleton_cmds.GetSqletonAdditionalMiddlewares(parsedValues)
 	if err != nil {
-		return fmt.Errorf("failed to get sqleton middlewares: %w", err)
+		return fmt.Errorf("failed to get sqleton additional middlewares: %w", err)
 	}
 
 	// Parse parameters using runner

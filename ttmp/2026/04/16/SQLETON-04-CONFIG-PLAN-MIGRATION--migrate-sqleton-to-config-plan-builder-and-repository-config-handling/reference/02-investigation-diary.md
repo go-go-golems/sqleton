@@ -721,3 +721,83 @@ mkdir -p "$HOME" "$XDG_CONFIG_HOME"
 cd /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton
 go run ./cmd/sqleton help sqleton-app-repositories-migration
 ```
+
+## Step 8: Remove the remaining compatibility naming and finish the follow-up cleanup batch
+
+The final requested follow-up item was small but worth doing: remove the remaining compatibility naming around sqleton's shared additional middlewares. At this point the codebase already had the modern helper name, `GetSqletonAdditionalMiddlewares(...)`, but MCP still called the old compatibility alias `GetSqletonMiddlewares(...)`. I switched the remaining MCP call sites to the modern helper and then deleted the compatibility alias from `pkg/cmds/cobra.go`.
+
+After that cleanup, I reran the full repository validation stack again:
+
+- `go test ./...`
+- `golangci-lint run ./...`
+- `make test lint`
+
+All of those passed. I then refreshed the ticket state, reran `docmgr doctor`, and force-uploaded the updated bundle to reMarkable so the external deliverable now includes the full follow-up cleanup batch too.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead. all 3"
+
+**Assistant interpretation:** Finish the last of the three requested follow-up tasks and close the batch properly.
+
+**Inferred user intent:** Leave the sqleton migration in a clean, finished state rather than stopping after the bigger architectural pieces.
+
+**Commit (code):** pending at diary-writing time
+
+### What I did
+- Updated:
+  - `cmd/sqleton/cmds/mcp/mcp.go`
+  - `pkg/cmds/cobra.go`
+- Removed the compatibility alias:
+  - `GetSqletonMiddlewares(...)`
+- Switched remaining MCP callers to:
+  - `GetSqletonAdditionalMiddlewares(...)`
+- Revalidated with:
+  - `go test ./... -count=1`
+  - `golangci-lint run ./...`
+  - `make test lint`
+- Reran:
+  - `docmgr doctor --root /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp --ticket SQLETON-04-CONFIG-PLAN-MIGRATION --stale-after 30`
+- Refreshed the reMarkable bundle with:
+  - `remarquee upload bundle ... --force`
+
+### Why
+- The compatibility alias no longer bought us anything once all remaining callers could be updated.
+- Deleting it leaves the codebase with one shared helper name instead of two nearly identical names.
+
+### What worked
+- The MCP call sites were the only remaining compatibility-name consumers, so the cleanup stayed very small.
+- The full validation pass stayed green after the rename cleanup.
+- The refreshed reMarkable upload succeeded.
+
+### What didn't work
+- There was no substantive failure in this final cleanup step.
+
+### What I learned
+- The most effective final cleanup is often tiny: once the architectural work is done, deleting the leftover compatibility alias makes the resulting code feel finished.
+
+### What was tricky to build
+- Nothing especially tricky remained in this step. The main job was simply to finish strong and rerun the real validation target after the last small cleanup.
+
+### What warrants a second pair of eyes
+- Only whether the existing unrelated help-system alias warnings deserve their own future cleanup ticket. They did not block the work here.
+
+### What should be done in the future
+- The sqleton config migration itself is in a good stopping state now.
+- Future work, if desired, should be incremental and independent, such as help-system warning cleanup or a later decision to make app-config parsing stricter in other ways.
+
+### Code review instructions
+- Review:
+  - `cmd/sqleton/cmds/mcp/mcp.go`
+  - `pkg/cmds/cobra.go`
+  - the final ticket docs under `ttmp/.../SQLETON-04-CONFIG-PLAN-MIGRATION`
+- Re-run:
+
+```bash
+cd /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton
+go test ./... -count=1
+golangci-lint run ./...
+make test lint
+
+docmgr doctor --root /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp --ticket SQLETON-04-CONFIG-PLAN-MIGRATION --stale-after 30
+```

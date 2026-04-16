@@ -269,25 +269,45 @@ sqleton query "SELECT * FROM users WHERE created_at > '2024-01-01'"
 ```
 
 ### Application Configuration
-Create `~/.sqleton/config.yaml` to configure app-level settings such as extra
-query repositories:
+Sqleton uses layered **app config** for repository discovery.
+
+Supported locations are:
+- `/etc/sqleton/config.yaml`
+- `~/.sqleton/config.yaml`
+- `$XDG_CONFIG_HOME/sqleton/config.yaml`
+- `.sqleton.yml` at the git repository root
+- `.sqleton.yml` in the current working directory
+
+The preferred schema is:
+
 ```yaml
-repositories:
-  - /Users/manuel/code/ttc/ttc-dbt/sqleton-queries
-  - /Users/manuel/.sqleton/queries
+app:
+  repositories:
+    - /Users/manuel/code/ttc/ttc-dbt/sqleton-queries
+    - /Users/manuel/.sqleton/queries
 ```
 
-Sqleton always loads commands from `$HOME/.sqleton/queries` when that directory
-exists. The `repositories:` list adds additional repository roots.
+Repository lists merge in layer order, then `SQLETON_REPOSITORIES` is appended,
+then the default `$HOME/.sqleton/queries` directory is added when it exists.
+Legacy top-level `repositories:` is still accepted during the migration, but new
+config should use `app.repositories`.
 
 You can also add repository roots temporarily with:
 ```bash
 export SQLETON_REPOSITORIES=/path/to/repo-a:/path/to/repo-b
 ```
 
+A common setup is:
+
+- global `~/.sqleton/config.yaml` for shared repositories
+- project-local `.sqleton.yml` for project repositories
+- explicit `--config-file` for database settings
+
 ### Explicit Command Configuration
 Use `--config-file` when you want to load command-section settings such as
-`sql-connection` or `dbt`:
+`sql-connection` or `dbt`. Command config remains explicit; sqleton does not
+auto-discover database settings from home or project files.
+
 ```yaml
 sql-connection:
   db-type: mysql
@@ -302,6 +322,10 @@ Then run:
 ```bash
 sqleton query --config-file ./db-config.yaml "SELECT COUNT(*) FROM users"
 ```
+
+You can also point `--config-file` at a project `.sqleton.yml` if that file
+contains command sections such as `sql-connection`; sqleton will only read the
+known command sections during command parsing.
 
 ### DBT Profiles Integration
 If you use dbt, sqleton can read your existing profiles:

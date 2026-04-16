@@ -469,3 +469,95 @@ cobra flags + args
   -> profile-file/profile-name overlay
   -> defaults
 ```
+
+## Step 5: Update user-facing docs, run the top-level validation target, and refresh the ticket bundle
+
+After the code migration landed, I finished the sqleton-facing docs so the repository now teaches the new config story instead of the pre-migration one. This was important because sqleton's behavior is now materially different for repository discovery: app config is layered, local `.sqleton.yml` files participate, and the preferred repository schema is `app.repositories`. At the same time, command config remains explicit, so the docs needed to preserve that distinction clearly.
+
+I also ran the repo's real top-level validation target, `make test lint`, rather than stopping at focused package tests. In this repository that target passed cleanly, which was a nice contrast to the earlier commit-hook runs where the additional pre-commit `govulncheck` step failed on unrelated standard-library advisories. After validation, I reran `docmgr doctor` and force-uploaded the refreshed ticket bundle to reMarkable so the implementation state is now reflected in the PDF deliverable too.
+
+### Prompt Context
+
+**User prompt (verbatim):** "cool, add tasks to the ticket and the nwork task by task, keeping a detailed diary, and committing at appropriate intervals."
+
+**Assistant interpretation:** Finish the migration batch properly with user-facing docs, full validation, ticket bookkeeping, and a refreshed external deliverable.
+
+**Inferred user intent:** Do not leave the work half-integrated; make the repo and the ticket tell the same story.
+
+**Commit (code):** pending at diary-writing time
+
+### What I did
+- Updated user-facing docs:
+  - `README.md`
+  - `cmd/sqleton/doc/topics/06-query-commands.md`
+- Documented the new repository config policy:
+  - layered app config discovery
+  - preferred `app.repositories`
+  - legacy top-level `repositories:` still accepted during migration
+  - explicit command config remains `--config-file`
+- Ran validation:
+  - `go test ./... -count=1`
+  - `golangci-lint run ./...`
+  - `make test lint`
+- Revalidated the ticket:
+  - `docmgr doctor --root /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp --ticket SQLETON-04-CONFIG-PLAN-MIGRATION --stale-after 30`
+- Refreshed the reMarkable bundle with overwrite:
+  - `remarquee upload bundle ... --force`
+- Verified the remote listing:
+  - `remarquee cloud ls /ai/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION --long --non-interactive`
+
+### Why
+- The migration changes needed to be discoverable by a human reading the repo, not just by tests.
+- The repository's true integration bar is its top-level validation target, not only focused package tests.
+- The ticket bundle on reMarkable should reflect the latest implementation state, not just the initial research packet.
+
+### What worked
+- The doc updates were straightforward once the final config policy was clear.
+- `make test lint` passed cleanly.
+- `docmgr doctor` stayed green after the implementation updates.
+- The reMarkable upload succeeded once I used `--force` to replace the existing bundle.
+
+### What didn't work
+- The first refreshed upload attempt skipped correctly because the bundle name already existed remotely. Exact output:
+
+```text
+SKIP: SQLETON-04 Config Plan Migration - Design Pack already exists in /ai/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION (use --force to overwrite)
+```
+
+- The fix was to rerun the upload with `--force`.
+
+### What I learned
+- Sqleton's final config story is now easy to explain in one sentence: layered app config for repositories, explicit config file for command settings.
+- In this repo, `make test lint` is a solid final gate; the earlier commit-hook pain came from extra hook steps, not from the repository's own test/lint target.
+
+### What was tricky to build
+- The only subtle part was making sure the docs expressed the migration honestly: the preferred schema has moved to `app.repositories`, but the loader still accepts the old top-level `repositories:` during the transition.
+
+### What warrants a second pair of eyes
+- Whether sqleton should eventually publish a dedicated migration note or help page specifically for users moving from `repositories:` to `app.repositories`.
+
+### What should be done in the future
+- If the team decides the migration window is over, remove legacy top-level `repositories:` support and add a focused failure test for it.
+- Consider whether MCP-specific docs should explicitly mention that `--config-file` also flows through MCP-run tool execution now that the shared middleware path is unified.
+
+### Code review instructions
+- Review the final user-facing docs and validation evidence with:
+
+```bash
+cd /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton
+go test ./... -count=1
+golangci-lint run ./...
+make test lint
+
+docmgr doctor --root /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp --ticket SQLETON-04-CONFIG-PLAN-MIGRATION --stale-after 30
+remarquee cloud ls /ai/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION --long --non-interactive
+```
+
+### Technical details
+
+Verified final remote bundle location:
+
+```text
+/ai/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION
+  - SQLETON-04 Config Plan Migration - Design Pack
+```

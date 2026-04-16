@@ -52,3 +52,15 @@ Completed the second code tranche by replacing sqleton's manual explicit config-
 - /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/reference/02-investigation-diary.md — Records the second implementation tranche and validation results
 - /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/tasks.md — Marks the command-config and shared parser migration phases complete
 
+
+## 2026-04-16
+
+Finished the sqleton migration batch by updating the user-facing config docs, validating the repo with go test, golangci-lint, and make test lint, rerunning docmgr doctor successfully, and force-refreshing the reMarkable design pack upload.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/README.md — Documents layered app config for repositories
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/cmd/sqleton/doc/topics/06-query-commands.md — Updates query-repository docs to the layered app-config model and explicit command-config policy
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/reference/02-investigation-diary.md — Records final docs
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/tasks.md — Marks the remaining docs
+

@@ -41,14 +41,14 @@
 
 ### Phase 4 — update tests and docs
 
-- [ ] Rewrite old tests that assume `ResolveAppConfigPath(...)`
-- [ ] Add tests for plan precedence and provenance metadata where useful
-- [ ] Update README and `cmd/sqleton/doc/topics/06-query-commands.md` to teach the new config story
-- [ ] Add or update migration notes if the app-config schema changes
+- [x] Rewrite old tests that assume `ResolveAppConfigPath(...)`
+- [x] Add tests for plan precedence and provenance metadata where useful
+- [x] Update README and `cmd/sqleton/doc/topics/06-query-commands.md` to teach the new config story
+- [x] Add or update migration notes if the app-config schema changes
 
 ### Phase 5 — implementation validation and rollout
 
-- [ ] Run focused Go tests for migrated packages
-- [ ] Run sqleton's top-level validation target(s)
-- [ ] Record final code and docs changes in the diary/changelog
-- [ ] Upload the refreshed ticket bundle to reMarkable after implementation lands
+- [x] Run focused Go tests for migrated packages
+- [x] Run sqleton's top-level validation target(s)
+- [x] Record final code and docs changes in the diary/changelog
+- [x] Upload the refreshed ticket bundle to reMarkable after implementation lands

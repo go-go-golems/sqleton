@@ -629,3 +629,95 @@ I kept the rejection narrow on purpose: the app-config loader now checks for a t
 cd /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton
 go test ./cmd/sqleton -count=1
 ```
+
+## Step 7: Add a dedicated migration/help page for `repositories:` to `app.repositories`
+
+The next follow-up task was to make the schema break discoverable for users. Once top-level `repositories:` is rejected, the repository needs an obvious migration page that explains not just the new shape but also the underlying config model: layered app config for repository discovery, explicit command config for database settings.
+
+I added a dedicated tutorial-style help page and linked it from the README and the query-command topic. The new page explains:
+
+- the exact old and new shapes
+- why the change happened
+- supported repository-discovery locations
+- before/after examples for global and project-local config
+- how `.sqleton.yml` can still contain both app and command config
+- troubleshooting guidance
+
+I also validated that the page renders through sqleton's help system. The first attempt failed because the current machine still has a legacy `~/.sqleton/config.yaml`, which is now correctly rejected. I reran the help command in a hermetic temporary `HOME` / `XDG_CONFIG_HOME` environment, and the page rendered successfully. The output included unrelated existing help-system warnings about alias/schema discovery, but the new tutorial itself loaded and displayed correctly.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead. all 3"
+
+**Assistant interpretation:** Add the dedicated migration/help documentation as the second requested follow-up item.
+
+**Inferred user intent:** Make the new config model learnable, not just enforceable.
+
+**Commit (code):** pending at diary-writing time
+
+### What I did
+- Added:
+  - `cmd/sqleton/doc/tutorials/02-migrating-repositories-to-app-repositories.md`
+- Updated:
+  - `README.md`
+  - `cmd/sqleton/doc/topics/06-query-commands.md`
+- Linked the new page from the main docs using:
+  - `sqleton help sqleton-app-repositories-migration`
+- Validated with:
+  - `go test ./... -count=1`
+  - hermetic help render using a temporary `HOME` and `XDG_CONFIG_HOME`
+
+### Why
+- A breaking config change needs a first-class migration page so users do not have to infer the fix from an error string alone.
+- README prose is not enough; the help system should expose the migration page directly.
+
+### What worked
+- The page integrated cleanly into the existing help docs structure.
+- The README and query-command topic now point to a stable help slug instead of burying the migration story in prose.
+- The help page rendered correctly once ambient machine config was isolated.
+
+### What didn't work
+- The first help-render attempt failed because the current machine still has a legacy user config. Exact failure:
+
+```text
+Error: legacy top-level repositories is no longer supported in /home/manuel/.sqleton/config.yaml; move entries to app.repositories
+```
+
+- The fix was to run the help command with a temporary `HOME` and `XDG_CONFIG_HOME`.
+- The successful hermetic render also printed unrelated existing warnings:
+
+```text
+{"level":"debug","time":"...","message":"node schema not found"}
+{"level":"warn","time":"...","message":"alias short ... for schema not found"}
+```
+
+Those warnings predate this migration page and did not block the tutorial from rendering.
+
+### What I learned
+- Help-page validation for CLI apps with startup-time config loading must be hermetic, or ambient user config can mask whether the page itself is valid.
+
+### What was tricky to build
+- The only tricky part was validating help-page discoverability without letting the local machine's real sqleton config interfere.
+
+### What warrants a second pair of eyes
+- Whether sqleton should later make the migration page easier to discover from the top-level `sqleton` topic as well, not only from README and query-command docs.
+
+### What should be done in the future
+- Remove the remaining compatibility helper naming from the shared middleware path.
+- Re-run the full validation target after that cleanup, then refresh the ticket bundle again.
+
+### Code review instructions
+- Review:
+  - `cmd/sqleton/doc/tutorials/02-migrating-repositories-to-app-repositories.md`
+  - `README.md`
+  - `cmd/sqleton/doc/topics/06-query-commands.md`
+- Re-run the hermetic help render with:
+
+```bash
+tmp=$(mktemp -d)
+export HOME="$tmp/home"
+export XDG_CONFIG_HOME="$tmp/xdg"
+mkdir -p "$HOME" "$XDG_CONFIG_HOME"
+cd /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton
+go run ./cmd/sqleton help sqleton-app-repositories-migration
+```

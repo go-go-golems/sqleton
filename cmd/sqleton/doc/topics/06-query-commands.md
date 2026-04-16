@@ -97,8 +97,10 @@ like:
 export SQLETON_REPOSITORIES=/path/to/repo-a:/path/to/repo-b
 ```
 
-Legacy top-level `repositories:` is still accepted during the migration, but
-new config should use `app.repositories`.
+Legacy top-level `repositories:` is no longer accepted. Move repository lists to
+`app.repositories` instead. For a step-by-step migration guide, see:
+
+- `sqleton help sqleton-app-repositories-migration`
 
 This application config is only for repository discovery. Command-section config
 such as `sql-connection` or `dbt` should still be passed explicitly with

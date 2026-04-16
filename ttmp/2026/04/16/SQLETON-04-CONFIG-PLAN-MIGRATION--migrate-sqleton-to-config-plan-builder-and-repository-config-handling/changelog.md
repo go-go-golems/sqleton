@@ -77,3 +77,16 @@ Started the follow-up cleanup batch by removing legacy top-level repositories su
 - /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/reference/02-investigation-diary.md — Records the strict-loader follow-up tranche
 - /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/tasks.md — Marks the legacy repositories removal tasks complete
 
+
+## 2026-04-16
+
+Added a dedicated user-facing migration/help page for moving from repositories to app.repositories, linked it from the README and query-command docs, and validated the page through a hermetic sqleton help run.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/README.md — Links the migration page from the main config documentation
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/cmd/sqleton/doc/topics/06-query-commands.md — Links the migration page from the repository-discovery topic
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/cmd/sqleton/doc/tutorials/02-migrating-repositories-to-app-repositories.md — Dedicated migration page for the app.repositories transition
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/reference/02-investigation-diary.md — Records the help-page validation details and hermetic render command
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/tasks.md — Marks the migration-page tasks complete
+

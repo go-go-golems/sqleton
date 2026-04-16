@@ -289,8 +289,11 @@ app:
 
 Repository lists merge in layer order, then `SQLETON_REPOSITORIES` is appended,
 then the default `$HOME/.sqleton/queries` directory is added when it exists.
-Legacy top-level `repositories:` is still accepted during the migration, but new
-config should use `app.repositories`.
+
+If you still have old top-level `repositories:` config, migrate it to
+`app.repositories`. See:
+
+- `sqleton help sqleton-app-repositories-migration`
 
 You can also add repository roots temporarily with:
 ```bash

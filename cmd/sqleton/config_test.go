@@ -15,25 +15,37 @@ func TestLoadAppConfigFromPathEmptyPath(t *testing.T) {
 	require.Empty(t, cfg.RepositoryPaths())
 }
 
-func TestLoadAppConfigFromPathSupportsLegacyAndAppRepositories(t *testing.T) {
+func TestLoadAppConfigFromPathSupportsAppRepositories(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")
 
-	err := os.WriteFile(configPath, []byte(`repositories:
-  - /tmp/repo-a
-  - " /tmp/repo-b "
-  - /tmp/repo-a
-app:
+	err := os.WriteFile(configPath, []byte(`app:
   repositories:
     - /tmp/repo-c
-    - /tmp/repo-b
+    - " /tmp/repo-b "
+    - /tmp/repo-c
     - ""
 `), 0o644)
 	require.NoError(t, err)
 
 	cfg, err := loadAppConfigFromPath(configPath)
 	require.NoError(t, err)
-	require.Equal(t, []string{"/tmp/repo-a", "/tmp/repo-b", "/tmp/repo-c"}, cfg.RepositoryPaths())
+	require.Equal(t, []string{"/tmp/repo-c", "/tmp/repo-b"}, cfg.RepositoryPaths())
+}
+
+func TestLoadAppConfigFromPathRejectsLegacyTopLevelRepositories(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+
+	err := os.WriteFile(configPath, []byte(`repositories:
+  - /tmp/repo-a
+`), 0o644)
+	require.NoError(t, err)
+
+	_, err = loadAppConfigFromPath(configPath)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "legacy top-level repositories is no longer supported")
+	require.ErrorContains(t, err, "app.repositories")
 }
 
 func TestRepositoriesFromEnv(t *testing.T) {
@@ -74,7 +86,7 @@ func TestCollectRepositoryPathsMergesHomeXDGRepoCwdAndEnv(t *testing.T) {
 	))
 	require.NoError(t, os.WriteFile(
 		filepath.Join(xdgDir, "sqleton", "config.yaml"),
-		[]byte("repositories:\n  - "+xdgRepo+"\n"),
+		[]byte("app:\n  repositories:\n    - "+xdgRepo+"\n"),
 		0o644,
 	))
 	require.NoError(t, os.WriteFile(

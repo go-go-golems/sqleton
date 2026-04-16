@@ -124,7 +124,7 @@ func TestConfiguredRepositoryDiscoveryFromConfigFileSmoke(t *testing.T) {
 	createSmokeSQLiteDB(t, dbPath)
 	writeSmokeCommandFile(t, commandPath)
 
-	err := os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte("repositories:\n  - "+repoDir+"\n"), 0o644)
+	err := os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte("app:\n  repositories:\n    - "+repoDir+"\n"), 0o644)
 	require.NoError(t, err)
 
 	rows := runSqletonJSON(t, homeDir,

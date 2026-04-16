@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,8 +22,7 @@ type AppConfigBlock struct {
 }
 
 type AppConfig struct {
-	App          AppConfigBlock `yaml:"app"`
-	Repositories []string       `yaml:"repositories"`
+	App AppConfigBlock `yaml:"app"`
 }
 
 func (c *AppConfig) RepositoryPaths() []string {
@@ -30,9 +30,7 @@ func (c *AppConfig) RepositoryPaths() []string {
 		return nil
 	}
 
-	repositoryPaths := append([]string{}, c.Repositories...)
-	repositoryPaths = append(repositoryPaths, c.App.Repositories...)
-	return normalizeRepositoryPaths(repositoryPaths)
+	return normalizeRepositoryPaths(c.App.Repositories)
 }
 
 func buildAppConfigPlan(appName string) *glazed_config.Plan {
@@ -89,12 +87,19 @@ func loadAppConfigFromPath(configPath string) (*AppConfig, error) {
 		return nil, errors.Wrap(err, "could not read app config")
 	}
 
-	var cfg AppConfig
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
+	var raw map[string]interface{}
+	if err := yaml.Unmarshal(data, &raw); err != nil {
 		return nil, errors.Wrap(err, "could not parse app config")
 	}
+	if _, ok := raw["repositories"]; ok {
+		return nil, fmt.Errorf("legacy top-level repositories is no longer supported in %s; move entries to app.repositories", configPath)
+	}
 
-	cfg.Repositories = normalizeRepositoryPaths(cfg.Repositories)
+	var cfg AppConfig
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return nil, errors.Wrap(err, "could not decode app config")
+	}
+
 	cfg.App.Repositories = normalizeRepositoryPaths(cfg.App.Repositories)
 
 	return &cfg, nil

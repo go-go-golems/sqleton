@@ -561,3 +561,71 @@ Verified final remote bundle location:
 /ai/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION
   - SQLETON-04 Config Plan Migration - Design Pack
 ```
+
+## Step 6: Remove legacy top-level `repositories:` support
+
+This follow-up tranche finished the schema transition for sqleton app config. Earlier, I kept top-level `repositories:` readable as a migration bridge while moving the loader to declarative plans. With the main migration now complete and the docs ready to point users at the new shape, I removed that compatibility and made the loader reject legacy top-level `repositories:` explicitly.
+
+I kept the rejection narrow on purpose: the app-config loader now checks for a top-level `repositories` key and returns a specific migration error telling the user to move entries to `app.repositories`. It still ignores unrelated top-level command sections such as `sql-connection`, so a project-local `.sqleton.yml` can continue to act as both a repository-discovery file and an explicit command-config file when the user points `--config-file` at it.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead. all 3"
+
+**Assistant interpretation:** Continue with the three requested follow-up cleanup items, starting with removing legacy repository config compatibility.
+
+**Inferred user intent:** Complete the transition rather than leaving the old shape silently accepted.
+
+**Commit (code):** pending at diary-writing time
+
+### What I did
+- Updated `cmd/sqleton/config.go` to:
+  - remove the legacy `Repositories []string` field from the typed app config
+  - treat only `app.repositories` as valid app-owned repository config
+  - reject top-level `repositories:` with a migration-focused error message
+- Updated tests in:
+  - `cmd/sqleton/config_test.go`
+  - `cmd/sqleton/main_test.go`
+- Added focused coverage proving:
+  - `app.repositories` still decodes correctly
+  - top-level `repositories:` now errors
+  - layered repository discovery tests now use `app.repositories` everywhere
+- Validated with:
+  - `go test ./cmd/sqleton -count=1`
+
+### Why
+- Continuing to silently accept top-level `repositories:` would keep sqleton in a half-migrated state and weaken the new config model.
+- A narrow, explicit migration error is much better than silently doing the old thing forever.
+
+### What worked
+- The loader change was small and localized.
+- The focused tests clearly captured the intended new behavior.
+- Existing repository-discovery smoke tests were easy to update because the preferred shape was already `app.repositories`.
+
+### What didn't work
+- There was no major code failure here. The main design constraint was avoiding an overly strict app-config decoder that would also reject unrelated top-level command sections. That would have broken the documented workflow where a local `.sqleton.yml` can still be reused as an explicit command-config file. The final implementation rejects only the one legacy app-config key we actually wanted to retire.
+
+### What I learned
+- The right kind of strictness is selective strictness. Reject the deprecated app-owned key explicitly, but do not turn the app loader into a fully strict schema validator for unrelated command sections.
+
+### What was tricky to build
+- The subtle part was preserving coexistence with explicit command-config sections in the same YAML file while still rejecting the old app-owned repository shape.
+
+### What warrants a second pair of eyes
+- Whether the final error text should also mention `.sqleton.yml` examples or whether the dedicated migration page is the better place for those details.
+
+### What should be done in the future
+- Add the dedicated migration/help page next and link it from the main docs.
+- Then remove the remaining compatibility naming in the shared middleware helper path.
+
+### Code review instructions
+- Review:
+  - `cmd/sqleton/config.go`
+  - `cmd/sqleton/config_test.go`
+  - `cmd/sqleton/main_test.go`
+- Re-run:
+
+```bash
+cd /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton
+go test ./cmd/sqleton -count=1
+```

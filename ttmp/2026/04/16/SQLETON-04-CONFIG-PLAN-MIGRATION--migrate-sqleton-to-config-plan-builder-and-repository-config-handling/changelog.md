@@ -64,3 +64,16 @@ Finished the sqleton migration batch by updating the user-facing config docs, va
 - /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/reference/02-investigation-diary.md — Records final docs
 - /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/tasks.md — Marks the remaining docs
 
+
+## 2026-04-16
+
+Started the follow-up cleanup batch by removing legacy top-level repositories support from the app-config loader, switching the remaining tests to app.repositories, and adding focused failure coverage for the new rejection path.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/cmd/sqleton/config.go — App config loader now accepts only app.repositories and returns a migration error for top-level repositories
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/cmd/sqleton/config_test.go — Focused tests for accepted app.repositories and rejected legacy top-level repositories
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/cmd/sqleton/main_test.go — Repository-discovery smoke test updated to the app.repositories shape
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/reference/02-investigation-diary.md — Records the strict-loader follow-up tranche
+- /home/manuel/workspaces/2026-04-10/pinocchiorc/sqleton/ttmp/2026/04/16/SQLETON-04-CONFIG-PLAN-MIGRATION--migrate-sqleton-to-config-plan-builder-and-repository-config-handling/tasks.md — Marks the legacy repositories removal tasks complete
+

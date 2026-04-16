@@ -52,3 +52,14 @@
 - [x] Run sqleton's top-level validation target(s)
 - [x] Record final code and docs changes in the diary/changelog
 - [x] Upload the refreshed ticket bundle to reMarkable after implementation lands
+
+### Follow-up cleanup batch — finish the config model transition
+
+- [x] Remove legacy top-level `repositories:` support from the app-config loader
+- [x] Add focused failure tests proving top-level `repositories:` is rejected and `app.repositories` remains accepted
+- [ ] Add a dedicated user-facing migration/help page for moving from `repositories:` to `app.repositories`
+- [ ] Link the migration/help page from README and query-command docs
+- [ ] Rename remaining compatibility helper usage from `GetSqletonMiddlewares(...)` to the modern shared helper name
+- [ ] Revalidate the repo with `go test ./...`, `golangci-lint run ./...`, and `make test lint`
+- [ ] Record the follow-up cleanup batch in the diary/changelog
+- [ ] Refresh the reMarkable bundle after the follow-up batch lands

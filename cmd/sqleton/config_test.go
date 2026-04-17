@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -72,7 +73,9 @@ func TestCollectRepositoryPathsMergesHomeXDGRepoCwdAndEnv(t *testing.T) {
 	sharedRepo := filepath.Join(tmpDir, "shared-repo")
 	xdgRepo := filepath.Join(tmpDir, "xdg-repo")
 	repoConfigRepo := filepath.Join(tmpDir, "repo-config-repo")
+	repoOverrideRepo := filepath.Join(tmpDir, "repo-override-repo")
 	cwdConfigRepo := filepath.Join(tmpDir, "cwd-config-repo")
+	cwdOverrideRepo := filepath.Join(tmpDir, "cwd-override-repo")
 	envRepo := filepath.Join(tmpDir, "env-repo")
 
 	require.NoError(t, os.MkdirAll(filepath.Join(homeDir, ".sqleton"), 0o755))
@@ -95,26 +98,58 @@ func TestCollectRepositoryPathsMergesHomeXDGRepoCwdAndEnv(t *testing.T) {
 		0o644,
 	))
 	require.NoError(t, os.WriteFile(
+		filepath.Join(repoRoot, localSqletonOverrideFile),
+		[]byte("app:\n  repositories:\n    - "+repoOverrideRepo+"\n"),
+		0o644,
+	))
+	require.NoError(t, os.WriteFile(
 		filepath.Join(cwd, localSqletonConfigFile),
 		[]byte("app:\n  repositories:\n    - "+cwdConfigRepo+"\n"),
+		0o644,
+	))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(cwd, localSqletonOverrideFile),
+		[]byte("app:\n  repositories:\n    - "+cwdOverrideRepo+"\n"),
 		0o644,
 	))
 
 	gitInit := exec.Command("git", "init", "-q", repoRoot)
 	require.NoError(t, gitInit.Run())
 
-	oldWd, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(cwd))
-	defer func() {
-		require.NoError(t, os.Chdir(oldWd))
-	}()
+	repositories := runCollectRepositoriesHelper(t, cwd, map[string]string{
+		"HOME":                    homeDir,
+		"XDG_CONFIG_HOME":         xdgDir,
+		"SQLETON_TEST_HELPER":     "collect-repositories",
+		sqletonRepositoriesEnvVar: envRepo + string(os.PathListSeparator) + sharedRepo,
+	})
+	require.Equal(t, []string{homeRepo, sharedRepo, xdgRepo, repoConfigRepo, repoOverrideRepo, cwdConfigRepo, cwdOverrideRepo, envRepo}, repositories)
+}
 
-	t.Setenv("HOME", homeDir)
-	t.Setenv("XDG_CONFIG_HOME", xdgDir)
-	t.Setenv(sqletonRepositoriesEnvVar, envRepo+string(os.PathListSeparator)+sharedRepo)
+func TestConfigHelperProcess(t *testing.T) {
+	if os.Getenv("SQLETON_TEST_HELPER") != "collect-repositories" {
+		return
+	}
 
 	repositories, err := collectRepositoryPaths("sqleton")
 	require.NoError(t, err)
-	require.Equal(t, []string{homeRepo, sharedRepo, xdgRepo, repoConfigRepo, cwdConfigRepo, envRepo}, repositories)
+	require.NoError(t, json.NewEncoder(os.Stdout).Encode(repositories))
+	os.Exit(0)
+}
+
+func runCollectRepositoriesHelper(t *testing.T, cwd string, env map[string]string) []string {
+	t.Helper()
+
+	cmd := exec.Command(os.Args[0], "-test.run=TestConfigHelperProcess")
+	cmd.Dir = cwd
+	cmd.Env = append(os.Environ(), "NO_COLOR=1", "CLICOLOR=0")
+	for k, v := range env {
+		cmd.Env = append(cmd.Env, k+"="+v)
+	}
+
+	output, err := cmd.Output()
+	require.NoError(t, err)
+
+	var repositories []string
+	require.NoError(t, json.Unmarshal(output, &repositories))
+	return repositories
 }

@@ -15,6 +15,7 @@ import (
 const (
 	sqletonRepositoriesEnvVar = "SQLETON_REPOSITORIES"
 	localSqletonConfigFile    = ".sqleton.yml"
+	localSqletonOverrideFile  = ".sqleton.override.yml"
 )
 
 type AppConfigBlock struct {
@@ -47,7 +48,9 @@ func buildAppConfigPlan(appName string) *glazed_config.Plan {
 		glazed_config.HomeAppConfig(appName).Named("home-app-config").Kind("app-config"),
 		glazed_config.XDGAppConfig(appName).Named("xdg-app-config").Kind("app-config"),
 		glazed_config.GitRootFile(localSqletonConfigFile).Named("repo-local-app-config").Kind("local-app-config"),
+		glazed_config.GitRootFile(localSqletonOverrideFile).Named("repo-local-app-override").Kind("local-app-config"),
 		glazed_config.WorkingDirFile(localSqletonConfigFile).Named("cwd-local-app-config").Kind("local-app-config"),
+		glazed_config.WorkingDirFile(localSqletonOverrideFile).Named("cwd-local-app-override").Kind("local-app-config"),
 	)
 }
 

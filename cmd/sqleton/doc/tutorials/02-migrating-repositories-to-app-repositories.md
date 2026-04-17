@@ -59,7 +59,9 @@ Sqleton discovers repository config from these locations, in layer order:
 - `~/.sqleton/config.yaml`
 - `$XDG_CONFIG_HOME/sqleton/config.yaml`
 - `.sqleton.yml` at the git repository root
+- `.sqleton.override.yml` at the git repository root
 - `.sqleton.yml` in the current working directory
+- `.sqleton.override.yml` in the current working directory
 
 Then sqleton appends:
 

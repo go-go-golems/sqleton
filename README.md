@@ -276,7 +276,9 @@ Supported locations are:
 - `~/.sqleton/config.yaml`
 - `$XDG_CONFIG_HOME/sqleton/config.yaml`
 - `.sqleton.yml` at the git repository root
+- `.sqleton.override.yml` at the git repository root
 - `.sqleton.yml` in the current working directory
+- `.sqleton.override.yml` in the current working directory
 
 The preferred schema is:
 
@@ -303,7 +305,8 @@ export SQLETON_REPOSITORIES=/path/to/repo-a:/path/to/repo-b
 A common setup is:
 
 - global `~/.sqleton/config.yaml` for shared repositories
-- project-local `.sqleton.yml` for project repositories
+- committed project-local `.sqleton.yml` for team repositories
+- uncommitted project-local `.sqleton.override.yml` for personal overrides
 - explicit `--config-file` for database settings
 
 ### Explicit Command Configuration

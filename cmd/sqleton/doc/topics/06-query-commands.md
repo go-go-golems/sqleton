@@ -74,7 +74,9 @@ The repository-discovery locations are:
 - `~/.sqleton/config.yaml`
 - `$XDG_CONFIG_HOME/sqleton/config.yaml`
 - `.sqleton.yml` at the git repository root
+- `.sqleton.override.yml` at the git repository root
 - `.sqleton.yml` in the current working directory
+- `.sqleton.override.yml` in the current working directory
 
 By default, queries in `$HOME/.sqleton/queries` are also loaded when that
 directory exists.
@@ -120,7 +122,8 @@ sqleton run-command ./queries/ls-posts.sql -- --config-file ./db-config.yaml
 
 A common workflow is:
 - shared repositories in `~/.sqleton/config.yaml`
-- project repositories in `.sqleton.yml`
+- committed project repositories in `.sqleton.yml`
+- personal uncommitted overrides in `.sqleton.override.yml`
 - project database settings in an explicit command config file
 
 ## Using query parameters

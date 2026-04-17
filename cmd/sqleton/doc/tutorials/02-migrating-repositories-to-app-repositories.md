@@ -1,6 +1,6 @@
 ---
 Title: Migrating repository config to app.repositories
-Slug: sqleton-app-repositories-migration
+Slug: app-repositories-migration
 Short: Migrate sqleton app config from legacy top-level repositories to app.repositories.
 Topics:
 - sqleton

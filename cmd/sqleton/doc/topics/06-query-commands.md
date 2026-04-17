@@ -66,31 +66,46 @@ sqleton subCommand2 query2
 ```
 
 A repository can be loaded from an embedded query tree or from a filesystem
-directory. In normal sqleton usage, query repositories are discovered from the
-application config and environment.
+directory. In normal sqleton usage, query repositories are discovered from
+layered application config and environment.
 
-By default, queries in `$HOME/.sqleton/queries` are loaded when that directory
-exists.
+The repository-discovery locations are:
+- `/etc/sqleton/config.yaml`
+- `~/.sqleton/config.yaml`
+- `$XDG_CONFIG_HOME/sqleton/config.yaml`
+- `.sqleton.yml` at the git repository root
+- `.sqleton.override.yml` at the git repository root
+- `.sqleton.yml` in the current working directory
+- `.sqleton.override.yml` in the current working directory
 
-You can specify more repositories to be loaded in addition to the default by
-listing them in `~/.sqleton/config.yaml`:
+By default, queries in `$HOME/.sqleton/queries` are also loaded when that
+directory exists.
+
+The preferred app-owned schema is:
 
 ```yaml
-repositories:
-  - /Users/manuel/code/ttc/ttc-dbt/sqleton-queries
-  - .sqleton/queries
+app:
+  repositories:
+    - /Users/manuel/code/ttc/ttc-dbt/sqleton-queries
+    - .sqleton/queries
 ```
 
-You can also add repositories temporarily with the `SQLETON_REPOSITORIES`
-environment variable. It uses the normal OS path-list separator, so on Unix-like
-systems it looks like:
+Repository lists merge across layers in that order. You can also add
+repositories temporarily with the `SQLETON_REPOSITORIES` environment variable.
+It uses the normal OS path-list separator, so on Unix-like systems it looks
+like:
 
 ```bash
 export SQLETON_REPOSITORIES=/path/to/repo-a:/path/to/repo-b
 ```
 
+Legacy top-level `repositories:` is no longer accepted. Move repository lists to
+`app.repositories` instead. For a step-by-step migration guide, see:
+
+- `sqleton help app-repositories-migration`
+
 This application config is only for repository discovery. Command-section config
-such as `sql-connection` or `dbt` should be passed explicitly with
+such as `sql-connection` or `dbt` should still be passed explicitly with
 `--config-file`.
 
 For example:
@@ -104,6 +119,12 @@ sql-connection:
 ```bash
 sqleton run-command ./queries/ls-posts.sql -- --config-file ./db-config.yaml
 ```
+
+A common workflow is:
+- shared repositories in `~/.sqleton/config.yaml`
+- committed project repositories in `.sqleton.yml`
+- personal uncommitted overrides in `.sqleton.override.yml`
+- project database settings in an explicit command config file
 
 ## Using query parameters
 

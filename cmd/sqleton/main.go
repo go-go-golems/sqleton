@@ -263,10 +263,8 @@ func initAllCommands(helpSystem *help.HelpSystem) error {
 		helpSystem,
 		rootCmd,
 		repositories_,
-		cli.WithParserConfig(cmds.NewSqletonParserConfig()),
+		cli.WithParserConfig(sqleton_cmds.NewSqletonParserConfig()),
 		cli.WithCobraShortHelpSections(schema.DefaultSlug, sql.DbtSlug, sql.SqlConnectionSlug, flags.SqlHelpersSlug),
-		cli.WithCreateCommandSettingsSection(),
-		cli.WithProfileSettingsSection(),
 	)
 	if err != nil {
 		return err

@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -114,6 +115,7 @@ func TestCollectRepositoryPathsMergesHomeXDGRepoCwdAndEnv(t *testing.T) {
 	))
 
 	gitInit := exec.Command("git", "init", "-q", repoRoot)
+	gitInit.Env = scrubGitEnv(os.Environ())
 	require.NoError(t, gitInit.Run())
 
 	repositories := runCollectRepositoriesHelper(t, cwd, map[string]string{
@@ -141,7 +143,7 @@ func runCollectRepositoriesHelper(t *testing.T, cwd string, env map[string]strin
 
 	cmd := exec.Command(os.Args[0], "-test.run=TestConfigHelperProcess")
 	cmd.Dir = cwd
-	cmd.Env = append(os.Environ(), "NO_COLOR=1", "CLICOLOR=0")
+	cmd.Env = append(scrubGitEnv(os.Environ()), "NO_COLOR=1", "CLICOLOR=0")
 	for k, v := range env {
 		cmd.Env = append(cmd.Env, k+"="+v)
 	}
@@ -152,4 +154,16 @@ func runCollectRepositoriesHelper(t *testing.T, cwd string, env map[string]strin
 	var repositories []string
 	require.NoError(t, json.Unmarshal(output, &repositories))
 	return repositories
+}
+
+func scrubGitEnv(env []string) []string {
+	ret := make([]string, 0, len(env))
+	for _, entry := range env {
+		key, _, ok := strings.Cut(entry, "=")
+		if ok && strings.HasPrefix(key, "GIT_") {
+			continue
+		}
+		ret = append(ret, entry)
+	}
+	return ret
 }

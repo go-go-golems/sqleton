@@ -1,16 +1,18 @@
 topics:
-    - slug: backend
-      description: Backend code and infrastructure
-    - slug: database
-      description: Database integration and connectivity
+    - slug: linker
+      description: Linker, Cgo, static libraries, and native code linking
+    - slug: go
+      description: Go programming language and toolchain
     - slug: duckdb
-      description: DuckDB analytical database engine
+      description: DuckDB database and related drivers
+    - slug: build
+      description: Build system, compilation, and CI topics
 docTypes:
     - slug: index
       description: Ticket index document
 intent:
     - slug: long-term
-      description: Long-term reference document
+      description: Long-term reference and knowledge preservation
 status:
     - slug: active
-      description: Actively being worked on
+      description: Ticket or document is currently active

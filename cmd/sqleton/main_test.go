@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	fields "github.com/go-go-golems/glazed/pkg/cmds/fields"
@@ -264,8 +265,30 @@ func runSqletonJSONWithEnv(t *testing.T, homeDir string, extraEnv map[string]str
 	cmdArgs := append([]string{"-test.run=TestCLIHelperProcess", "--"}, args...)
 	cmd := exec.Command(os.Args[0], cmdArgs...)
 	cmd.Dir = packageDir
-	env := append(
-		os.Environ(),
+
+	// Start from the parent environment but strip out any sqleton database
+	// connection env vars so that CLI flags (--db-type, --database) take
+	// effect instead of being overridden by the developer's shell / .envrc.
+	var env []string
+	for _, e := range os.Environ() {
+		if strings.HasPrefix(e, "SQLETON_DSN=") ||
+			strings.HasPrefix(e, "SQLETON_DRIVER=") ||
+			strings.HasPrefix(e, "SQLETON_TYPE=") ||
+			strings.HasPrefix(e, "SQLETON_HOST=") ||
+			strings.HasPrefix(e, "SQLETON_PORT=") ||
+			strings.HasPrefix(e, "SQLETON_DATABASE=") ||
+			strings.HasPrefix(e, "SQLETON_USER=") ||
+			strings.HasPrefix(e, "SQLETON_PASSWORD=") ||
+			strings.HasPrefix(e, "SQLETON_SCHEMA=") ||
+			strings.HasPrefix(e, "SQLETON_USE_DBT_PROFILES=") ||
+			strings.HasPrefix(e, "SQLETON_DBT_PROFILE=") ||
+			strings.HasPrefix(e, "SQLETON_DBT_PROFILES_PATH=") {
+			continue
+		}
+		env = append(env, e)
+	}
+
+	env = append(env,
 		"SQLETON_TEST_SUBPROCESS=1",
 		"HOME="+homeDir,
 		"XDG_CONFIG_HOME="+filepath.Join(homeDir, ".config"),

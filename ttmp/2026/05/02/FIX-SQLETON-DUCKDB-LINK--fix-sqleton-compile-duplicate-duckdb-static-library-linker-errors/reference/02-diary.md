@@ -148,3 +148,46 @@ After writing the documents, I needed to relate the key source files to the tick
 
 ### What should be done in the future
 - N/A for this step.
+
+---
+
+## Step 5: Fix Pre-existing Smoke Test Failures Caused by .envrc Env Var Leakage
+
+After opening the PR, I noticed `make test` was still failing. The smoke tests (`TestSQLiteSmoke`, `TestConfiguredRepositoryDiscoverySmoke`, etc.) spawn sqleton as a subprocess and were inheriting `SQLETON_DSN` and `SQLETON_DRIVER` from the parent shell's `.envrc`. These env vars pointed to a non-existent PostgreSQL instance with an invalid `sslmode=enable` value, causing all SQLite-only smoke tests to fail with "failed to ping database" errors.
+
+### What I did
+- Investigated why SQLite tests were trying to connect to PostgreSQL.
+- Found `.envrc` exports `SQLETON_DSN` and `SQLETON_DRIVER`.
+- Found `runSqletonJSONWithEnv` in `cmd/sqleton/main_test.go` used `os.Environ()` as the base, leaking all parent env vars.
+- Modified the test helper to filter out all `SQLETON_*` database connection env vars before spawning the subprocess.
+- Added the `strings` import to support the filtering logic.
+- Ran `go test ./...` to confirm all tests pass.
+- Committed and pushed the fix to `main`.
+
+### What worked
+- Filtering env vars was a clean, minimal fix that doesn't change production behavior.
+- All tests now pass, including the full lefthook pre-commit/pre-push pipeline.
+
+### What didn't work
+- N/A.
+
+### What I learned
+- Smoke tests that spawn the full binary as a subprocess must carefully control the environment. `os.Environ()` is a footgun when the developer's shell has application-specific env vars.
+- `sslmode=enable` is not a valid pgx value; valid values are `disable`, `require`, `verify-ca`, `verify-full`.
+
+### What was tricky to build
+- The error output made it look like a database connectivity issue, not an env var leak. The key clue was that ALL tests failed with the same PostgreSQL error, even tests explicitly passing `--db-type sqlite`.
+
+### What warrants a second pair of eyes
+- N/A; this is a test-only change.
+
+### What should be done in the future
+- Consider a broader pattern in our test helpers: always sanitize the environment when spawning subprocess tests, or provide a helper that starts from a minimal env rather than `os.Environ()`.
+
+### Code review instructions
+- Review `cmd/sqleton/main_test.go`: the `runSqletonJSONWithEnv` function now filters `SQLETON_DSN`, `SQLETON_DRIVER`, and related env vars.
+- Validation: `make test` should pass regardless of whether the developer has `SQLETON_*` env vars set.
+
+### Technical details
+- **File changed:** `cmd/sqleton/main_test.go`
+- **Commit:** `5765ce8` — "test: isolate smoke tests from SQLETON_* env vars in .envrc"

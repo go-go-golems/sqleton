@@ -164,8 +164,19 @@ When reviewing this fix:
 3. Run `make build` locally and confirm a clean build.
 4. Optional: Run `go list -m all | grep duckdb` and confirm only `duckdb/duckdb-go/v2` and its bindings remain in the active module list.
 
+## 2026-05-02 — Bonus: Smoke Test Env Var Leakage
+
+After pushing the DuckDB fix, `make test` still failed. The SQLite-only smoke tests were failing with PostgreSQL connection errors. Investigation revealed:
+- `.envrc` exports `SQLETON_DSN=postgresql://postgres:your_password_here@localhost:5432/your_app_name_development?sslmode=enable`
+- `SQLETON_DRIVER=pgx`
+- The test helper `runSqletonJSONWithEnv` used `os.Environ()` as the base, so these leaked into the subprocess
+- `sslmode=enable` is an invalid pgx value, causing immediate failure
+
+**Fix:** Modified `cmd/sqleton/main_test.go` to filter out all `SQLETON_*` database connection env vars when building the subprocess environment. This keeps the SQLite smoke tests self-contained.
+
 ## Unresolved / Follow-up
 
 - **CI gap:** We do not have automated workspace-wide builds. A change in `clay` can break `sqleton`, `escuse-me`, or other dependents without anyone noticing until they run `make build` locally.
 - **Future driver upgrades:** When `duckdb-go/v2` releases a new version, we should upgrade it in `clay` first, then verify all workspace members.
 - **Documentation:** This ticket now serves as the canonical reference for diagnosing C static library collisions in our Go workspace.
+- **Test hygiene:** Subprocess smoke tests should always sanitize the environment rather than inheriting `os.Environ()` wholesale.

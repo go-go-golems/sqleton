@@ -16,7 +16,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/profile v1.7.0
-	github.com/rs/zerolog v1.34.0
+	github.com/rs/zerolog v1.35.1
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/sync v0.19.0

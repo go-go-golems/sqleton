@@ -1,8 +1,6 @@
 module github.com/go-go-golems/sqleton
 
-go 1.25.7
-
-toolchain go1.26.3
+go 1.26.3
 
 require (
 	github.com/dave/jennifer v1.7.0

@@ -89,3 +89,11 @@ codeql-local:
 	$(CODEQL_PATH) database create --language=go --source-root=. ./codeql-db
 	$(CODEQL_PATH) database analyze ./codeql-db $(CODEQL_QUERIES)/Security --format=sarif-latest --output=codeql-results.sarif
 	@echo "Results saved to codeql-results.sarif"
+
+.PHONY: logcopter-generate
+logcopter-generate:
+	GOWORK=off go tool logcopter-gen -include-main -var zlog -area-prefix go-go-golems.sqleton -strip-prefix github.com/go-go-golems/sqleton ./cmd/... ./pkg/...
+
+.PHONY: logcopter-check
+logcopter-check:
+	GOWORK=off go tool logcopter-gen -include-main -var zlog -area-prefix go-go-golems.sqleton -strip-prefix github.com/go-go-golems/sqleton -check ./cmd/... ./pkg/...

@@ -114,5 +114,9 @@ glazed-lint-build:
 		GOBIN=$(dir $(GLAZED_LINT_BIN)) go install $(GLAZED_LINT_PKG); \
 	fi
 
+# sqleton has existing raw Cobra flag wiring in its legacy command tree; keep
+# the rollout gate enabled and scope the exception to those command files.
+GLAZED_LINT_ALLOW_PATHS ?= cmd/sqleton/cmds/,cmd/sqleton/main.go
+
 glazed-lint: glazed-lint-build
-	GOWORK=off go vet -vettool=$(GLAZED_LINT_BIN) ./cmd/... ./pkg/...
+	GOWORK=off go vet -vettool=$(GLAZED_LINT_BIN) -glazedclilint.allow-paths=$(GLAZED_LINT_ALLOW_PATHS) ./cmd/... ./pkg/...

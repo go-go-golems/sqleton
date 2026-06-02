@@ -5,7 +5,7 @@ go 1.26.3
 require (
 	github.com/dave/jennifer v1.7.0
 	github.com/go-go-golems/clay v0.4.7
-	github.com/go-go-golems/glazed v1.2.6
+	github.com/go-go-golems/glazed v1.3.6
 	github.com/go-go-golems/logcopter v0.1.0
 	github.com/go-go-golems/parka v0.6.1
 	github.com/go-sql-driver/mysql v1.9.3
@@ -181,7 +181,7 @@ require (
 	github.com/xuri/efp v0.0.1 // indirect
 	github.com/xuri/excelize/v2 v2.10.0 // indirect
 	github.com/xuri/nfp v0.0.2-0.20250530014748-2ddeb826f9a9 // indirect
-	github.com/yuin/goldmark v1.7.8 // indirect
+	github.com/yuin/goldmark v1.8.2 // indirect
 	github.com/yuin/goldmark-emoji v1.0.5 // indirect
 	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20220924101305-151362477c87 // indirect
 	github.com/zeebo/xxh3 v1.1.0 // indirect

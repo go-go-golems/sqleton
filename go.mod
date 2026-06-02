@@ -8,7 +8,7 @@ require (
 	github.com/go-go-golems/glazed v1.2.6
 	github.com/go-go-golems/logcopter v0.1.0
 	github.com/go-go-golems/parka v0.6.1
-	github.com/go-sql-driver/mysql v1.9.3
+	github.com/go-sql-driver/mysql v1.10.0
 	github.com/huandu/go-sqlbuilder v1.36.0
 	github.com/iancoleman/strcase v0.3.0
 	github.com/jmoiron/sqlx v1.4.0
@@ -23,7 +23,7 @@ require (
 )
 
 require (
-	filippo.io/edwards25519 v1.1.0 // indirect
+	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect

@@ -1,0 +1,77 @@
+name: verify-homebrew-publisher-app
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type VERIFY_HOMEBREW_PUBLISHER_APP to create and delete a temporary tap branch.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - name: Confirm App verification
+        shell: bash
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          if [[ "${CONFIRMATION}" != "VERIFY_HOMEBREW_PUBLISHER_APP" ]]; then
+            echo "confirmation must be exactly VERIFY_HOMEBREW_PUBLISHER_APP" >&2
+            exit 1
+          fi
+
+      - name: Read Homebrew publisher App credential from Vault
+        uses: hashicorp/vault-action@v3
+        with:
+          url: https://vault.yolo.scapegoat.dev
+          method: jwt
+          path: github-actions
+          role: release-sqleton-homebrew-app-verifier
+          jwtGithubAudience: https://vault.yolo.scapegoat.dev
+          secrets: |
+            kv/data/ci/github/homebrew-go-go-go/release-publisher-app app_id | HOMEBREW_APP_ID ;
+            kv/data/ci/github/homebrew-go-go-go/release-publisher-app private_key | HOMEBREW_APP_PRIVATE_KEY
+
+      - name: Mint tap-scoped GitHub App token
+        id: homebrew-app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ env.HOMEBREW_APP_ID }}
+          private-key: ${{ env.HOMEBREW_APP_PRIVATE_KEY }}
+          owner: go-go-golems
+          repositories: homebrew-go-go-go
+
+      - name: Create and delete a temporary Homebrew tap branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.homebrew-app-token.outputs.token }}
+          TARGET_REPOSITORY: go-go-golems/homebrew-go-go-go
+        run: |
+          set -euo pipefail
+          branch="verify-release-publisher-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          branch_ref="refs/heads/${branch}"
+          created=false
+
+          cleanup() {
+            if [[ "${created}" == true ]]; then
+              gh api --method DELETE "repos/${TARGET_REPOSITORY}/git/${branch_ref}" >/dev/null || \
+                echo "WARNING: failed to delete ${branch_ref}; delete it manually" >&2
+            fi
+          }
+          trap cleanup EXIT
+
+          base_sha="$(gh api "repos/${TARGET_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          gh api --method POST "repos/${TARGET_REPOSITORY}/git/refs" \
+            -f ref="${branch_ref}" \
+            -f sha="${base_sha}" \
+            >/dev/null
+          created=true
+          echo "created ${branch_ref}; deletion is registered in the cleanup trap"

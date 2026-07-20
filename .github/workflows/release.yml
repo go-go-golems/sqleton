@@ -50,7 +50,7 @@ jobs:
           cache: true
 
       - name: Read the GoReleaser Pro license
-        uses: hashicorp/vault-action@v3
+        uses: hashicorp/vault-action@v4
         with:
           url: https://vault.yolo.scapegoat.dev
           method: jwt
@@ -95,7 +95,7 @@ jobs:
           cache: true
 
       - name: Read the GoReleaser Pro license
-        uses: hashicorp/vault-action@v3
+        uses: hashicorp/vault-action@v4
         with:
           url: https://vault.yolo.scapegoat.dev
           method: jwt

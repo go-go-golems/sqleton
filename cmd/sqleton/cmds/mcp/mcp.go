@@ -47,10 +47,6 @@ type ListToolsCommand struct {
 }
 
 func NewListToolsCommand(repositories []*repositories.Repository) (*ListToolsCommand, error) {
-	glazedSection, err := settings.NewGlazedSection()
-	if err != nil {
-		return nil, err
-	}
 
 	return &ListToolsCommand{
 		CommandDescription: cmds.NewCommandDescription(
@@ -64,7 +60,7 @@ func NewListToolsCommand(repositories []*repositories.Repository) (*ListToolsCom
 					fields.WithDefault(""),
 				),
 			),
-			cmds.WithSections(glazedSection),
+			cmds.WithSections(),
 		),
 		repositories: repositories,
 	}, nil
@@ -101,7 +97,7 @@ func (c *ListToolsCommand) RunIntoGlazeProcessor(
 		var inputSchema_ interface{}
 
 		outputValue := ""
-		if outputField, ok := parsedValues.GetField(settings.GlazedSlug, "output"); ok {
+		if outputField, ok := parsedValues.GetField(settings.StructuredOutputSlug, "format"); ok {
 			if outputString, ok := outputField.Value.(string); ok {
 				outputValue = outputString
 			}
@@ -171,8 +167,8 @@ func (mc *McpCommands) CreateToolsCmd() *cobra.Command {
 	// Create middleware to override output format to JSON
 	outputOverride := sources.FromMap(
 		map[string]map[string]interface{}{
-			settings.GlazedSlug: {
-				"output": "json",
+			settings.StructuredOutputSlug: {
+				"format": "json",
 			},
 		},
 		fields.WithSource("output-override"),

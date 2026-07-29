@@ -103,7 +103,7 @@ func NewSqlCommand(
 	description *cmds.CommandDescription,
 	options ...SqlCommandOption,
 ) (*SqlCommand, error) {
-	glazedSection, err := settings.NewGlazedSection()
+	glazedSection, err := settings.NewStructuredOutputSection()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create glazed section")
 	}

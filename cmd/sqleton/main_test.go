@@ -32,7 +32,7 @@ func TestSQLiteSmoke(t *testing.T) {
 			"query",
 			"--db-type", "sqlite",
 			"--database", dbPath,
-			"--output", "json",
+			"--format", "json",
 			"SELECT id, name FROM widgets ORDER BY id",
 		)
 
@@ -50,7 +50,7 @@ func TestSQLiteSmoke(t *testing.T) {
 			"--",
 			"--db-type", "sqlite",
 			"--database", dbPath,
-			"--output", "json",
+			"--format", "json",
 			"--only-active",
 		)
 
@@ -84,7 +84,7 @@ func TestConfiguredRepositoryDiscoverySmoke(t *testing.T) {
 			"smoke-widgets",
 			"--db-type", "sqlite",
 			"--database", dbPath,
-			"--output", "json",
+			"--format", "json",
 		)
 
 		require.Len(t, rows, 3)
@@ -100,7 +100,7 @@ func TestConfiguredRepositoryDiscoverySmoke(t *testing.T) {
 			"smoke-active-widgets",
 			"--db-type", "sqlite",
 			"--database", dbPath,
-			"--output", "json",
+			"--format", "json",
 		)
 
 		require.Len(t, rows, 2)
@@ -132,7 +132,7 @@ func TestConfiguredRepositoryDiscoveryFromConfigFileSmoke(t *testing.T) {
 		"smoke-widgets",
 		"--db-type", "sqlite",
 		"--database", dbPath,
-		"--output", "json",
+		"--format", "json",
 	)
 
 	require.Len(t, rows, 3)
@@ -160,7 +160,7 @@ func TestRunCommandExplicitConfigFileSmoke(t *testing.T) {
 		commandPath,
 		"--",
 		"--config-file", configPath,
-		"--output", "json",
+		"--format", "json",
 		"--only-active",
 	)
 

@@ -12,7 +12,6 @@ import (
 	schema "github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
-	"github.com/go-go-golems/glazed/pkg/settings"
 	cmds2 "github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/go-go-golems/sqleton/pkg/flags"
 	"github.com/huandu/go-sqlbuilder"
@@ -210,10 +209,7 @@ func NewSelectCommand(
 	dbConnectionFactory sql2.DBConnectionFactory,
 	options ...cmds.CommandDescriptionOption,
 ) (*SelectCommand, error) {
-	glazedSection, err := settings.NewGlazedSection()
-	if err != nil {
-		return nil, errors.Wrap(err, "could not create glazed section")
-	}
+
 	sqlHelpersSection, err := flags.NewSqlHelpersParameterLayer()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create SQL helpers section")
@@ -227,7 +223,6 @@ func NewSelectCommand(
 		cmds.WithShort("Select" + " all columns from a table"),
 		cmds.WithSections(
 			selectSection,
-			glazedSection,
 			sqlHelpersSection,
 		),
 	}, options...)

@@ -260,7 +260,7 @@ var dbPrintSettingsCmd = &cobra.Command{
 			return
 		}
 
-		gp, _, err := cli.CreateGlazedProcessorFromCobra(cmd)
+		gp, _, err := cli.CreateStructuredOutputProcessorFromCobra(cmd)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Could not create glaze  procersors: %v\n", err)
 			os.Exit(1)
@@ -375,7 +375,7 @@ var dbLsCmd = &cobra.Command{
 		sources, err := sql2.ParseDbtProfiles(dbtProfilesPath)
 		cobra.CheckErr(err)
 
-		gp, _, err := cli.CreateGlazedProcessorFromCobra(cmd)
+		gp, _, err := cli.CreateStructuredOutputProcessorFromCobra(cmd)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Could not create glaze  procersors: %v\n", err)
 			os.Exit(1)
@@ -404,7 +404,7 @@ var dbLsCmd = &cobra.Command{
 }
 
 func init() {
-	err := cli.AddGlazedProcessorFlagsToCobraCommand(dbLsCmd)
+	err := cli.AddStructuredOutputFlagsToCobraCommand(dbLsCmd)
 	cobra.CheckErr(err)
 	DbCmd.AddCommand(dbLsCmd)
 
@@ -439,7 +439,7 @@ func init() {
 	dbPrintSettingsCmd.Flags().Bool("individual-rows", false, "Output as individual rows")
 	dbPrintSettingsCmd.Flags().String("with-env-prefix", "", "Output as environment variables with a prefix")
 	dbPrintSettingsCmd.Flags().Bool("use-env-names", false, "Output as SQLETON_ environment variables with a prefix")
-	err = cli.AddGlazedProcessorFlagsToCobraCommand(dbPrintSettingsCmd)
+	err = cli.AddStructuredOutputFlagsToCobraCommand(dbPrintSettingsCmd)
 	cobra.CheckErr(err)
 	DbCmd.AddCommand(dbPrintSettingsCmd)
 

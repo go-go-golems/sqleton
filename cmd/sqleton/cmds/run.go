@@ -11,7 +11,6 @@ import (
 	schema "github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
-	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/sqleton/pkg/flags"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
@@ -90,10 +89,7 @@ func NewRunCommand(
 	dbConnectionFactory sql.DBConnectionFactory,
 	options ...cmds.CommandDescriptionOption,
 ) (*RunCommand, error) {
-	glazedSection, err := settings.NewGlazedSection()
-	if err != nil {
-		return nil, errors.Wrap(err, "could not create glazed section")
-	}
+
 	sqlHelpersSection, err := flags.NewSqlHelpersParameterLayer()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create SQL helpers section")
@@ -109,7 +105,6 @@ func NewRunCommand(
 			),
 		),
 		cmds.WithSections(
-			glazedSection,
 			sqlHelpersSection,
 		),
 	}, options...)
